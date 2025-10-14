@@ -166,19 +166,18 @@ app.delete('/BorrarPalabra', async function (req, res) {
 });
 
 
-
+//para administradores, borrar jugador
 app.delete('/BorrarJugador', async function (req, res) {
-    let nombre_usuario = req.body.nombre_usuario;
+    let mail = req.body.mail;
 
-    if (!nombre_usuario) {
-        return res.send({ res: "Falta ingresar un jugador", borrada: false });
+    if (!mail) {
+        return res.send({ res: "Falta ingresar un mail de jugador", borrada: false });
     }
 
     try {
-        let respuesta = await realizarQuery(`SELECT * FROM Jugadores WHERE nombre_usuario="${req.body.nombre_usuario}"`);
-
+        let respuesta = await realizarQuery(`SELECT * FROM Jugadores WHERE mail="${req.body.mail}"`);
         if (respuesta.length > 0) {
-            await realizarQuery(`DELETE FROM Jugadores WHERE nombre_usuario="${req.body.nombre_usuario}"`);
+            await realizarQuery(`DELETE FROM Jugadores WHERE mail="${req.body.mail}"`);
             res.send({ res: "Jugador eliminado", borrada: true });
         } else {
             res.send({ res: "El jugador no existe", borrada: false });
@@ -190,9 +189,31 @@ app.delete('/BorrarJugador', async function (req, res) {
 });
 
 
+//para administradores, borrrar categoria
+
+app.delete('/EliminarCategoria', async function (req, res) {
+    let nombre = req.body.nombre;
+
+    if (!nombre) {
+        return res.send({ res: "Falta ingresar una categoria", borrada: false });
+    }
+
+    try {
+        let respuesta = await realizarQuery(`SELECT * FROM Categorias WHERE nombre="${req.body.nombre}"`);
+        if (respuesta.length > 0) {
+            await realizarQuery(`DELETE FROM Categorias WHERE nombre="${req.body.nombre}"`);
+            res.send({ res: "Categoria eliminada", borrada: true });
+        } else {
+            res.send({ res: "La categoria no existe", borrada: false });
+        }
+    } catch (error) {
+        console.error("Error al borrar la categoria:", error);
+        res.status(500).send({ res: "Error interno", borrada: false });
+    }
+});
 
 
-
+//para administradores, agregar palabra y en que categoria va
 
 
 
@@ -440,22 +461,22 @@ app.delete('/BorrarMensaje', async function (req, res) {
     }
 });
 
-app.post('/RegistroUsuarios', async function(req, res) {
-  console.log("/RegistroUsuarios req.body:", req.body);
+app.post('/RegistroJugadores', async function(req, res) {
+  console.log("/RegistroJugadores req.body:", req.body);
   try {
-    const { foto_perfil, num_telefono, contraseña, nombre, mail } = req.body;
+    const { contraseña, nombre, mail } = req.body;
 
-    if (!num_telefono) {
-      return res.json({ res: "Falta numero de telefono", registro: false });
+    if (!mail) {
+      return res.json({ res: "Falta mail", registro: false });
     }
 
-    let respuesta = await realizarQuery(`SELECT * FROM Usuarios WHERE num_telefono="${num_telefono}"`);
+    let respuesta = await realizarQuery(`SELECT * FROM Jugadores WHERE mail="${mail}"`);
 
     if (respuesta.length !== 0) {
-      return res.json({ res: "Ese numero de telefono ya existe", registro: false });
+      return res.json({ res: "Ese mail ya existe", registro: false });
     }
 
-    let usuarios = await realizarQuery(`SELECT id_usuario FROM Usuarios `);
+    /*let usuarios = await realizarQuery(`SELECT id_usuario FROM Usuarios `);
     let id = -1
     for (let i = 0; i < usuarios.length; i++) {
         if(id < usuarios[i].id_usuario){
@@ -463,13 +484,13 @@ app.post('/RegistroUsuarios', async function(req, res) {
         }
         
     }
-    id++;
+    id++;*/
     await realizarQuery(`
-      INSERT INTO Usuarios (id_usuario, foto_perfil, num_telefono, contraseña, nombre, mail)
-      VALUES (${id},"${foto_perfil}","${num_telefono}", "${contraseña}", "${nombre}", "${mail}")
+      INSERT INTO Jugadores (  contraseña, nombre, mail)
+      VALUES ("${contraseña}", "${nombre}", "${mail}")
     `);
 
-    res.json({ res: "Usuario agregado", registro: true, idLogged: id });
+    res.json({ res: "Usuario agregado", registro: true, idLogged: idusuario });
   } catch (e) {
     console.error("Error en /RegistroUsuarios:", e);
     res.status(500).json({ res: "Error interno", registro: false });
@@ -477,22 +498,93 @@ app.post('/RegistroUsuarios', async function(req, res) {
 });
 
 
-//login numeros
-app.post('/LoginUsuarios', async function(req,res) {
+//agregar palabra, para administradores
+app.post('/AgregarPalabra', async function(req, res) {
+  console.log("/AgregarPalabra req.body:", req.body);
+  try {
+    const { palabra, categoria } = req.body;
+
+    
+    if (!palabra) {
+      return res.json({ res: "Falta palabra", publicada: false });
+    }
+    if (!categoria) {
+      return res.json({ res: "Falta categoría", publicada: false });
+    }
+
+    
+    let categoriaExiste = await realizarQuery(`SELECT idcategoria FROM Categorias WHERE nombre="${categoria}"`);
+    
+    if (categoriaExiste.length === 0) {
+      return res.json({ res: "Esa categoría no existe", publicada: false });
+    }
+
+    const idcategoria = categoriaExiste[0].idcategoria;
+
+    let palabraExiste = await realizarQuery(`SELECT idpalabra FROM Palabras WHERE palabra="${palabra}"`);
+    
+    let idpalabra;
+
+    if (palabraExiste.length === 0) {
+      
+      await realizarQuery(`INSERT INTO Palabras (palabra) VALUES ("${palabra}")`);
+      
+      
+      let palabraInsertada = await realizarQuery(`SELECT idpalabra FROM Palabras WHERE palabra="${palabra}"`);
+      idpalabra = palabraInsertada[0].idpalabra;
+    } else {
+      
+      idpalabra = palabraExiste[0].idpalabra;
+    }
+
+    
+    let relacionExiste = await realizarQuery(`
+      SELECT * FROM PalabrasCategorias 
+      WHERE idpalabra=${idpalabra} AND idcategoria=${idcategoria}
+    `);
+
+    if (relacionExiste.length !== 0) {
+      return res.json({ res: `"${palabra}" ya está en la categoría "${categoria}"`, publicada: false });
+    }
+
+    
+    await realizarQuery(`
+      INSERT INTO PalabrasCategorias (idpalabra, idcategoria) 
+      VALUES (${idpalabra}, ${idcategoria})
+    `);
+
+    res.json({ 
+      res: `"${palabra}" agregada en la categoría "${categoria}"`, 
+      publicada: true 
+    });
+
+  } catch (e) {
+    console.error("Error en /AgregarPalabra:", e);
+    res.status(500).json({ res: "Error interno", publicada: false });
+  }
+});
+
+
+
+
+
+
+//login jugadores
+app.post('/LoginJugadores', async function(req,res) {
     console.log(req.body) 
     let respuesta;
-    if (req.body.num_telefono != undefined) {
-        respuesta = await realizarQuery(`SELECT * FROM Usuarios WHERE num_telefono="${req.body.num_telefono}"`)
+    if (req.body.mail != undefined) {
+        respuesta = await realizarQuery(`SELECT * FROM Jugadores WHERE mail="${req.body.mail}"`)
         console.log(respuesta)
         if (respuesta.length > 0) {
             if (req.body.contraseña != undefined) {
-                respuesta = await realizarQuery(`SELECT * FROM Usuarios WHERE num_telefono="${req.body.num_telefono}" && contraseña="${req.body.contraseña}"`)
+                respuesta = await realizarQuery(`SELECT * FROM Jugadores WHERE mail="${req.body.mail}" && contraseña="${req.body.contraseña}"`)
                 console.log(respuesta)
                 if  (respuesta.length > 0) {
                     res.json({
-                        res: "Usuario existe",
+                        res: "Jugador existe",
                         loguea: true,
-                        idLogged: respuesta[0].id_usuario,
+                        idLogged: respuesta[0].idusuario,
                         admin: Boolean(respuesta[0].administrador)
 })
                 }
