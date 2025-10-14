@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
+import Button from "../components/Button";
+import Input from "../components/Input";
+import styles from "./page.module.css";
 
 export default function RegistroYLogin() {
   const [modo, setModo] = useState("login");
@@ -10,10 +12,8 @@ export default function RegistroYLogin() {
   const [mail, setMail] = useState("");
   const [contraseña, setContraseña] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [puntos, setPuntos] = useState(0);
   const [modal, setModal] = useState({ open: false, title: "", message: "" });
   const router = useRouter();
-
 
   const showModal = (title, message) => {
     setModal({ open: true, title, message });
@@ -46,9 +46,8 @@ export default function RegistroYLogin() {
 
       if (result.loguea) {
         showModal("Éxito", "¡Has iniciado sesión correctamente!");
-        localStorage.setItem("idLogged",result.idLogged);
-        // Aquí guardarías el ID en memoria o estado global en lugar de localStorage
-        // router.push("/home");
+        localStorage.setItem("idLogged", result.idLogged);
+        router.push("/juego")
         if (result.administrador) {
           router.push("/admin");
         }
@@ -111,110 +110,104 @@ export default function RegistroYLogin() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cyan-300 via-sky-400 to-blue-300">
-      <div className="w-full max-w-md px-8 py-12 bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl">
-        <h1 className="text-6xl font-bold text-center mb-8 tracking-wide" style={{
-          background: 'linear-gradient(to right, #FF6B6B, #FFA500, #FFD700, #4ECDC4, #45B7D1, #A78BFA, #EC4899)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text',
-          textShadow: '2px 2px 4px rgba(0,0,0,0.1)'
-        }}>
-          Ingresar
-        </h1>
+    <div className={styles.container}>
+      <div className={styles.formContainer}>
+        {/* Logo/Imagen Ingresar */}
+        <div className={styles.logoContainer}>
+          <img 
+            src="/ingresar.png" 
+            alt="Ingresar"
+            className={styles.logo}
+          />
+        </div>
 
         {modo === "login" ? (
-          <div className="space-y-4">
-            <input
-              className="w-full px-6 py-3 rounded-full border-2 border-gray-300 focus:border-blue-400 focus:outline-none text-gray-700 placeholder-gray-400 transition-all"
+          <div className={styles.inputsContainer}>
+            <Input
               type="email"
               placeholder="Mail"
               value={mail}
               onChange={(e) => setMail(e.target.value)}
+              className={styles.input}
             />
-            <input
-              className="w-full px-6 py-3 rounded-full border-2 border-gray-300 focus:border-blue-400 focus:outline-none text-gray-700 placeholder-gray-400 transition-all"
+            <Input
               type="password"
               placeholder="Contraseña"
               value={contraseña}
               onChange={(e) => setContraseña(e.target.value)}
+              className={styles.input}
             />
             
-            <div className="flex gap-4 pt-4">
-              <button 
-                className="flex-1 py-3 px-6 rounded-full bg-gradient-to-r from-teal-400 to-cyan-500 text-white font-bold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all uppercase"
+            <div className={styles.buttonsContainer}>
+              <Button 
+                texto="INICIAR SESIÓN"
                 onClick={ingresar}
-              >
-                Iniciar sesión
-              </button>
-              <button 
-                className="flex-1 py-3 px-6 rounded-full bg-gradient-to-r from-pink-400 to-rose-500 text-white font-bold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all uppercase"
+                className={styles.buttonPrimary}
+              />
+              <Button 
+                texto="REGISTRARSE"
                 onClick={() => setModo("registro")}
-              >
-                Registrarse
-              </button>
+                className={styles.buttonSecondary}
+              />
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
-            <input
-              className="w-full px-6 py-3 rounded-full border-2 border-gray-300 focus:border-blue-400 focus:outline-none text-gray-700 placeholder-gray-400 transition-all"
+          <div className={styles.inputsContainer}>
+            <Input
               type="text"
               placeholder="Nombre"
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
+              className={styles.input}
             />
-            <input
-              className="w-full px-6 py-3 rounded-full border-2 border-gray-300 focus:border-blue-400 focus:outline-none text-gray-700 placeholder-gray-400 transition-all"
+            <Input
               type="email"
               placeholder="Mail"
               value={mail}
               onChange={(e) => setMail(e.target.value)}
+              className={styles.input}
             />
-            <input
-              className="w-full px-6 py-3 rounded-full border-2 border-gray-300 focus:border-blue-400 focus:outline-none text-gray-700 placeholder-gray-400 transition-all"
+            <Input
               type="password"
               placeholder="Contraseña"
               value={contraseña}
               onChange={(e) => setContraseña(e.target.value)}
+              className={styles.input}
             />
-            <input
-              className="w-full px-6 py-3 rounded-full border-2 border-gray-300 focus:border-blue-400 focus:outline-none text-gray-700 placeholder-gray-400 transition-all"
+            <Input
               type="password"
               placeholder="Confirmar contraseña"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
+              className={styles.input}
             />
             
-            <div className="flex gap-4 pt-4">
-              <button 
-                className="flex-1 py-3 px-6 rounded-full bg-gradient-to-r from-pink-400 to-rose-500 text-white font-bold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all uppercase"
+            <div className={styles.buttonsContainer}>
+              <Button 
+                texto="REGISTRARSE"
                 onClick={registrar}
-              >
-                Registrarse
-              </button>
-              <button 
-                className="flex-1 py-3 px-6 rounded-full bg-gradient-to-r from-teal-400 to-cyan-500 text-white font-bold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all uppercase"
+                className={styles.buttonPrimary}
+              />
+              <Button 
+                texto="INICIAR SESIÓN"
                 onClick={() => setModo("login")}
-              >
-                Iniciar sesión
-              </button>
+                className={styles.buttonSecondary}
+              />
             </div>
           </div>
         )}
       </div>
 
       {modal.open && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 max-w-md mx-4 shadow-2xl">
-            <h2 className="text-2xl font-bold mb-4 text-gray-800">{modal.title}</h2>
-            <p className="text-gray-600 mb-6">{modal.message}</p>
-            <button
-              className="w-full py-3 rounded-full bg-gradient-to-r from-blue-400 to-cyan-500 text-white font-bold hover:shadow-lg transform hover:scale-105 transition-all"
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent}>
+            <h2 className={styles.modalTitle}>{modal.title}</h2>
+            <p className={styles.modalMessage}>{modal.message}</p>
+            <Button
+              texto="Cerrar"
               onClick={closeModal}
-            >
-              Cerrar
-            </button>
+              className={styles.modalButton}
+            />
           </div>
         </div>
       )}
