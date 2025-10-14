@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+
 
 export default function RegistroYLogin() {
   const [modo, setModo] = useState("login");
@@ -10,6 +12,8 @@ export default function RegistroYLogin() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [puntos, setPuntos] = useState(0);
   const [modal, setModal] = useState({ open: false, title: "", message: "" });
+  const router = useRouter();
+
 
   const showModal = (title, message) => {
     setModal({ open: true, title, message });
@@ -42,8 +46,12 @@ export default function RegistroYLogin() {
 
       if (result.loguea) {
         showModal("Éxito", "¡Has iniciado sesión correctamente!");
+        localStorage.setItem("idLogged",result.idLogged);
         // Aquí guardarías el ID en memoria o estado global en lugar de localStorage
         // router.push("/home");
+        if (result.administrador) {
+          router.push("/admin");
+        }
       } else {
         showModal("Error", result.res || "Credenciales incorrectas");
       }
@@ -68,7 +76,6 @@ export default function RegistroYLogin() {
       nombre: nombre,
       mail: mail,
       contraseña: contraseña,
-      puntos: puntos,
       administrador: false,
     };
 
@@ -86,6 +93,7 @@ export default function RegistroYLogin() {
 
       if (result.registro) {
         showModal("Éxito", "¡Usuario registrado correctamente!");
+        localStorage.setItem("idLogged", result.idLogged);
         setTimeout(() => {
           setModo("login");
           setNombre("");
