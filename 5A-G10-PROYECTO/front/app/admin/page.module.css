@@ -21,7 +21,7 @@
 }
 
 .logo {
-  width: 400px;
+  width: 320px;
   max-width: 100%;
   height: auto;
   margin-bottom: 10px;
@@ -39,7 +39,7 @@
 .input {
   width: 100%;
   max-width: 400px;
-  padding: 15px 20px;
+  padding: 14px 24px;
   border: none;
   border-radius: 25px;
   font-size: 16px;
@@ -88,7 +88,7 @@
 
 .buttonSecondary {
   flex: 1;
-  padding: 15px 20px;
+  padding: 14px 24px;
   border: none;
   border-radius: 25px;
   background: linear-gradient(90deg, #66BB6A 0%, #4CAF50 100%);
