@@ -68,6 +68,8 @@ export default function Amigos() {
 
       if (result.amigos && result.amigos.length > 0) {
         setAmigos(result.amigos);
+      } else {
+        setAmigos([]); // Asegurarse de limpiar el estado si no hay amigos
       }
     } catch (error) {
       console.error("Error al obtener amigos:", error);
@@ -134,41 +136,42 @@ export default function Amigos() {
   }
 
   async function eliminarAmigo(idAmigo) {
-  const idLogged = localStorage.getItem("idLogged");
-  
-  if (!confirm("¿Estás seguro de que quieres eliminar este amigo?")) {
-    return;
-  }
-
-  try {
-    const response = await fetch("http://localhost:4001/EliminarAmigo", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        idjugador: idLogged,
-        idamigo: idAmigo
-      })
-    });
-
-    const result = await response.json();
+    const idLogged = localStorage.getItem("idLogged");
     
-    if (result.eliminado) {
-      alert(result.res);
-      cargarAmigos(); // Recargar la lista
-    } else {
-      alert(result.res);
+    if (!confirm("¿Estás seguro de que quieres eliminar este amigo?")) {
+      return;
     }
-  } catch (error) {
-    console.error("Error al eliminar amigo:", error);
-    alert("Error al eliminar amigo");
-  }
+
+    try {
+      const response = await fetch("http://localhost:4001/EliminarAmigo", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          idjugador: parseInt(idLogged),
+          idamigo: parseInt(idAmigo)
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.eliminado) {
+        alert(result.res);
+        cargarAmigos(); // Recargar la lista
+      } else {
+        alert(result.res || "No se pudo eliminar el amigo");
+      }
+    } catch (error) {
+      console.error("Error al eliminar amigo:", error);
+      alert("Error al eliminar amigo");
+    }
   }
 
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <div className={styles.userInfo}>
-          <span className={styles.userName}>¡Hola, {nombreUsuario}!</span>
+          <span className={styles.userName}>
+            ¡Hola, <span className={styles.nombreDestacado}>{nombreUsuario}</span>!</span>
         </div>
       </div>
 
@@ -194,13 +197,17 @@ export default function Amigos() {
                 <div className={styles.amigoInfo}>
                   <span className={styles.amigoNombre}>{amigo.nombre}</span>
                 </div>
-                <Button texto="JUGAR" 
-                  className={styles.jugarButton} />
-                <Button 
+                <div className={styles.amigoActions}>
+                  <Button 
+                    texto="JUGAR" 
+                    className={styles.jugarButton} 
+                  />
+                  <Button 
                     texto="ELIMINAR"
                     className={styles.eliminarButton}
                     onClick={() => eliminarAmigo(amigo.idusuario)}
                   />
+                </div>
               </div>
             ))
           ) : (
