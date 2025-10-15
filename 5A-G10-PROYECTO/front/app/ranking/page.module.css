@@ -70,17 +70,19 @@
 
 .tableHeaders {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: 2fr 1.2fr 1.2fr 1.2fr 1fr;
+  gap: 8px;
   margin-bottom: 16px;
   padding: 0 16px;
 }
 
 .headerCell {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   color: white;
   text-align: center;
+  white-space: nowrap;
+  line-height: 1.3;
 }
 
 .jugadorCol {
@@ -95,8 +97,8 @@
 
 .tableRow {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: 2fr 1.2fr 1.2fr 1.2fr 1fr;
+  gap: 8px;
   align-items: center;
   background: rgba(255, 255, 255, 0.15);
   border-radius: 20px;
@@ -208,39 +210,3 @@
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .tableHeaders,
-  .tableRow {
-    grid-template-columns: 1.5fr 0.8fr 0.8fr 0.8fr 0.8fr;
-    gap: 8px;
-  }
-
-  .headerCell {
-    font-size: 12px;
-  }
-
-  .jugadorNombre {
-    font-size: 14px;
-  }
-
-  .statBadge {
-    padding: 6px 12px;
-    font-size: 14px;
-    min-width: 40px;
-  }
-
-  .rankingTable {
-    padding: 20px;
-  }
-}
-
-@media (max-width: 640px) {
-  .bottomButtons {
-    flex-direction: column;
-  }
-
-  .rankingTitle {
-    font-size: 22px;
-  }
-}
