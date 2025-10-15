@@ -223,17 +223,17 @@ app.delete('/EliminarCategoria', async function (req, res) {
 
 
 //get usuarios
-app.get('/Usuarios', async function(req, res){
+app.get('/Jugadores', async function(req, res){
    try {
      let respuesta;
-     if (req.query.num_telefono != undefined) {
-         respuesta = await realizarQuery(`SELECT * FROM Usuarios WHERE num_telefono="${req.query.num_telefono}"`)
+     if (req.query.mail != undefined) {
+         respuesta = await realizarQuery(`SELECT * FROM Jugadores WHERE mail="${req.query.mail}" `)
      } else {
-         respuesta = await realizarQuery("SELECT * FROM Usuarios");
+         respuesta = await realizarQuery("SELECT * FROM Jugadores");
      }
      res.status(200).json({
-         message: 'Aca estan los usuarios',
-         usuarios: respuesta
+         message: 'Aca estan los jugadores',
+         jugadores: respuesta
     });
    } catch (e) {
         console.log(e);
@@ -241,6 +241,48 @@ app.get('/Usuarios', async function(req, res){
         
    }
 });
+
+
+//get amistades
+app.get('/Amigos', async function(req, res){
+    console.log(req.query)
+    try {
+        let amigos = []
+        if (req.query.idjugador != undefined) {
+            const amistades = await realizarQuery(`SELECT idamigo FROM Amigos WHERE idjugador = ${req.query.idjugador}`)
+            
+            for (let i = 0; i < amistades.length; i++) {
+                const datosAmigo = await realizarQuery(`SELECT * FROM Jugadores WHERE idusuario = ${amistades[i].idamigo}`)
+                amigos.push(datosAmigo[0])
+            }
+            
+            if(amigos.length > 0){
+                res.status(200).json({
+                    message: 'Aquí están los amigos',
+                    amigos: amigos
+                })
+            } else {
+                res.status(200).json({
+                    message: 'Este jugador no tiene amigos'
+                })
+            }
+        } else {
+            const todasAmistades = await realizarQuery("SELECT * FROM Amigos")
+            res.status(200).json({
+                message: 'Aquí están todas las amistades',
+                amistades: todasAmistades
+            })
+        }
+    } catch (e) {
+        console.log(e)
+        res.json("Hubo un error: " + e)
+    }
+})
+
+
+
+
+
 
 //get mensajes del chat
 
@@ -596,11 +638,11 @@ app.post('/LoginJugadores', async function(req,res) {
             }
         } 
         else{
-            res.json({res:"Esta mal el numero de telefono",loguea:false})
+            res.json({res:"Esta mal el mail",loguea:false})
         }
     
     }else {
-        res.json({res:"Falta numero de telefono",loguea:false})
+        res.json({res:"Falta ingresar el mail",loguea:false})
 
     }    
 
