@@ -113,6 +113,8 @@ app.get('/PalabraAleatoria', async function(req, res){
 });
 
 
+
+
 //funcion para ranking
 app.put('/ActualizarEstadisticas', async function (req, res) {
     const { nombre_usuario, resultado, puntos } = req.body;
@@ -768,4 +770,118 @@ app.post('/CrearChat', async function(req, res) {
 });
 
 
+app.get('/UsuariosDisponibles', async function(req, res) {
+    const { idjugador } = req.query;
+    
+    if (!idjugador) {
+        return res.status(400).json({ error: "Falta el ID del jugador" });
+    }
 
+    try {
+        // Obtener todos los jugadores excepto el usuario actual
+        const todosJugadores = await realizarQuery(`
+            SELECT idusuario, nombre, mail 
+            FROM Jugadores 
+            WHERE idusuario != ${idjugador}
+        `);
+
+        // Obtener los amigos actuales
+        const amigosActuales = await realizarQuery(`
+            SELECT idamigo FROM Amigos WHERE idjugador = ${idjugador}
+        `);
+
+        // Filtrar usuarios que ya son amigos
+        const idsAmigos = amigosActuales.map(a => a.idamigo);
+        const usuariosDisponibles = todosJugadores.filter(
+            jugador => !idsAmigos.includes(jugador.idusuario)
+        );
+
+        res.status(200).json({
+            message: 'Usuarios disponibles',
+            usuarios: usuariosDisponibles
+        });
+    } catch (error) {
+        console.error("Error al obtener usuarios disponibles:", error);
+        res.status(500).json({ error: "Error interno" });
+    }
+});
+
+// POST - Agregar un nuevo amigo
+app.post('/AgregarAmigo', async function(req, res) {
+    const { idjugador, idamigo } = req.body;
+
+    if (!idjugador || !idamigo) {
+        return res.status(400).json({ 
+            res: "Faltan parámetros", 
+            agregado: false 
+        });
+    }
+
+    try {
+        // Verificar que la amistad no exista ya
+        const amistadExistente = await realizarQuery(`
+            SELECT * FROM Amigos 
+            WHERE idjugador = ${idjugador} AND idamigo = ${idamigo}
+        `);
+
+        if (amistadExistente.length > 0) {
+            return res.json({ 
+                res: "Ya son amigos", 
+                agregado: false 
+            });
+        }
+
+        // Agregar amistad (bidireccional)
+        await realizarQuery(`
+            INSERT INTO Amigos (idjugador, idamigo)
+            VALUES (${idjugador}, ${idamigo})
+        `);
+
+        await realizarQuery(`
+            INSERT INTO Amigos (idjugador, idamigo)
+            VALUES (${idamigo}, ${idjugador})
+        `);
+
+        res.json({ 
+            res: "Amigo agregado correctamente", 
+            agregado: true 
+        });
+    } catch (error) {
+        console.error("Error al agregar amigo:", error);
+        res.status(500).json({ 
+            res: "Error interno", 
+            agregado: false 
+        });
+    }
+});
+
+app.delete('/EliminarAmigo', async function (req, res) {
+    const { idjugador, idamigo } = req.body;
+
+    if (!idjugador || !idamigo) {
+        return res.send({ res: "Faltan parámetros (idjugador y idamigo)", eliminado: false });
+    }
+
+    try {
+        // Verificar si existe la relación de amistad
+        let respuesta = await realizarQuery(`
+            SELECT * FROM Amigos 
+            WHERE idjugador = ${idjugador} AND idamigo = ${idamigo}
+        `);
+
+        if (respuesta.length > 0) {
+            // Eliminar la amistad (en ambas direcciones si es necesario)
+            await realizarQuery(`
+                DELETE FROM Amigos 
+                WHERE (idjugador = ${idjugador} AND idamigo = ${idamigo})
+                OR (idjugador = ${idamigo} AND idamigo = ${idjugador})
+            `);
+            res.send({ res: "Amigo eliminado correctamente", eliminado: true });
+        } else {
+            res.send({ res: "La amistad no existe", eliminado: false });
+        }
+    } catch (error) {
+        console.error("Error al eliminar amigo:", error);
+        res.status(500).send({ res: "Error interno", eliminado: false });
+    }
+});
