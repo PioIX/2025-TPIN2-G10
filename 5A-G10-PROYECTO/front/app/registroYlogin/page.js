@@ -47,7 +47,7 @@ export default function RegistroYLogin() {
       if (result.loguea) {
         showModal("Éxito", "¡Has iniciado sesión correctamente!");
         localStorage.setItem("idLogged", result.idLogged);
-        router.push("/juego")
+        router.push("/lobby")
         if (result.administrador) {
           router.push("/admin");
         }
