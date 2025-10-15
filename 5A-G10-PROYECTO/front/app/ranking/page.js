@@ -1,215 +1,148 @@
-// no es  el ranking, son pedidos del otro proyeco que capaz sirven 
-//para administradores, ESTA CAMBIADO LO DE GET SELECTED PALABRA
-async function borrarPalabra() {
-    
-    let data = {
-        palabra: document.getElementById("input-palabra").value
-    }
+"use client";
 
-    try {
-        let result = await fetch(`http://localhost:4000/BorrarPalabra`, {
-            method: "DELETE",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(data)
-        })
-        console.log(result)
-        let respuesta = await result.json();
-        console.log(respuesta)
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Button from "../components/Button";
+import styles from "./page.module.css";
 
-    } catch (e) {
-        console.log("Hubo un error")
-    }
-}
- 
+export default function Ranking() {
+  const [jugadores, setJugadores] = useState([]);
+  const [nombreUsuario, setNombreUsuario] = useState("");
+  const router = useRouter();
 
+  useEffect(() => {
+    cargarRanking();
+    cargarNombreUsuario();
+  }, []);
 
+  async function cargarNombreUsuario() {
+    const idLogged = localStorage.getItem("idLogged");
 
-//para administradores. NO ANDA!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
-async function borrarJugador() {
-    
-    let data = {
-        nombre_usuario:  document.getElementById("input-nombre-jugador").value
-    }
-
-    try {
-        let result = await fetch(`http://localhost:4000/BorrarJugador`, {
-            method: "DELETE",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(data)
-        })
-        console.log(result)
-        let respuesta = await result.json();
-        console.log(respuesta)
-
-    } catch (e) {
-        console.log("Hubo un error")
-    }
-}
-
-
-
-//para administradores
-async function AgregarPalabras() {
-    let data = {
-        palabra: document.getElementById("input-palabra-agregar").value
-
-        
-    }
-
-    let result = await fetch("http://localhost:4000/AgregarPalabras", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data)
-    })
-    console.log(result)
-    let respuesta = await result.json();
-    console.log(respuesta)
-}
-
-
-//funcion del juego en si
-
-let palabra = "";
-let letrasAdivinadas = [];
-let intentos = 6;
-
-async function obtenerPalabra() {
-    try {
-        let res = await fetch('http://localhost:4000/PalabraAleatoria');
-        let data = await res.json();
-        console.log(data)
-        palabra = data.palabra.toLowerCase();
-        letrasAdivinadas = Array(palabra.length).fill('_');
-        mostrarGuiones();
-        document.getElementById('intentos').textContent = `Intentos restantes: ${intentos}`;
-    } catch (e) {
-        console.error("Error al obtener la palabra:", e);
-    }
-}
-
-function mostrarGuiones() {
-    document.getElementById('guiones').textContent = letrasAdivinadas.join(' ');
-}
-
-function actualizarImagenAhorcado() {
-    const img = document.getElementById("imagen-ahorcado");
-    let imagenIndex = 6 - intentos; // Si quedan 5 intentos → imagen 1
-    img.src = `images/ahorcado${imagenIndex}.png`;
-}  
-
-let letrasUsadas = [];
-
-function adivinarLetra() {
-    let letraInput = document.getElementById('letra-input');
-    let letra = letraInput.value.toLowerCase();
-
-    if (!letra || letra.length !== 1 || !letra.match(/[a-zñ]/i)) {
-        alert("Ingresá una sola letra válida");
-        return;
-    }
-    if (letrasUsadas.includes(letra)) {
-      alert("Ya usaste esa letra");
+    if (!idLogged) {
+      router.push("/");
       return;
     }
 
-    letrasUsadas.push(letra);
-    document.getElementById("letras_utilizadas").textContent = letrasUsadas.join(", ");
+    try {
+      const response = await fetch(`http://localhost:4001/Jugadores`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
 
+      const result = await response.json();
 
-    function quitarTildes(cadena) {
-        return cadena.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    }
-
-    let letraSinTilde = quitarTildes(letra);
-    let palabraSinTildes = quitarTildes(palabra.toLowerCase());
-
-    if (palabraSinTildes.includes(letraSinTilde)) {
-        for (let i = 0; i < palabra.length; i++) {
-            if (quitarTildes(palabra[i].toLowerCase()) === letraSinTilde) {
-                letrasAdivinadas[i] = palabra[i]; 
-            }
+      if (result.jugadores && result.jugadores.length > 0) {
+        const jugadorActual = result.jugadores.find(
+          (j) => j.idusuario == idLogged
+        );
+        if (jugadorActual) {
+          setNombreUsuario(jugadorActual.nombre);
         }
-    } else {
-        actualizarImagenAhorcado();
-        intentos--;
-       
+      }
+    } catch (error) {
+      console.error("Error al obtener nombre:", error);
     }
+  }
 
-    mostrarGuiones();
-    document.getElementById('intentos').textContent = `Intentos restantes: ${intentos}`;
-    letraInput.value = "";
+  async function cargarRanking() {
+    try {
+      const response = await fetch("http://localhost:4001/Ranking", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
 
-    verificarJuego();
-}
+      const result = await response.json();
 
+      if (result.jugadores) {
+        setJugadores(result.jugadores);
+      }
+    } catch (error) {
+      console.error("Error al obtener ranking:", error);
+    }
+  }
 
+  return (
+    <div className={styles.container}>
+      {/* Header */}
+      <div className={styles.header}>
+        <div className={styles.userInfo}>
+          <div className={styles.avatarCircle}>
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <circle cx="20" cy="20" r="20" fill="white" opacity="0.3"/>
+              <circle cx="20" cy="15" r="6" fill="white"/>
+              <path d="M8 32C8 26 13 22 20 22C27 22 32 26 32 32" fill="white"/>
+            </svg>
+          </div>
+          <span className={styles.userName}>
+            ¡Hola! <span className={styles.nombreDestacado}>{nombreUsuario}</span>
+          </span>
+        </div>
+      </div>
 
-
-
-async function verificarJuego() {
-    if (!letrasAdivinadas.includes('_')) {
-        await registrarResultado("ganada", palabra.length); 
-        window.location.href = "index4.html";
+      {/* Tabla de Ranking */}
+      <div className={styles.rankingTable}>
+        <h2 className={styles.rankingTitle}>Ranking</h2>
         
-        desactivarJuego();
-    } else if (intentos === 0) {
-        await registrarResultado("perdida", 0); 
-        window.location.href = "index5.html";
-        desactivarJuego();
-    }
-}
+        {/* Headers */}
+        <div className={styles.tableHeaders}>
+          <div className={`${styles.headerCell} ${styles.jugadorCol}`}>Jugador</div>
+          <div className={styles.headerCell}>Partidas jugadas</div>
+          <div className={styles.headerCell}>Partidas ganadas</div>
+          <div className={styles.headerCell}>Partidas perdidas</div>
+          <div className={styles.headerCell}>Puntos</div>
+        </div>
 
-async function registrarResultado(resultado, puntos) {
-    try {
-        let nombre_usuario = localStorage.getItem("nombre_usuario"); 
+        {/* Filas de jugadores */}
+        <div className={styles.tableBody}>
+          {jugadores.length > 0 ? (
+            jugadores.map((jugador) => (
+              <div key={jugador.idusuario} className={styles.tableRow}>
+                <div className={`${styles.cell} ${styles.jugadorCol}`}>
+                  <div className={styles.avatarSmall}>
+                    <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+                      <circle cx="15" cy="15" r="15" fill="white"/>
+                      <circle cx="15" cy="11" r="4" fill="#4a9eb5"/>
+                      <path d="M6 24C6 20 10 17 15 17C20 17 24 20 24 24" fill="#4a9eb5"/>
+                    </svg>
+                  </div>
+                  <span className={styles.jugadorNombre}>{jugador.nombre}</span>
+                </div>
+                <div className={styles.cell}>
+                  <div className={styles.statBadge}>{jugador.partidas_jugadas}</div>
+                </div>
+                <div className={styles.cell}>
+                  <div className={styles.statBadge}>{jugador.partidas_ganadas}</div>
+                </div>
+                <div className={styles.cell}>
+                  <div className={styles.statBadge}>{jugador.partidas_perdidas}</div>
+                </div>
+                <div className={styles.cell}>
+                  <div className={styles.statBadge}>{jugador.puntos}</div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className={styles.noData}>No hay jugadores registrados</p>
+          )}
+        </div>
+      </div>
 
-        const data = {
-            nombre_usuario,
-            resultado,
-            puntos
-        };
-
-        let res = await fetch("http://localhost:4000/ActualizarEstadisticas", {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(data)
-        });
-        let response = await res.json()
-        console.log(response)
-    } catch (error) {
-        console.error("Error al registrar estadísticas:", error);
-    }
-}
-
-async function cargarRanking() {
-    try {
-        const res = await fetch("http://localhost:4000/Ranking");
-        const data = await res.json();
-        const ranking = data.ranking;
-        const cuerpo = document.getElementById("cuerpo-ranking");
-
-        cuerpo.innerHTML = ""; 
-        ranking.forEach((jugador, index) => {
-            const fila = document.createElement("tr");
-            fila.innerHTML = `
-                <td>${index + 1}</td>
-                <td>${jugador.nombre_usuario}</td>
-                <td>${jugador.puntos}</td>
-                <td>${jugador.partidas_jugadas}</td>
-                <td>${jugador.partidas_ganadas}</td>
-                <td>${jugador.partidas_perdidas}</td>
-            `;
-            cuerpo.appendChild(fila);
-        });
-    } catch (error) {
-        console.error("Error al cargar el ranking:", error);
-    }
+      {/* Botones inferiores */}
+      <div className={styles.bottomButtons}>
+        <Button
+          texto="HISTORIAL"
+          className={styles.buttonYellow}
+          onClick={() => router.push("/historial")}
+        />
+        <Button
+          texto="CERRAR SESIÓN"
+          className={styles.buttonRed}
+          onClick={() => {
+            localStorage.removeItem("idLogged");
+            router.push("/");
+          }}
+        />
+      </div>
+    </div>
+  );
 }

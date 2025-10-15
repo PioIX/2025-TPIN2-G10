@@ -285,8 +285,8 @@ export default function Amigos() {
           texto="CERRAR SESIÓN"
           className={styles.buttonRed}
           onClick={() => {
-            localStorage.removeItem("idLogged");
-            router.push("/");
+          localStorage.removeItem("idLogged");
+          router.push("/registroYlogin"); 
           }}
         />
       </div>

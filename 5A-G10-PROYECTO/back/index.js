@@ -885,3 +885,21 @@ app.delete('/EliminarAmigo', async function (req, res) {
         res.status(500).send({ res: "Error interno", eliminado: false });
     }
 });
+
+app.get('/Ranking', async function(req, res){
+   try {
+     const respuesta = await realizarQuery(`
+       SELECT idusuario, nombre, partidas_jugadas, partidas_ganadas, partidas_perdidas, puntos 
+       FROM Jugadores 
+       ORDER BY puntos DESC
+     `);
+     
+     res.status(200).json({
+         message: 'Ranking de jugadores',
+         jugadores: respuesta
+     });
+   } catch (e) {
+        console.log(e);
+        res.status(500).json({ error: "Hubo un error: " + e });
+   }
+});
