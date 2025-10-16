@@ -903,3 +903,20 @@ app.get('/Ranking', async function(req, res){
         res.status(500).json({ error: "Hubo un error: " + e });
    }
 });
+app.get('/Categorias', async function(req, res){
+   try {
+     let respuesta;
+     if (req.query.nombre != undefined) {
+         respuesta = await realizarQuery(`SELECT * FROM Categorias WHERE nombre="${req.query.nombre}"`)
+     } else {
+         respuesta = await realizarQuery("SELECT * FROM Categorias");
+     }
+     res.status(200).json({
+         message: 'Aquí están las categorías',
+         categorias: respuesta
+    });
+   } catch (e) {
+        console.log(e);
+        res.json("Hubo un error, " + e)
+   }
+});
