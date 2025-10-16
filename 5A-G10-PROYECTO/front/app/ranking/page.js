@@ -139,7 +139,7 @@ export default function Ranking() {
           className={styles.buttonRed}
           onClick={() => {
             localStorage.removeItem("idLogged");
-            router.push("/");
+            router.push("/home");
           }}
         />
       </div>
