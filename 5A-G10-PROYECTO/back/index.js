@@ -91,19 +91,19 @@ io.on("connection", (socket) => {
 //pedidos del ahorcado!!!!!!!!!!!!!!!!!!!!!!!!!
 
 //get palabras aleatorias
-app.get('/PalabraAleatoria', async function(req, res){
+app.get('/CategoriaAleatoria', async function(req, res){
    try {
      let respuesta;
-     if (req.query.palabra != undefined) {
-         respuesta =  await realizarQuery(`SELECT palabra FROM Palabras ORDER BY RAND() LIMIT 1`);
+     if (req.query.nombre != undefined) {
+         respuesta =  await realizarQuery(`SELECT nombre FROM Categorias ORDER BY RAND() LIMIT 6`);
      } else {
-         respuesta = await realizarQuery(`SELECT palabra FROM Palabras ORDER BY RAND() LIMIT 1`);
+         respuesta = await realizarQuery(`SELECT nombre FROM Categorias ORDER BY RAND() LIMIT 6`);
      } 
      if (respuesta.length > 0) {
-         res.send({ palabra: respuesta[0].palabra })
+         res.send({ categoria: respuesta[0].nombre })
     }
     else{
-         res.send({ res: "Palabra no encontrada" })
+         res.send({ res: "Categoria no encontrada" })
     }
    } catch (e) {
         console.log(e);
