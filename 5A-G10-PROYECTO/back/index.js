@@ -99,8 +99,9 @@ app.get('/CategoriaAleatoria', async function(req, res){
      } else {
          respuesta = await realizarQuery(`SELECT nombre FROM Categorias ORDER BY RAND() LIMIT 6`);
      } 
+     console.log(respuesta)
      if (respuesta.length > 0) {
-         res.send({ categoria: respuesta[0].nombre })
+         res.send({ categorias: respuesta } )
     }
     else{
          res.send({ res: "Categoria no encontrada" })
@@ -920,3 +921,4 @@ app.get('/Categorias', async function(req, res){
         res.json("Hubo un error, " + e)
    }
 });
+
