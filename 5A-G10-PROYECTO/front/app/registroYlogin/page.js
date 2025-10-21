@@ -47,10 +47,13 @@ export default function RegistroYLogin() {
       if (result.loguea) {
         showModal("Éxito", "¡Has iniciado sesión correctamente!");
         localStorage.setItem("idLogged", result.idLogged);
-        router.push("/lobby")
-        if (result.administrador) {
+        if (result.administrador == true) { //pedir ayuda porq soy admin y no me manda a admin
           router.push("/admin");
         }
+        else {
+          router.push("/lobby")
+        }
+       
       } else {
         showModal("Error", result.res || "Credenciales incorrectas");
       }
