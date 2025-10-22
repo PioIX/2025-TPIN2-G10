@@ -1,239 +1,242 @@
-@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Open+Sans:wght@400;500;600&display=swap');
 
-.container {
+.gameContainer {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
-  background: #7edaff;
-  font-family: 'Fredoka', sans-serif;
-  padding: 40px 24px;
-}
-
-/* Header */
-.header {
-  width: 100%;
-  max-width: 800px;
-  margin-bottom: 30px;
-}
-
-.userInfo {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.userName {
-  font-size: 18px;
-  font-weight: 600;
-  color: white;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.nombreDestacado {
-  color: #000000;
-  font-weight: 700;
-}
-
-.gameInfo {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.puntosBox {
-  background: rgba(255, 255, 255, 0.3);
-  padding: 10px 20px;
-  border-radius: 20px;
-  color: white;
-  font-size: 16px;
-  font-weight: 500;
-  backdrop-filter: blur(10px);
-}
-
-.timerBox {
-  background: rgba(239, 68, 68, 0.8);
-  padding: 10px 20px;
-  border-radius: 20px;
-  color: white;
-  font-size: 16px;
-  font-weight: 500;
-  animation: pulse 1s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-}
-
-/* Welcome Box */
-.welcomeBox {
-  background: rgba(79, 168, 181, 0.8);
-  border-radius: 30px;
-  padding: 60px 40px;
-  text-align: center;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-  max-width: 500px;
-}
-
-.welcomeTitle {
-  font-size: 32px;
-  font-weight: 700;
-  color: white;
-  margin-bottom: 20px;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.welcomeText {
-  font-size: 16px;
-  color: white;
-  margin-bottom: 30px;
-}
-
-.startButton {
-  padding: 16px 40px;
-  border-radius: 30px;
-  background-color: #4ade80;
-  color: white;
-  border: none;
-  font-weight: 700;
-  font-size: 18px;
-  font-family: 'Fredoka', sans-serif;
-  cursor: pointer;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-  transition: all 0.3s ease;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.startButton:hover {
-  background-color: #22c55e;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
-}
-
-/* Game Container */
-.gameContainer {
-  width: 100%;
-  max-width: 800px;
-  background: rgba(79, 168, 181, 0.8);
-  border-radius: 30px;
-  padding: 30px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-}
-
-.letraBox {
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 20px;
   padding: 20px;
-  text-align: center;
+  background:  #7edaff;
+}
+
+.topButtons {
+  display: flex;
+  gap: 15px;
   margin-bottom: 30px;
 }
 
-.letraLabel {
+.buttonNaranja,
+.buttonBlue,
+.buttonRed {
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 600;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
   font-size: 16px;
-  color: white;
-  margin-right: 10px;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-.letraGrande {
-  font-size: 48px;
-  font-weight: 700;
+.buttonNaranja {
+  background: #ef7544;
   color: white;
-  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
-/* TablaTuttiFrutti.module.css */
+.buttonBlue {
+  background: #4ade80;
+  color: white;
+}
+
+.buttonRed {
+  background: #ef4444;
+  color: white;
+  font-size: 18px;
+  padding: 16px 32px;
+}
+
+.buttonNaranja:hover,
+.buttonBlue:hover,
+.buttonRed:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
 
 .tableContainer {
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
   overflow-x: auto;
-  padding: 20px 0;
+  margin-bottom: 30px;
 }
 
 .table {
-  width: 100%;
-  border-collapse: collapse;
-  background-color: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  border-collapse: separate;
+  border-spacing: 0;
   overflow: hidden;
 }
 
 .headerRow {
-  background-color: #87CEEB;
+  background: #4ca7c9;
 }
 
 .headerCell {
-  padding: 16px;
-  border: 2px solid #333;
-  font-weight: bold;
-  font-size: 18px;
-  min-width: 60px;
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 600;
+  color: white;
+  padding: 16px 20px;
   text-align: center;
-}
-
-.headerCell:not(:first-child):not(:last-child) {
-  font-size: 16px;
-  min-width: 150px;
+  font-size: 18px;
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .headerCell:last-child {
-  min-width: 80px;
+  border-right: none;
 }
 
 .letraCell {
-  padding: 16px;
-  border: 2px solid #333;
-  text-align: center;
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 700;
   font-size: 32px;
-  font-weight: bold;
-  color: #FF6B6B;
-  background-color: #F0F8FF;
+  color: #000000;
+  text-align: center;
+  padding: 20px;
+  background: white;
+  border-right: 1px solid #e0e0e0;
 }
 
 .inputCell {
-  padding: 8px;
-  border: 2px solid #333;
-  background-color: #F0F8FF;
+  padding: 12px;
+  border-right: 1px solid #e0e0e0;
+  border-bottom: 1px solid #e0e0e0;
 }
 
 .input {
+  font-family: 'Open Sans', sans-serif;
   width: 100%;
-  padding: 12px;
-  border: 2px solid #ddd;
-  border-radius: 6px;
+  min-width: 150px;
+  padding: 10px 14px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
   font-size: 16px;
-  outline: none;
-  transition: border-color 0.3s;
-  background-color: white;
+  transition: border-color 0.3s, box-shadow 0.3s;
 }
 
 .input:focus {
-  border-color: #4CAF50;
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.input::placeholder {
+  font-family: 'Open Sans', sans-serif;
+  color: #bbb;
 }
 
 .inputDisabled {
   background-color: #f5f5f5;
   cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .puntosCell {
-  padding: 16px;
-  border: 2px solid #333;
+  font-family: 'Open Sans', sans-serif;
+  font-weight: 600;
+  font-size: 20px;
+  color: #000000;
   text-align: center;
-  font-size: 24px;
-  font-weight: bold;
-  color: #4CAF50;
-  background-color: #F0F8FF;
+  padding: 20px;
+  background: white;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.bottomButton {
+  display: flex;
+  justify-content: center;
+  padding: 20px 0;
+}
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+.modalContent {
+  background: white;
+  border-radius: 20px;
+  padding: 40px;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease;
+  text-align: center;
+}
+
+.modalTitle {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 28px;
+  color: #000000;
+  margin: 0 0 20px 0;
+  font-weight: 700;
+}
+
+.modalMessage {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 18px;
+  color: #333;
+  margin: 0 0 30px 0;
+  line-height: 1.6;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .topButtons {
+    flex-direction: column;
+  }
+
+  .table {
+    font-size: 14px;
+  }
+
+  .headerCell {
+    padding: 12px 10px;
+    font-size: 14px;
+  }
+
+  .letraCell {
+    font-size: 24px;
+    padding: 12px;
+  }
+
+  .input {
+    min-width: 100px;
+    font-size: 14px;
+  }
+
+  .buttonRed {
+    font-size: 16px;
+    padding: 12px 24px;
+  }
 }
