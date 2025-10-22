@@ -47,7 +47,7 @@ export default function RegistroYLogin() {
       if (result.loguea) {
         showModal("Éxito", "¡Has iniciado sesión correctamente!");
         localStorage.setItem("idLogged", result.idLogged);
-        if (result.administrador == true) { //pedir ayuda porq soy admin y no me manda a admin
+        if (result.admin === true) { 
           router.push("/admin");
         }
         else {

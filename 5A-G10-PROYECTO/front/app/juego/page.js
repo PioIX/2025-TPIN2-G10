@@ -14,12 +14,20 @@ export default function TuttiFrutti() {
   const [puntos, setPuntos] = useState(0);
   const [nombreUsuario, setNombreUsuario] = useState("");
   const [todasCategorias, setTodasCategorias] = useState([]);
+  const [modal, setModal] = useState({ open: false, title: "", message: "" });
   const router = useRouter();
+
+  const showModal = (title, message) => {
+    setModal({ open: true, title, message });
+  };
+
+  const closeModal = () => {
+    setModal((prev) => ({ ...prev, open: false }));
+  };
 
   useEffect(() => {
     cargarNombreUsuario();
     cargarCategorias();
-    
   }, []);
 
   useEffect(() => {
@@ -27,7 +35,7 @@ export default function TuttiFrutti() {
     if (juegoActivo && tiempoRestante > 0) {
       intervalo = setInterval(() => {
         setTiempoRestante((prev) => prev - 1);
-      }, 1000 );
+      }, 1000);
     } else if (tiempoRestante === 0 && juegoActivo) {
       finalizarRonda();
     }
@@ -69,10 +77,9 @@ export default function TuttiFrutti() {
       });
 
       const result = await response.json();
-      console.log(result)
+      console.log(result);
       if (result.categorias && result.categorias.length > 0) {
         await setTodasCategorias(result.categorias);
-        
       }
     } catch (error) {
       console.error("Error al cargar categorías:", error);
@@ -92,13 +99,14 @@ export default function TuttiFrutti() {
 
     return categoriasAleatorias;
   }
+
   useEffect(() => {
     if (todasCategorias.length > 0) {
       iniciarJuego();
     }
   }, [todasCategorias]);
-  function iniciarJuego() {
 
+  function iniciarJuego() {
     const letrasDisponibles = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const letraAleatoria = letrasDisponibles[Math.floor(Math.random() * letrasDisponibles.length)];
 
@@ -162,45 +170,132 @@ export default function TuttiFrutti() {
     }
   }
 
-  return (
+  async function chequeo() {
+   
+    const camposVacios = [];
+    const palabrasInvalidas = [];
     
-    <div className={styles.tableContainer}>
-      <table className={styles.table}>
-        <thead>
-          <tr className={styles.headerRow}>
-            <th className={styles.headerCell}>L</th>
-            {todasCategorias.map((categoria, index) => (
-              <th key={index} className={styles.headerCell}>
-                {categoria.nombre || categoria}
-              </th>
-            ))}
-            <th className={styles.headerCell}>Puntos</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td className={styles.letraCell}>
-              {letra || '-'}
-            </td>
-            {todasCategorias.map((categoria, index) => {
-              const nombreCategoria = categoria.nombre || categoria;
-              return (
-                <td key={index} className={styles.inputCell}>
-                  <input
-                    type="text"
-                    value={respuestas[nombreCategoria] || ''}
-                    onChange={(e) => onInputChange(nombreCategoria, e.target.value)}
-                    disabled={!juegoActivo}
-                    placeholder={juegoActivo ? ` ${letra}...` : ''}
-                    className={`${styles.input} ${!juegoActivo ? styles.inputDisabled : ''}`}
-                  />
-                </td>
-              );
-            })}
-            <td className={styles.puntosCell}>-</td>
-          </tr>
-        </tbody>
-      </table>
+    
+    categorias.forEach((categoria) => {
+      const nombreCategoria = categoria.nombre || categoria;
+      const respuesta = respuestas[nombreCategoria];
+      
+      
+      if (!respuesta || respuesta.trim() === "") {
+        camposVacios.push(nombreCategoria);
+      } else {
+        
+        const primeraLetra = respuesta.trim()[0].toUpperCase();
+        if (primeraLetra !== letra) {
+          palabrasInvalidas.push(nombreCategoria);
+        }
+      }
+    });
+
+    // Mostrar error si hay campos vacíos
+    if (camposVacios.length > 0) {
+      showModal(
+        "¡Campos incompletos!",
+        `Debes completar todas las categorías antes de decir BASTA`
+      );
+      return;
+    }
+
+    
+    if (palabrasInvalidas.length > 0) {
+      showModal(
+        "¡Error!",
+        `Alguna/s de tus palabras no empiezan con la letra ${letra}`
+      );
+      return;
+    }
+
+    
+    finalizarRonda();
+  }
+
+  return (
+    <div className={styles.gameContainer}>
+      
+      <div className={styles.topButtons}>
+        <Button
+          texto="CERRAR SESIÓN"
+          className={styles.buttonNaranja}
+          onClick={() => {
+            localStorage.removeItem("idLogged");
+            router.push("/registroYlogin");
+          }}
+        />
+        <Button
+          texto="VOLVER"
+          className={styles.buttonBlue}
+          onClick={() => {
+            router.push("/lobby");
+          }}
+        />
+      </div>
+
+      
+      <div className={styles.tableContainer}>
+        <table className={styles.table}>
+          <thead>
+            <tr className={styles.headerRow}>
+              <th className={styles.headerCell}>L</th>
+              {categorias.map((categoria, index) => (
+                <th key={index} className={styles.headerCell}>
+                  {categoria.nombre || categoria}
+                </th>
+              ))}
+              <th className={styles.headerCell}>Puntos</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className={styles.letraCell}>{letra || "-"}</td>
+              {categorias.map((categoria, index) => {
+                const nombreCategoria = categoria.nombre || categoria;
+                return (
+                  <td key={index} className={styles.inputCell}>
+                    <input
+                      type="text"
+                      value={respuestas[nombreCategoria] || ""}
+                      onChange={(e) => handleInputChange(nombreCategoria, e.target.value)}
+                      disabled={!juegoActivo}
+                      placeholder={juegoActivo ? `${letra}...` : ""}
+                      className={`${styles.input} ${!juegoActivo ? styles.inputDisabled : ""}`}
+                    />
+                  </td>
+                );
+              })}
+              <td className={styles.puntosCell}>{puntos}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+
+      <div className={styles.bottomButton}>
+        <Button
+          texto="BASTA PARA MI, BASTA PARA TODOS"
+          onClick={chequeo}
+          className={styles.buttonRed}
+        />
+      </div>
+
+
+      {modal.open && (
+        <div className={styles.modalOverlay} onClick={closeModal}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <h2 className={styles.modalTitle}>{modal.title}</h2>
+            <p className={styles.modalMessage}>{modal.message}</p>
+            <Button
+              texto="CERRAR"
+              onClick={closeModal}
+              className={styles.buttonBlue}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
