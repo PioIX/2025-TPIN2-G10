@@ -5,13 +5,14 @@
   display: flex;
   flex-direction: column;
   padding: 20px;
-  background:  #7edaff;
+  background: #7edaff;
 }
 
 .topButtons {
   display: flex;
   gap: 15px;
   margin-bottom: 30px;
+  align-items: center;
 }
 
 .buttonNaranja,
@@ -45,11 +46,77 @@
   padding: 16px 32px;
 }
 
-.buttonNaranja:hover,
-.buttonBlue:hover,
-.buttonRed:hover {
+.buttonRed:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.buttonNaranja:hover:not(:disabled),
+.buttonBlue:hover:not(:disabled),
+.buttonRed:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Temporizador */
+.timerContainer {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%);
+  padding: 14px 28px;
+  border-radius: 20px;
+  border: 2px solid #4fa8b5;
+  transition: all 0.3s ease;
+}
+
+.timerContainer:hover {
+  transform: translateY(-2px);
+}
+
+.hourglassIcon {
+  font-size: 32px;
+  animation: rotate 2s infinite ease-in-out;
+}
+
+@keyframes rotate {
+  0%, 45% {
+    transform: rotate(0deg);
+  }
+  50%, 95% {
+    transform: rotate(180deg);
+  }
+  100% {
+    transform: rotate(180deg);
+  }
+}
+
+.timerText {
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 700;
+  font-size: 28px;
+  color: #1e3a8a;
+  min-width: 70px;
+  text-align: center;
+  letter-spacing: 1px;
+}
+
+.timerWarning {
+  color: #dc2626 !important;
+  animation: pulseWarning 0.8s infinite;
+}
+
+@keyframes pulseWarning {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
 }
 
 .tableContainer {
@@ -149,6 +216,7 @@
   justify-content: center;
   padding: 20px 0;
 }
+
 .modalOverlay {
   position: fixed;
   top: 0;
@@ -169,7 +237,6 @@
   padding: 40px;
   max-width: 500px;
   width: 90%;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   animation: slideUp 0.3s ease;
   text-align: center;
 }
@@ -210,33 +277,3 @@
   }
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .topButtons {
-    flex-direction: column;
-  }
-
-  .table {
-    font-size: 14px;
-  }
-
-  .headerCell {
-    padding: 12px 10px;
-    font-size: 14px;
-  }
-
-  .letraCell {
-    font-size: 24px;
-    padding: 12px;
-  }
-
-  .input {
-    min-width: 100px;
-    font-size: 14px;
-  }
-
-  .buttonRed {
-    font-size: 16px;
-    padding: 12px 24px;
-  }
-}

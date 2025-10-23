@@ -30,16 +30,24 @@ export default function TuttiFrutti() {
     cargarCategorias();
   }, []);
 
+  // TEMPORIZADOR - Este useEffect controla el tiempo
   useEffect(() => {
     let intervalo;
     if (juegoActivo && tiempoRestante > 0) {
       intervalo = setInterval(() => {
-        setTiempoRestante((prev) => prev - 1);
+        setTiempoRestante((prev) => {
+          const nuevoTiempo = prev - 1;
+          console.log("Tiempo restante:", nuevoTiempo); // Para debug
+          return nuevoTiempo;
+        });
       }, 1000);
     } else if (tiempoRestante === 0 && juegoActivo) {
-      finalizarRonda();
+      console.log("¡TIEMPO TERMINADO!"); // Para debug
+      finalizarRondaPorTiempo();
     }
-    return () => clearInterval(intervalo);
+    return () => {
+      if (intervalo) clearInterval(intervalo);
+    };
   }, [juegoActivo, tiempoRestante]);
 
   async function cargarNombreUsuario() {
@@ -117,6 +125,7 @@ export default function TuttiFrutti() {
     setRespuestas({});
     setTiempoRestante(120);
     setJuegoActivo(true);
+    console.log("Juego iniciado - Tiempo: 120 segundos");
   }
 
   function handleInputChange(categoria, valor) {
@@ -129,6 +138,33 @@ export default function TuttiFrutti() {
   function finalizarRonda() {
     setJuegoActivo(false);
     calcularPuntos();
+  }
+
+  function finalizarRondaPorTiempo() {
+    setJuegoActivo(false);
+    const puntosCalculados = calcularPuntosSinModal();
+    showModal(
+      "¡TIEMPO TERMINADO!",
+      `Se acabó el tiempo. Obtuviste ${puntosCalculados} puntos con las palabras que completaste.`
+    );
+  }
+
+  function calcularPuntosSinModal() {
+    let puntosRonda = 0;
+
+    Object.entries(respuestas).forEach(([_, respuesta]) => {
+      if (respuesta && respuesta.trim() !== "") {
+        const primeraLetra = respuesta.trim()[0].toUpperCase();
+        if (primeraLetra === letra) {
+          puntosRonda += 10;
+        } else {
+          puntosRonda += 5;
+        }
+      }
+    });
+
+    setPuntos((prev) => prev + puntosRonda);
+    return puntosRonda;
   }
 
   function calcularPuntos() {
@@ -146,7 +182,7 @@ export default function TuttiFrutti() {
     });
 
     setPuntos((prev) => prev + puntosRonda);
-    alert(`¡Ronda finalizada! Ganaste ${puntosRonda} puntos`);
+    showModal("¡Ronda finalizada!", `Ganaste ${puntosRonda} puntos`);
   }
 
   async function guardarEstadisticas() {
@@ -171,20 +207,16 @@ export default function TuttiFrutti() {
   }
 
   async function chequeo() {
-   
     const camposVacios = [];
     const palabrasInvalidas = [];
-    
     
     categorias.forEach((categoria) => {
       const nombreCategoria = categoria.nombre || categoria;
       const respuesta = respuestas[nombreCategoria];
       
-      
       if (!respuesta || respuesta.trim() === "") {
         camposVacios.push(nombreCategoria);
       } else {
-        
         const primeraLetra = respuesta.trim()[0].toUpperCase();
         if (primeraLetra !== letra) {
           palabrasInvalidas.push(nombreCategoria);
@@ -192,7 +224,6 @@ export default function TuttiFrutti() {
       }
     });
 
-    // Mostrar error si hay campos vacíos
     if (camposVacios.length > 0) {
       showModal(
         "¡Campos incompletos!",
@@ -201,7 +232,6 @@ export default function TuttiFrutti() {
       return;
     }
 
-    
     if (palabrasInvalidas.length > 0) {
       showModal(
         "¡Error!",
@@ -210,13 +240,17 @@ export default function TuttiFrutti() {
       return;
     }
 
-    
     finalizarRonda();
   }
 
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div className={styles.gameContainer}>
-      
       <div className={styles.topButtons}>
         <Button
           texto="CERRAR SESIÓN"
@@ -233,9 +267,16 @@ export default function TuttiFrutti() {
             router.push("/lobby");
           }}
         />
+        
+        {/* TEMPORIZADOR */}
+        <div className={styles.timerContainer}>
+          <span className={styles.hourglassIcon}>⏳</span>
+          <span className={`${styles.timerText} ${tiempoRestante <= 30 ? styles.timerWarning : ''}`}>
+            {formatTime(tiempoRestante)}
+          </span>
+        </div>
       </div>
 
-      
       <div className={styles.tableContainer}>
         <table className={styles.table}>
           <thead>
@@ -273,7 +314,6 @@ export default function TuttiFrutti() {
         </table>
       </div>
 
-
       <div className={styles.bottomButton}>
         <Button
           texto="BASTA PARA MI, BASTA PARA TODOS"
@@ -281,7 +321,6 @@ export default function TuttiFrutti() {
           className={styles.buttonRed}
         />
       </div>
-
 
       {modal.open && (
         <div className={styles.modalOverlay} onClick={closeModal}>
