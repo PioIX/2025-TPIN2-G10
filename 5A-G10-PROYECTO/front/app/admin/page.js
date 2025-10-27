@@ -192,8 +192,8 @@ export default function AdminPage() {
         </Button>
 
         <div className={styles.buttonGroup}>
-          <Button onClick={() => router.push("/juego")} className={styles.buttonSecondary}>
-            JUGAR
+          <Button onClick={() => router.push("/lobby")} className={styles.buttonSecondary}>
+            LOBBY
           </Button>
           <Button onClick={() => router.push("/ranking")} className={styles.buttonSecondary}>
             VER RANKING

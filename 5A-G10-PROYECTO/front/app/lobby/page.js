@@ -4,18 +4,76 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Button from "../components/Button";
 import styles from "./page.module.css";
+import { useSocket } from  "@/hook/useSocket";
+
 
 export default function Amigos() {
   const [amigos, setAmigos] = useState([]);
   const [nombreUsuario, setNombreUsuario] = useState("");
   const [mostrarModal, setMostrarModal] = useState(false);
   const [usuariosDisponibles, setUsuariosDisponibles] = useState([]);
+  const [solicitudPendiente, setSolicitudPendiente] = useState(null);
+  const [idLogged, setIdLogged] = useState(null);
+  const [registrado, setRegistrado] = useState(false);
   const router = useRouter();
+  const { socket, isConnected } = useSocket();
 
   useEffect(() => {
+    const id = localStorage.getItem("idLogged");
+    if (id) {
+      setIdLogged(id);
+    }
     cargarAmigos();
     cargarNombreUsuario();
   }, []);
+
+  useEffect(() => {
+    if (!socket || !idLogged || !isConnected) return;
+
+    console.log('se esta registrando', idLogged);
+    socket.emit('registerUser', idLogged);
+
+    
+    socket.on('registrationConfirmed', (data) => {
+      console.log('se registro', data);
+      setRegistrado(true);
+    });
+
+    socket.on('gameRequest', (data) => {
+      console.log("recibio la solicitud de juego", data);
+      setSolicitudPendiente(data);
+    });
+
+  
+    socket.on('requestSent', (data) => {
+      console.log('se envio la solicitud', data.message);
+      alert(data.message);
+    });
+
+    socket.on('gameStarted', (data) => {
+      console.log("empezo el juego", data);
+      alert('¡El juego está comenzando!');
+      router.push(`/tuttifrutti?room=${data.room}`);
+    });
+
+    socket.on('gameRejected', (data) => {
+      alert(data.message);
+    });
+
+    socket.on('userOffline', (data) => {
+      alert(data.message);
+    });
+
+    return () => {
+      socket.off('registrationConfirmed');
+      socket.off('gameRequest');
+      socket.off('requestSent');
+      socket.off('gameStarted');
+      socket.off('gameRejected');
+      socket.off('userOffline');
+    };
+  }, [socket, idLogged, isConnected]);
+
 
   async function cargarNombreUsuario() {
     const idLogged = localStorage.getItem("idLogged");
@@ -69,12 +127,49 @@ export default function Amigos() {
       if (result.amigos && result.amigos.length > 0) {
         setAmigos(result.amigos);
       } else {
-        setAmigos([]); // Asegurarse de limpiar el estado si no hay amigos
+        setAmigos([]); 
       }
     } catch (error) {
       console.error("Error al obtener amigos:", error);
     }
   }
+
+
+
+  async function envioSolicitudJuego (amigo) {
+    socket.emit('sendGameRequest', {
+      idSolicitante: parseInt(idLogged),
+      nombreSolicitante: nombreUsuario,
+      idReceptor: parseInt(amigo.idusuario),
+      nombreReceptor: amigo.nombre
+    });
+  }
+
+
+  function aceptarSolicitud() {
+    if (!solicitudPendiente) return;
+
+    socket.emit('acceptGameRequest', {
+      idSolicitante: parseInt(solicitudPendiente.idSolicitante),
+      idReceptor: parseInt(idLogged)
+    });
+
+    setSolicitudPendiente(null);
+  }
+
+  
+  function rechazarSolicitud() {
+    if (!solicitudPendiente) return;
+
+    socket.emit('rejectGameRequest', {
+      idSolicitante: parseInt(solicitudPendiente.idSolicitante),
+      nombreReceptor: nombreUsuario
+    });
+
+    setSolicitudPendiente(null);
+  }
+
+  
 
   async function cargarUsuariosDisponibles() {
     const idLogged = localStorage.getItem("idLogged");
@@ -156,7 +251,7 @@ export default function Amigos() {
       
       if (result.eliminado) {
         alert(result.res);
-        cargarAmigos(); // Recargar la lista
+        cargarAmigos(); 
       } else {
         alert(result.res || "No se pudo eliminar el amigo");
       }
@@ -173,9 +268,11 @@ export default function Amigos() {
           <span className={styles.userName}>
             ¡Hola, <span className={styles.nombreDestacado}>{nombreUsuario}</span>!</span>
         </div>
+         <span className={styles.connectionStatus}>
+            {isConnected && registrado ? "En linea" : "Desconectado"}
+          </span>
       </div>
 
-      {/* Tabla de amigos */}
       <div className={styles.amigosTable}>
         <div className={styles.tableHeader}>
           <h2>Amigos</h2>
@@ -201,6 +298,7 @@ export default function Amigos() {
                   <Button 
                     texto="JUGAR" 
                     className={styles.jugarButton} 
+                    onClick={() => envioSolicitudJuego(amigo)}  //hay que hacer un showmodal que le aparezca al otro para aceptar o rechazar, y q a mi me aparezca un showmodal que diga solicitud pendiente
                   />
                   <Button 
                     texto="ELIMINAR"
@@ -216,7 +314,6 @@ export default function Amigos() {
         </div>
       </div>
 
-      {/* Modal para agregar amigos */}
       {mostrarModal && (
         <>
           {console.log("Renderizando modal, mostrarModal:", mostrarModal)}
@@ -269,7 +366,7 @@ export default function Amigos() {
         </>
       )}
 
-      {/* Botones inferiores */}
+      
       <div className={styles.bottomButtons}>
         <Button
           texto="RANKING"

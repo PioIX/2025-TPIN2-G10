@@ -15,7 +15,8 @@
         "express": "^4.19.2",
         "express-session": "^1.18.2",
         "mysql2": "^3.9.7",
-        "socket.io": "^4.8.1"
+        "socket.io": "^4.8.1",
+        "socket.io-client": "^4.8.1"
     },
     "devDependencies": {
         "nodemon": "^3.1.10"
