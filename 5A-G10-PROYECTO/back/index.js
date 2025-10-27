@@ -2,6 +2,7 @@
 //ES EL INDEX DEL PROYECTO ANTERIOR PERO LO VOY A USAR DE BASE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 const session = require('express-session');	
 var express = require('express'); //Tipo de servidor: Express
+const usuariosConectados = new Map();
 var bodyParser = require('body-parser'); //Convierte los JSON
 var cors = require('cors');
 const { realizarQuery } = require('./modulos/mysql');
@@ -60,7 +61,103 @@ io.use((socket, next) => {
 
 io.on("connection", (socket) => {
 	const req = socket.request;
+    console.log('Nueva conexión de socket:', socket.id);
 
+    // evento de registro de usuario 
+    socket.on('registerUser', (userId) => {
+        socket.userId = userId;
+        usuariosConectados.set(userId.toString(), socket.id);
+        console.log(`usuario ${userId} registrado con socket ${socket.id}`);
+        console.log('usuarios conectados:', Array.from(usuariosConectados.keys()));
+        socket.emit('registrationConfirmed', { userId, socketId: socket.id });
+    });
+
+    // evento de enviar la solicitud de juego
+    socket.on('sendGameRequest', (data) => {
+        const { idSolicitante, nombreSolicitante, idReceptor, nombreReceptor } = data;
+        
+        console.log(`solicitud de ${nombreSolicitante} (${idSolicitante}) para ${nombreReceptor} (${idReceptor})`);
+        console.log('usuarios conectados actualmente:', Array.from(usuariosConectados.keys()));
+        
+        const receptorSocketId = usuariosConectados.get(idReceptor.toString());
+        
+        if (receptorSocketId) {
+            const receptorSocket = io.sockets.sockets.get(receptorSocketId);
+            
+            if (receptorSocket) {
+                receptorSocket.emit('gameRequest', {
+                    idSolicitante,
+                    nombreSolicitante,
+                    idReceptor,
+                    nombreReceptor
+                });
+                console.log(`solicitud enviada a ${nombreReceptor}`);
+                
+                socket.emit('requestSent', { 
+                    message: `solicitud enviada a ${nombreReceptor}` 
+                });
+            } else {
+                console.log(`socket no encontrado para ${nombreReceptor}`);
+                socket.emit('userOffline', { 
+                    message: `${nombreReceptor} no está conectado` 
+                });
+            }
+        } else {
+            console.log(`usuario ${nombreReceptor} (${idReceptor}) no está en la lista de conectados`);
+            socket.emit('userOffline', { 
+                message: `${nombreReceptor} no está conectado` 
+            });
+        }
+    });
+
+    // evento de aceptar la solicitud de juego
+    socket.on('acceptGameRequest', (data) => {
+        const { idSolicitante, idReceptor } = data;
+        
+        console.log(`${idReceptor} aceptó la solicitud de ${idSolicitante}`);
+        
+        
+        const room = `game-${Math.min(idSolicitante, idReceptor)}-${Math.max(idSolicitante, idReceptor)}-${Date.now()}`;
+        
+        const solicitanteSocketId = usuariosConectados.get(idSolicitante.toString());
+        const receptorSocketId = usuariosConectados.get(idReceptor.toString());
+        
+        if (solicitanteSocketId && receptorSocketId) {
+            const solicitanteSocket = io.sockets.sockets.get(solicitanteSocketId);
+            const receptorSocket = io.sockets.sockets.get(receptorSocketId);
+            
+            if (solicitanteSocket && receptorSocket) {
+                solicitanteSocket.join(room);
+                receptorSocket.join(room);
+                
+                console.log(`se inicio el juego en la sala: ${room}`);
+                
+                io.to(room).emit('gameStarted', {
+                    room,
+                    jugadores: [idSolicitante, idReceptor]
+                });
+            }
+        }
+    });
+
+    // evento de rechazar la solicitud de juego
+    socket.on('rejectGameRequest', (data) => {
+        const { idSolicitante, nombreReceptor } = data;
+        
+        const solicitanteSocketId = usuariosConectados.get(idSolicitante.toString());
+        
+        if (solicitanteSocketId) {
+            const solicitanteSocket = io.sockets.sockets.get(solicitanteSocketId);
+            
+            if (solicitanteSocket) {
+                solicitanteSocket.emit('gameRejected', {
+                    message: `${nombreReceptor} rechazó tu solicitud`
+                });
+            }
+        }
+    });
+
+        
 	socket.on('joinRoom', data => {
 		console.log("🚀 ~ io.on ~ req.session.room:", req.session.room)
 		if (req.session.room != undefined && req.session.room.length > 0)
@@ -118,7 +215,7 @@ app.get('/CategoriaAleatoria', async function(req, res){
 
 //funcion para ranking
 app.put('/ActualizarEstadisticas', async function (req, res) {
-    const { nombre_usuario, resultado, puntos } = req.body;
+    const { mail, resultado, puntos } = req.body;
     console.log("Me llego: ")
     console.log(req.body)
     if (!nombre_usuario || !resultado) {
@@ -127,15 +224,15 @@ app.put('/ActualizarEstadisticas', async function (req, res) {
     try {
         let query = ""
         if (resultado == "ganada") {
-            let datos = await realizarQuery(`SELECT partidas_ganadas, partidas_jugadas, puntos FROM Jugadores WHERE nombre_usuario = "${nombre_usuario}"`)
+            let datos = await realizarQuery(`SELECT partidasganadas, partidasjugadas, puntos FROM Jugadores WHERE mail = "${mail}"`)
             let {partidas_ganadas , partidas_jugadas } = datos[0]
-            console.log({partidas_ganadas , partidas_jugadas})
-            query = `UPDATE Jugadores SET partidas_jugadas = ${partidas_jugadas + 1}, partidas_ganadas = ${partidas_ganadas + 1}, puntos = ${puntos + datos[0].puntos} WHERE nombre_usuario = "${nombre_usuario}"`;
+            console.log({partidasganadas , partidasjugadas})
+            query = `UPDATE Jugadores SET partidasjugadas = ${partidasjugadas + 1}, partidasganadas = ${partidasganadas + 1}, puntos = ${puntos + datos[0].puntosRonda} WHERE mail= "${mail}"`;
         } else {
-            let datos = await realizarQuery(`SELECT partidas_perdidas, partidas_jugadas, puntos FROM Jugadores WHERE nombre_usuario = "${nombre_usuario}"`)
-            let {partidas_jugadas , partidas_perdidas } = datos[0]
-            console.log({partidas_jugadas , partidas_perdidas})
-            query = `UPDATE Jugadores SET partidas_jugadas = ${partidas_jugadas + 1}, partidas_perdidas = ${partidas_perdidas + 1}, puntos = ${puntos + datos[0].puntos} WHERE nombre_usuario = "${nombre_usuario}"`;
+            let datos = await realizarQuery(`SELECT partidasperdidas, partidasjugadas, puntos FROM Jugadores WHERE mail= "${mail}"`)
+            let {partidasjugadas , partidasperdidas } = datos[0]
+            console.log({partidasjugadas , partidasperdidas})
+            query = `UPDATE Jugadores SET partidasjugadas = ${partidasjugadas + 1}, partidasperdidas = ${partidasperdidas + 1}, puntos = ${puntos + datos[0].puntos} WHERE mail = "${mail}"`;
         }
         
         await realizarQuery(query);
@@ -146,6 +243,7 @@ app.put('/ActualizarEstadisticas', async function (req, res) {
     }
 });
 
+//creo q hay q cambiar porq no es palabra si no nombre en sql a chequear!!!!!!!!!!!!!!!!!
 app.delete('/BorrarPalabra', async function (req, res) {
     let palabra = req.body.palabra;
 

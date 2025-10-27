@@ -30,19 +30,19 @@ export default function TuttiFrutti() {
     cargarCategorias();
   }, []);
 
-  // TEMPORIZADOR - Este useEffect controla el tiempo
+  //temporizador
   useEffect(() => {
     let intervalo;
     if (juegoActivo && tiempoRestante > 0) {
       intervalo = setInterval(() => {
         setTiempoRestante((prev) => {
           const nuevoTiempo = prev - 1;
-          console.log("Tiempo restante:", nuevoTiempo); // Para debug
+          console.log("Tiempo restante:", nuevoTiempo); 
           return nuevoTiempo;
         });
       }, 1000);
     } else if (tiempoRestante === 0 && juegoActivo) {
-      console.log("¡TIEMPO TERMINADO!"); // Para debug
+      console.log("¡TIEMPO TERMINADO!"); 
       finalizarRondaPorTiempo();
     }
     return () => {
@@ -149,16 +149,27 @@ export default function TuttiFrutti() {
     );
   }
 
-  function calcularPuntosSinModal() {
+  function calcularPuntosMomentaneos() {
     let puntosRonda = 0;
 
     Object.entries(respuestas).forEach(([_, respuesta]) => {
       if (respuesta && respuesta.trim() !== "") {
         const primeraLetra = respuesta.trim()[0].toUpperCase();
-        if (primeraLetra === letra) {
-          puntosRonda += 10;
+        if (idLogged == idSolicitante) {
+          if (primeraLetra === letra && respuesta.toLowerCase() == respuestaOponente.toLowerCase()) {
+            puntosRonda += 5;
+            if (primeraLetra === letra && respuesta.toLowerCase() != respuestaOponente.toLowerCase()) {
+              puntosRonda += 10;
+              if (primeraLetra === letra && respuestaOponente == null || respuestaOponente.trim() === "") {
+                puntosRonda += 20;
+              } else {
+                puntosRonda += 0;
+              }
+            } 
+          }
+        
         } else {
-          puntosRonda += 5;
+          puntosRonda += 0;
         }
       }
     });
@@ -167,7 +178,12 @@ export default function TuttiFrutti() {
     return puntosRonda;
   }
 
-  function calcularPuntos() {
+  //esa funcion creo q esta al pedo el tema es q hay que postear los puntos una vez que termina la ronda, osea que se aprete el boton o se terminen las letras
+  //podriamos poner todas esas condiciones para q termine y cuente los puntos finales
+  
+
+
+  /*function calcularPuntosTotales() {
     let puntosRonda = 0;
 
     Object.entries(respuestas).forEach(([_, respuesta]) => {
@@ -183,7 +199,7 @@ export default function TuttiFrutti() {
 
     setPuntos((prev) => prev + puntosRonda);
     showModal("¡Ronda finalizada!", `Ganaste ${puntosRonda} puntos`);
-  }
+  }*/
 
   async function guardarEstadisticas() {
     const idLogged = localStorage.getItem("idLogged");
@@ -268,7 +284,7 @@ export default function TuttiFrutti() {
           }}
         />
         
-        {/* TEMPORIZADOR */}
+        
         <div className={styles.timerContainer}>
           <span className={styles.hourglassIcon}>⏳</span>
           <span className={`${styles.timerText} ${tiempoRestante <= 30 ? styles.timerWarning : ''}`}>
