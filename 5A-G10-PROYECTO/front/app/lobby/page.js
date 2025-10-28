@@ -6,9 +6,6 @@ import Button from "../components/Button";
 import styles from "./page.module.css";
 import { useSocket } from "../../hook/useSocket";
 
-
-
-
 export default function Amigos() {
   const [amigos, setAmigos] = useState([]);
   const [nombreUsuario, setNombreUsuario] = useState("");
@@ -17,6 +14,7 @@ export default function Amigos() {
   const [solicitudPendiente, setSolicitudPendiente] = useState(null);
   const [idLogged, setIdLogged] = useState(null);
   const [registrado, setRegistrado] = useState(false);
+  const [modalMensaje, setModalMensaje] = useState(null); // {tipo: 'success'|'error'|'info', mensaje: 'texto'}
   const router = useRouter();
   const { socket, isConnected } = useSocket();
 
@@ -32,38 +30,35 @@ export default function Amigos() {
   useEffect(() => {
     if (!socket || !idLogged || !isConnected) return;
 
-    console.log('se esta registrando', idLogged);
+    console.log('Se esta registrando', idLogged);
     socket.emit('registerUser', idLogged);
 
-    
     socket.on('registrationConfirmed', (data) => {
-      console.log('se registro', data);
+      console.log('Se registro', data);
       setRegistrado(true);
     });
 
     socket.on('gameRequest', (data) => {
-      console.log("recibio la solicitud de juego", data);
+      console.log("Recibio la solicitud de juego", data);
       setSolicitudPendiente(data);
     });
 
-  
     socket.on('requestSent', (data) => {
-      console.log('se envio la solicitud', data.message);
-      alert(data.message);
+      console.log('Se envio la solicitud', data.message);
+      setModalMensaje({ tipo: 'info', mensaje: data.message });
     });
 
     socket.on('gameStarted', (data) => {
-      console.log("empezo el juego", data);
-      alert('¡El juego está comenzando!');
-      router.push(`/tuttifrutti?room=${data.room}`);
+      console.log("Empezo el juego", data);
+      setModalMensaje({ tipo: 'success', mensaje: '¡El juego está comenzando!', redirect: `/juego?room=${data.room}` });
     });
 
     socket.on('gameRejected', (data) => {
-      alert(data.message);
+      setModalMensaje({ tipo: 'error', mensaje: data.message });
     });
 
     socket.on('userOffline', (data) => {
-      alert(data.message);
+      setModalMensaje({ tipo: 'error', mensaje: data.message });
     });
 
     return () => {
@@ -75,7 +70,6 @@ export default function Amigos() {
       socket.off('userOffline');
     };
   }, [socket, idLogged, isConnected]);
-
 
   async function cargarNombreUsuario() {
     const idLogged = localStorage.getItem("idLogged");
@@ -136,9 +130,7 @@ export default function Amigos() {
     }
   }
 
-
-
-  async function envioSolicitudJuego (amigo) {
+  async function envioSolicitudJuego(amigo) {
     socket.emit('sendGameRequest', {
       idSolicitante: parseInt(idLogged),
       nombreSolicitante: nombreUsuario,
@@ -146,7 +138,6 @@ export default function Amigos() {
       nombreReceptor: amigo.nombre
     });
   }
-
 
   function aceptarSolicitud() {
     if (!solicitudPendiente) return;
@@ -159,7 +150,6 @@ export default function Amigos() {
     setSolicitudPendiente(null);
   }
 
-  
   function rechazarSolicitud() {
     if (!solicitudPendiente) return;
 
@@ -170,8 +160,6 @@ export default function Amigos() {
 
     setSolicitudPendiente(null);
   }
-
-  
 
   async function cargarUsuariosDisponibles() {
     const idLogged = localStorage.getItem("idLogged");
@@ -214,15 +202,15 @@ export default function Amigos() {
       const result = await response.json();
 
       if (result.agregado) {
-        alert("¡Amigo agregado correctamente!");
+        setModalMensaje({ tipo: 'success', mensaje: '¡Amigo agregado correctamente!' });
         setMostrarModal(false);
-        cargarAmigos(); // Recargar lista de amigos
+        cargarAmigos();
       } else {
-        alert(result.res);
+        setModalMensaje({ tipo: 'error', mensaje: result.res });
       }
     } catch (error) {
       console.error("Error al agregar amigo:", error);
-      alert("Error al agregar amigo");
+      setModalMensaje({ tipo: 'error', mensaje: 'Error al agregar amigo' });
     }
   }
 
@@ -232,19 +220,8 @@ export default function Amigos() {
     cargarUsuariosDisponibles();
   }
 
-  function abrirModalSoli() {
-    setMostrarModal(true);
-    aceptarSolicitud();
-    rechazarSolicitud();
-  }
-
-
   async function eliminarAmigo(idAmigo) {
     const idLogged = localStorage.getItem("idLogged");
-    
-    if (!confirm("¿Estás seguro de que quieres eliminar este amigo?")) {
-      return;
-    }
 
     try {
       const response = await fetch("http://localhost:4001/EliminarAmigo", {
@@ -259,15 +236,22 @@ export default function Amigos() {
       const result = await response.json();
       
       if (result.eliminado) {
-        alert(result.res);
+        setModalMensaje({ tipo: 'success', mensaje: result.res });
         cargarAmigos(); 
       } else {
-        alert(result.res || "No se pudo eliminar el amigo");
+        setModalMensaje({ tipo: 'error', mensaje: result.res || "No se pudo eliminar el amigo" });
       }
     } catch (error) {
       console.error("Error al eliminar amigo:", error);
-      alert("Error al eliminar amigo");
+      setModalMensaje({ tipo: 'error', mensaje: 'Error al eliminar amigo' });
     }
+  }
+
+  function cerrarModalMensaje() {
+    if (modalMensaje?.redirect) {
+      router.push(modalMensaje.redirect);
+    }
+    setModalMensaje(null);
   }
 
   return (
@@ -275,11 +259,12 @@ export default function Amigos() {
       <div className={styles.header}>
         <div className={styles.userInfo}>
           <span className={styles.userName}>
-            ¡Hola, <span className={styles.nombreDestacado}>{nombreUsuario}</span>!</span>
-        </div>
-         <span className={styles.connectionStatus}>
-            {isConnected && registrado ? "En linea" : "Desconectado"}
+            ¡Hola, <span className={styles.nombreDestacado}>{nombreUsuario}</span>!
           </span>
+        </div>
+        <span className={styles.connectionStatus}>
+          {isConnected && registrado ? "En linea" : "Desconectado"}
+        </span>
       </div>
 
       <div className={styles.amigosTable}>
@@ -307,10 +292,7 @@ export default function Amigos() {
                   <Button 
                     texto="JUGAR" 
                     className={styles.jugarButton} 
-                    onClick={() => {
-                      envioSolicitudJuego(amigo)
-                      abrirModalSoli()//fijarse si anda hay q hacer el styles
-                    }} //hay que hacer un showmodal que le aparezca al otro para aceptar o rechazar, y q a mi me aparezca un showmodal que diga solicitud pendiente
+                    onClick={() => envioSolicitudJuego(amigo)}
                   />
                   <Button 
                     texto="ELIMINAR"
@@ -326,59 +308,119 @@ export default function Amigos() {
         </div>
       </div>
 
+      {/* Modal para agregar amigos */}
       {mostrarModal && (
-        <>
-          {console.log("Renderizando modal, mostrarModal:", mostrarModal)}
+        <div
+          className={styles.modalOverlay}
+          onClick={() => setMostrarModal(false)}
+        >
           <div
-            className={styles.modalOverlay}
-            onClick={() => setMostrarModal(false)}
+            className={styles.modalContent}
+            onClick={(e) => e.stopPropagation()}
           >
-            <div
-              className={styles.modalContent}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className={styles.modalHeader}>
-                <h3>Agregar Amigo</h3>
-                <button
-                  className={styles.closeButton}
-                  onClick={() => setMostrarModal(false)}
-                >
-                  ×
-                </button>
-              </div>
+            <div className={styles.modalHeader}>
+              <h3>Agregar Amigo</h3>
+              <button
+                className={styles.closeButton}
+                onClick={() => setMostrarModal(false)}
+              >
+                ×
+              </button>
+            </div>
 
-              <div className={styles.usuariosLista}>
-                {usuariosDisponibles.length > 0 ? (
-                  usuariosDisponibles.map((usuario) => (
-                    <div key={usuario.idusuario} className={styles.usuarioItem}>
-                      <div className={styles.usuarioInfo}>
-                        <span className={styles.usuarioNombre}>
-                          {usuario.nombre}
-                        </span>
-                        <span className={styles.usuarioMail}>
-                          {usuario.mail}
-                        </span>
-                      </div>
-                      <button
-                        className={styles.btnAgregar}
-                        onClick={() => agregarAmigo(usuario.idusuario)}
-                      >
-                        Agregar
-                      </button>
+            <div className={styles.usuariosLista}>
+              {usuariosDisponibles.length > 0 ? (
+                usuariosDisponibles.map((usuario) => (
+                  <div key={usuario.idusuario} className={styles.usuarioItem}>
+                    <div className={styles.usuarioInfo}>
+                      <span className={styles.usuarioNombre}>
+                        {usuario.nombre}
+                      </span>
+                      <span className={styles.usuarioMail}>
+                        {usuario.mail}
+                      </span>
                     </div>
-                  ))
-                ) : (
-                  <p className={styles.noUsuarios}>
-                    No hay usuarios disponibles para agregar
-                  </p>
-                )}
+                    <button
+                      className={styles.btnAgregar}
+                      onClick={() => agregarAmigo(usuario.idusuario)}
+                    >
+                      Agregar
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <p className={styles.noUsuarios}>
+                  No hay usuarios disponibles para agregar
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para solicitud de juego */}
+      {solicitudPendiente && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3>Solicitud de Juego</h3>
+            </div>
+            
+            <div className={styles.solicitudContent}>
+              <p className={styles.solicitudTexto}>
+                <strong>{solicitudPendiente.nombreSolicitante}</strong> quiere jugar una super partida de Tutti Frutti con vos!
+              </p>
+              
+              <div className={styles.solicitudBotones}>
+                <button 
+                  className={styles.btnAceptar}
+                  onClick={aceptarSolicitud}
+                >
+                  Aceptar
+                </button>
+                <button 
+                  className={styles.btnRechazar}
+                  onClick={rechazarSolicitud}
+                >
+                  Rechazar
+                </button>
               </div>
             </div>
           </div>
-        </>
+        </div>
       )}
 
-      
+      {/* Modal de mensajes (reemplaza alerts) */}
+      {modalMensaje && (
+        <div className={styles.modalOverlay} onClick={cerrarModalMensaje}>
+          <div 
+            className={`${styles.modalContent} ${styles.modalMensajeContent}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={styles.modalMensajeHeader}>
+              <div className={`${styles.modalMensajeIcono} ${styles[`icono${modalMensaje.tipo.charAt(0).toUpperCase() + modalMensaje.tipo.slice(1)}`]}`}>
+                {modalMensaje.tipo === 'success' && '✓'}
+                {modalMensaje.tipo === 'error' && '✕'}
+                {modalMensaje.tipo === 'info' && 'i'}
+              </div>
+            </div>
+            
+            <div className={styles.modalMensajeBody}>
+              <p className={styles.modalMensajeTexto}>{modalMensaje.mensaje}</p>
+            </div>
+            
+            <div className={styles.modalMensajeFooter}>
+              <button 
+                className={`${styles.btnModalMensaje} ${styles[`btn${modalMensaje.tipo.charAt(0).toUpperCase() + modalMensaje.tipo.slice(1)}`]}`}
+                onClick={cerrarModalMensaje}
+              >
+                Aceptar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className={styles.bottomButtons}>
         <Button
           texto="RANKING"
@@ -394,8 +436,8 @@ export default function Amigos() {
           texto="CERRAR SESIÓN"
           className={styles.buttonRed}
           onClick={() => {
-          localStorage.removeItem("idLogged");
-          router.push("/registroYlogin"); 
+            localStorage.removeItem("idLogged");
+            router.push("/registroYlogin"); 
           }}
         />
       </div>

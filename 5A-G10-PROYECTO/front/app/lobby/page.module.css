@@ -468,3 +468,241 @@
   color: #000000; /* o el color que quieras */
   font-weight: 700;
 }
+
+.solicitudContent {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 20px 0;
+}
+
+.solicitudTexto {
+  text-align: center;
+  font-size: 18px;
+  color: #1f2937;
+  margin: 0;
+}
+
+.solicitudBotones {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.btnAceptar {
+  flex: 1;
+  padding: 12px 24px;
+  border-radius: 16px;
+  background-color: #4ade80;
+  color: white;
+  border: none;
+  font-weight: 600;
+  font-size: 15px;
+  font-family: 'Fredoka', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btnAceptar:hover {
+  background-color: #22c55e;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(74, 222, 128, 0.4);
+}
+
+.btnRechazar {
+  flex: 1;
+  padding: 12px 24px;
+  border-radius: 16px;
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  font-weight: 600;
+  font-size: 15px;
+  font-family: 'Fredoka', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btnRechazar:hover {
+  background-color: #dc2626;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+/* Modal de solicitud de juego */
+.solicitudContent {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 20px 0;
+}
+
+.solicitudTexto {
+  text-align: center;
+  font-size: 18px;
+  color: #1f2937;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.solicitudBotones {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.btnAceptar {
+  flex: 1;
+  padding: 12px 24px;
+  border-radius: 16px;
+  background-color: #4ade80;
+  color: white;
+  border: none;
+  font-weight: 600;
+  font-size: 15px;
+  font-family: 'Fredoka', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btnAceptar:hover {
+  background-color: #22c55e;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(74, 222, 128, 0.4);
+}
+
+.btnRechazar {
+  flex: 1;
+  padding: 12px 24px;
+  border-radius: 16px;
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  font-weight: 600;
+  font-size: 15px;
+  font-family: 'Fredoka', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btnRechazar:hover {
+  background-color: #dc2626;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+/* Modal de mensajes (reemplazo de alerts) */
+.modalMensajeContent {
+  max-width: 400px;
+  text-align: center;
+}
+
+.modalMensajeHeader {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.modalMensajeIcono {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: bold;
+  color: white;
+}
+
+.iconoSuccess {
+  background-color: #4ade80;
+}
+
+.iconoError {
+  background-color: #ef4444;
+}
+
+.iconoInfo {
+  background-color: #3b82f6;
+}
+
+.modalMensajeBody {
+  padding: 0 20px 24px;
+}
+
+.modalMensajeTexto {
+  font-size: 16px;
+  color: #1f2937;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.modalMensajeFooter {
+  display: flex;
+  justify-content: center;
+}
+
+.btnModalMensaje {
+  padding: 12px 40px;
+  border-radius: 16px;
+  color: white;
+  border: none;
+  font-weight: 600;
+  font-size: 15px;
+  font-family: 'Fredoka', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  min-width: 120px;
+}
+
+.btnSuccess {
+  background-color: #4ade80;
+}
+
+.btnSuccess:hover {
+  background-color: #22c55e;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(74, 222, 128, 0.4);
+}
+
+.btnError {
+  background-color: #ef4444;
+}
+
+.btnError:hover {
+  background-color: #dc2626;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+.btnInfo {
+  background-color: #3b82f6;
+}
+
+.btnInfo:hover {
+  background-color: #2563eb;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.connectionStatus {
+  font-size: 14px;
+  font-weight: 500;
+  color: white;
+  padding: 6px 16px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  margin-top: 8px;
+  display: inline-block;
+}
