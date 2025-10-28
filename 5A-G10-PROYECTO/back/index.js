@@ -243,7 +243,7 @@ app.put('/ActualizarEstadisticas', async function (req, res) {
     }
 });
 
-//creo q hay q cambiar porq no es palabra si no nombre en sql a chequear!!!!!!!!!!!!!!!!!
+//esta bien, deberia andar 
 app.delete('/BorrarPalabra', async function (req, res) {
     let palabra = req.body.palabra;
 
@@ -267,7 +267,7 @@ app.delete('/BorrarPalabra', async function (req, res) {
 });
 
 
-//para administradores, borrar jugador
+//para administradores, borrar jugador, deberia funcionar
 app.delete('/BorrarJugador', async function (req, res) {
     let mail = req.body.mail;
 
@@ -290,7 +290,7 @@ app.delete('/BorrarJugador', async function (req, res) {
 });
 
 
-//para administradores, borrrar categoria
+//para administradores, borrrar categoria, deberia funcionar
 
 app.delete('/EliminarCategoria', async function (req, res) {
     let nombre = req.body.nombre;
@@ -315,9 +315,114 @@ app.delete('/EliminarCategoria', async function (req, res) {
 
 
 //para administradores, agregar palabra y en que categoria va
+//agregar palabra, para administradores
+
+app.post('/AgregarPalabra', async function(req, res) {
+  console.log("/AgregarPalabra req.body:", req.body);
+  try {
+    const { palabra, categoria } = req.body;
+
+    
+    if (!palabra) {
+      return res.json({ res: "Falta palabra", publicada: false });
+    }
+    if (!categoria) {
+      return res.json({ res: "Falta categoría", publicada: false });
+    }
+
+    
+    let categoriaExiste = await realizarQuery(`SELECT idcategoria FROM Categorias WHERE nombre="${categoria}"`);
+    
+    if (categoriaExiste.length === 0) {
+      return res.json({ res: "Esa categoría no existe", publicada: false });
+    }
+
+    const idcategoria = categoriaExiste[0].idcategoria;
+
+    let palabraExiste = await realizarQuery(`SELECT idpalabra FROM Palabras WHERE palabra="${palabra}"`);
+    
+    let idpalabra;
+
+    if (palabraExiste.length === 0) {
+      
+      await realizarQuery(`INSERT INTO Palabras (palabra) VALUES ("${palabra}")`);
+      
+      
+      let palabraInsertada = await realizarQuery(`SELECT idpalabra FROM Palabras WHERE palabra="${palabra}"`);
+      idpalabra = palabraInsertada[0].idpalabra;
+    } else {
+      
+      idpalabra = palabraExiste[0].idpalabra;
+    }
+
+    
+    let relacionExiste = await realizarQuery(`
+      SELECT * FROM PalabrasCategorias 
+      WHERE idpalabra=${idpalabra} AND idcategoria=${idcategoria}
+    `);
+
+    if (relacionExiste.length !== 0) {
+      return res.json({ res: `"${palabra}" ya está en la categoría "${categoria}"`, publicada: false });
+    }
+
+    
+    await realizarQuery(`
+      INSERT INTO PalabrasCategorias (idpalabra, idcategoria) 
+      VALUES (${idpalabra}, ${idcategoria})
+    `);
+
+    res.json({ 
+      res: `"${palabra}" agregada en la categoría "${categoria}"`, 
+      publicada: true 
+    });
+
+  } catch (e) {
+    console.error("Error en /AgregarPalabra:", e);
+    res.status(500).json({ res: "Error interno", publicada: false });
+  }
+});
 
 
 
+
+
+
+//login jugadores
+app.post('/LoginJugadores', async function(req,res) {
+    console.log(req.body) 
+    let respuesta;
+    if (req.body.mail != undefined) {
+        respuesta = await realizarQuery(`SELECT * FROM Jugadores WHERE mail="${req.body.mail}"`)
+        console.log(respuesta)
+        if (respuesta.length > 0) {
+            if (req.body.contraseña != undefined) {
+                respuesta = await realizarQuery(`SELECT * FROM Jugadores WHERE mail="${req.body.mail}" && contraseña="${req.body.contraseña}"`)
+                console.log(respuesta)
+                if  (respuesta.length > 0) {
+                    res.json({
+                        res: "Jugador existe",
+                        loguea: true,
+                        idLogged: respuesta[0].idusuario,
+                        admin: Boolean(respuesta[0].administrador)
+})
+                }
+                else{
+                    res.json({res:"Contraseña incorrecta",loguea:false}) 
+                }
+            }else{
+                res.json({res:"Falta ingresar contraseña",loguea:false})                
+            }
+        } 
+        else{
+            res.json({res:"Esta mal el mail",loguea:false})
+        }
+    
+    }else {
+        res.json({res:"Falta ingresar el mail",loguea:false})
+
+    }    
+
+})
 
 
 
@@ -581,7 +686,7 @@ app.delete('/BorrarChat', async function (req, res) {
     }
 });
 
-//delete mensaje
+//delete mensaje trabajo anterior no creo q sirva pero lodejo
 app.delete('/BorrarMensaje', async function (req, res) {
     let id_mensaje = req.body.id_mensaje;
 
@@ -604,6 +709,7 @@ app.delete('/BorrarMensaje', async function (req, res) {
     }
 });
 
+//registro
 app.post('/RegistroJugadores', async function(req, res) {
   console.log("/RegistroJugadores req.body:", req.body);
   try {
@@ -641,113 +747,6 @@ app.post('/RegistroJugadores', async function(req, res) {
 });
 
 
-//agregar palabra, para administradores
-app.post('/AgregarPalabra', async function(req, res) {
-  console.log("/AgregarPalabra req.body:", req.body);
-  try {
-    const { palabra, categoria } = req.body;
-
-    
-    if (!palabra) {
-      return res.json({ res: "Falta palabra", publicada: false });
-    }
-    if (!categoria) {
-      return res.json({ res: "Falta categoría", publicada: false });
-    }
-
-    
-    let categoriaExiste = await realizarQuery(`SELECT idcategoria FROM Categorias WHERE nombre="${categoria}"`);
-    
-    if (categoriaExiste.length === 0) {
-      return res.json({ res: "Esa categoría no existe", publicada: false });
-    }
-
-    const idcategoria = categoriaExiste[0].idcategoria;
-
-    let palabraExiste = await realizarQuery(`SELECT idpalabra FROM Palabras WHERE palabra="${palabra}"`);
-    
-    let idpalabra;
-
-    if (palabraExiste.length === 0) {
-      
-      await realizarQuery(`INSERT INTO Palabras (palabra) VALUES ("${palabra}")`);
-      
-      
-      let palabraInsertada = await realizarQuery(`SELECT idpalabra FROM Palabras WHERE palabra="${palabra}"`);
-      idpalabra = palabraInsertada[0].idpalabra;
-    } else {
-      
-      idpalabra = palabraExiste[0].idpalabra;
-    }
-
-    
-    let relacionExiste = await realizarQuery(`
-      SELECT * FROM PalabrasCategorias 
-      WHERE idpalabra=${idpalabra} AND idcategoria=${idcategoria}
-    `);
-
-    if (relacionExiste.length !== 0) {
-      return res.json({ res: `"${palabra}" ya está en la categoría "${categoria}"`, publicada: false });
-    }
-
-    
-    await realizarQuery(`
-      INSERT INTO PalabrasCategorias (idpalabra, idcategoria) 
-      VALUES (${idpalabra}, ${idcategoria})
-    `);
-
-    res.json({ 
-      res: `"${palabra}" agregada en la categoría "${categoria}"`, 
-      publicada: true 
-    });
-
-  } catch (e) {
-    console.error("Error en /AgregarPalabra:", e);
-    res.status(500).json({ res: "Error interno", publicada: false });
-  }
-});
-
-
-
-
-
-
-//login jugadores
-app.post('/LoginJugadores', async function(req,res) {
-    console.log(req.body) 
-    let respuesta;
-    if (req.body.mail != undefined) {
-        respuesta = await realizarQuery(`SELECT * FROM Jugadores WHERE mail="${req.body.mail}"`)
-        console.log(respuesta)
-        if (respuesta.length > 0) {
-            if (req.body.contraseña != undefined) {
-                respuesta = await realizarQuery(`SELECT * FROM Jugadores WHERE mail="${req.body.mail}" && contraseña="${req.body.contraseña}"`)
-                console.log(respuesta)
-                if  (respuesta.length > 0) {
-                    res.json({
-                        res: "Jugador existe",
-                        loguea: true,
-                        idLogged: respuesta[0].idusuario,
-                        admin: Boolean(respuesta[0].administrador)
-})
-                }
-                else{
-                    res.json({res:"Contraseña incorrecta",loguea:false}) 
-                }
-            }else{
-                res.json({res:"Falta ingresar contraseña",loguea:false})                
-            }
-        } 
-        else{
-            res.json({res:"Esta mal el mail",loguea:false})
-        }
-    
-    }else {
-        res.json({res:"Falta ingresar el mail",loguea:false})
-
-    }    
-
-})
 
 //post para obtener los chats de un usuario
 app.post('/Chats', async function (req,res){
@@ -793,9 +792,7 @@ app.post('/insertarMensaje', async (req, res) => {
 
 
 
-// Agregar este endpoint DESPUÉS del POST /Chats y ANTES del POST /insertarMensaje
-
-// POST - Crear un nuevo chat entre dos usuarios
+// trabajo anterior de chats
 app.post('/CrearChat', async function(req, res) {
     const { id_usuario1, id_usuario2 } = req.body;
     console.log("id_usuario1", id_usuario1)
@@ -905,7 +902,7 @@ app.get('/UsuariosDisponibles', async function(req, res) {
     }
 });
 
-// POST - Agregar un nuevo amigo
+//agregar un nuevo amigo
 app.post('/AgregarAmigo', async function(req, res) {
     const { idjugador, idamigo } = req.body;
 
