@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Button from "../components/Button";
 import styles from "./page.module.css";
-import { useSocket } from  "@/hook/useSocket";
+import { useSocket } from "../../hook/useSocket";
+
+
 
 
 export default function Amigos() {
@@ -224,11 +226,18 @@ export default function Amigos() {
     }
   }
 
-  function abrirModal() {
+  function abrirModalUsu() {
     console.log("Abriendo modal...");
     setMostrarModal(true);
     cargarUsuariosDisponibles();
   }
+
+  function abrirModalSoli() {
+    setMostrarModal(true);
+    aceptarSolicitud();
+    rechazarSolicitud();
+  }
+
 
   async function eliminarAmigo(idAmigo) {
     const idLogged = localStorage.getItem("idLogged");
@@ -280,7 +289,7 @@ export default function Amigos() {
             className={styles.addButton}
             onClick={() => {
               console.log("Click en botón +");
-              abrirModal();
+              abrirModalUsu();
             }}
           >
             +
@@ -298,7 +307,10 @@ export default function Amigos() {
                   <Button 
                     texto="JUGAR" 
                     className={styles.jugarButton} 
-                    onClick={() => envioSolicitudJuego(amigo)}  //hay que hacer un showmodal que le aparezca al otro para aceptar o rechazar, y q a mi me aparezca un showmodal que diga solicitud pendiente
+                    onClick={() => {
+                      envioSolicitudJuego(amigo)
+                      abrirModalSoli()//fijarse si anda hay q hacer el styles
+                    }} //hay que hacer un showmodal que le aparezca al otro para aceptar o rechazar, y q a mi me aparezca un showmodal que diga solicitud pendiente
                   />
                   <Button 
                     texto="ELIMINAR"
