@@ -12,9 +12,10 @@ export default function Amigos() {
   const [mostrarModal, setMostrarModal] = useState(false);
   const [usuariosDisponibles, setUsuariosDisponibles] = useState([]);
   const [solicitudPendiente, setSolicitudPendiente] = useState(null);
+  const [solicitudAmistadPendiente, setSolicitudAmistadPendiente] = useState(null);
   const [idLogged, setIdLogged] = useState(null);
   const [registrado, setRegistrado] = useState(false);
-  const [modalMensaje, setModalMensaje] = useState(null); // {tipo: 'success'|'error'|'info', mensaje: 'texto'}
+  const [modalMensaje, setModalMensaje] = useState(null);
   const router = useRouter();
   const { socket, isConnected } = useSocket();
 
@@ -30,27 +31,57 @@ export default function Amigos() {
   useEffect(() => {
     if (!socket || !idLogged || !isConnected) return;
 
-    console.log('Se esta registrando', idLogged);
+    console.log('Se está registrando', idLogged);
     socket.emit('registerUser', idLogged);
 
     socket.on('registrationConfirmed', (data) => {
-      console.log('Se registro', data);
+      console.log('Se registró', data);
       setRegistrado(true);
     });
 
+    socket.on('friendRequestReceived', (data) => {
+      console.log("Solicitud de amistad recibida", data);
+      setSolicitudAmistadPendiente(data);
+    });
+
+    socket.on('friendRequestSent', (data) => {
+      setModalMensaje({ tipo: 'success', mensaje: data.message });
+    });
+
+    // AMISTAD ACEPTADA - NOTIFICAR AL SOLICITANTE
+    socket.on('friendAdded', (data) => {
+      setModalMensaje({ tipo: 'success', mensaje: data.message });
+      if (data.shouldReload) {
+        cargarAmigos();
+      }
+    });
+
+    // AMISTAD ELIMINADA - NOTIFICAR AL ELIMINADO
+    socket.on('friendRemoved', (data) => {
+      setModalMensaje({ tipo: 'info', mensaje: data.message });
+      if (data.shouldReload) {
+        cargarAmigos();
+      }
+    });
+
+    // SOLICITUD DE JUEGO
     socket.on('gameRequest', (data) => {
-      console.log("Recibio la solicitud de juego", data);
+      console.log("Recibió la solicitud de juego", data);
       setSolicitudPendiente(data);
     });
 
     socket.on('requestSent', (data) => {
-      console.log('Se envio la solicitud', data.message);
+      console.log('Se envió la solicitud', data.message);
       setModalMensaje({ tipo: 'info', mensaje: data.message });
     });
 
     socket.on('gameStarted', (data) => {
-      console.log("Empezo el juego", data);
-      setModalMensaje({ tipo: 'success', mensaje: '¡El juego está comenzando!', redirect: `/juego?room=${data.room}` });
+      console.log("Empezó el juego", data);
+      setModalMensaje({ 
+        tipo: 'success', 
+        mensaje: '¡El juego está comenzando!', 
+        redirect: `/juego?room=${data.room}&categorias=${JSON.stringify(data.categorias)}&letra=${data.letra}` 
+      });
     });
 
     socket.on('gameRejected', (data) => {
@@ -63,6 +94,8 @@ export default function Amigos() {
 
     return () => {
       socket.off('registrationConfirmed');
+      socket.off('friendRequestReceived');
+      socket.off('friendRequestSent');
       socket.off('gameRequest');
       socket.off('requestSent');
       socket.off('gameStarted');
@@ -86,7 +119,6 @@ export default function Amigos() {
       });
 
       const result = await response.json();
-      console.log("Todos los jugadores:", result);
 
       if (result.jugadores && result.jugadores.length > 0) {
         const jugadorActual = result.jugadores.find(
@@ -161,10 +193,42 @@ export default function Amigos() {
     setSolicitudPendiente(null);
   }
 
+  // FUNCIONES PARA SOLICITUD DE AMISTAD
+  async function aceptarSolicitudAmistad() {
+    if (!solicitudAmistadPendiente) return;
+
+    try {
+      const response = await fetch("http://localhost:4001/AgregarAmigo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          idjugador: parseInt(idLogged),
+          idamigo: parseInt(solicitudAmistadPendiente.idSolicitante)
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.agregado) {
+        setModalMensaje({ tipo: 'success', mensaje: '¡Solicitud de amistad aceptada!' });
+        cargarAmigos();
+      } else {
+        setModalMensaje({ tipo: 'error', mensaje: result.res });
+      }
+    } catch (error) {
+      console.error("Error al aceptar solicitud:", error);
+    }
+
+    setSolicitudAmistadPendiente(null);
+  }
+
+  function rechazarSolicitudAmistad() {
+    setSolicitudAmistadPendiente(null);
+    setModalMensaje({ tipo: 'info', mensaje: 'Solicitud de amistad rechazada' });
+  }
+
   async function cargarUsuariosDisponibles() {
     const idLogged = localStorage.getItem("idLogged");
-
-    console.log("Cargando usuarios disponibles para:", idLogged);
 
     try {
       const response = await fetch(
@@ -176,7 +240,6 @@ export default function Amigos() {
       );
 
       const result = await response.json();
-      console.log("Usuarios disponibles:", result);
 
       if (result.usuarios) {
         setUsuariosDisponibles(result.usuarios);
@@ -186,36 +249,17 @@ export default function Amigos() {
     }
   }
 
-  async function agregarAmigo(idamigo) {
-    const idLogged = localStorage.getItem("idLogged");
-
-    try {
-      const response = await fetch("http://localhost:4001/AgregarAmigo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          idjugador: idLogged,
-          idamigo: idamigo,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.agregado) {
-        setModalMensaje({ tipo: 'success', mensaje: '¡Amigo agregado correctamente!' });
-        setMostrarModal(false);
-        cargarAmigos();
-      } else {
-        setModalMensaje({ tipo: 'error', mensaje: result.res });
-      }
-    } catch (error) {
-      console.error("Error al agregar amigo:", error);
-      setModalMensaje({ tipo: 'error', mensaje: 'Error al agregar amigo' });
-    }
+  async function enviarSolicitudAmistad(usuario) {
+    socket.emit('sendFriendRequest', {
+      idSolicitante: parseInt(idLogged),
+      nombreSolicitante: nombreUsuario,
+      idReceptor: parseInt(usuario.idusuario)
+    });
+    
+    setMostrarModal(false);
   }
 
   function abrirModalUsu() {
-    console.log("Abriendo modal...");
     setMostrarModal(true);
     cargarUsuariosDisponibles();
   }
@@ -263,7 +307,7 @@ export default function Amigos() {
           </span>
         </div>
         <span className={styles.connectionStatus}>
-          {isConnected && registrado ? "En linea" : "Desconectado"}
+          {isConnected && registrado ? "En línea" : "Desconectado"}
         </span>
       </div>
 
@@ -272,10 +316,7 @@ export default function Amigos() {
           <h2>Amigos</h2>
           <button
             className={styles.addButton}
-            onClick={() => {
-              console.log("Click en botón +");
-              abrirModalUsu();
-            }}
+            onClick={abrirModalUsu}
           >
             +
           </button>
@@ -319,7 +360,7 @@ export default function Amigos() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className={styles.modalHeader}>
-              <h3>Agregar Amigo</h3>
+              <h3>Enviar Solicitud de Amistad</h3>
               <button
                 className={styles.closeButton}
                 onClick={() => setMostrarModal(false)}
@@ -342,15 +383,15 @@ export default function Amigos() {
                     </div>
                     <button
                       className={styles.btnAgregar}
-                      onClick={() => agregarAmigo(usuario.idusuario)}
+                      onClick={() => enviarSolicitudAmistad(usuario)}
                     >
-                      Agregar
+                      Enviar solicitud
                     </button>
                   </div>
                 ))
               ) : (
                 <p className={styles.noUsuarios}>
-                  No hay usuarios disponibles para agregar
+                  No hay usuarios disponibles
                 </p>
               )}
             </div>
@@ -358,7 +399,39 @@ export default function Amigos() {
         </div>
       )}
 
-      {/* Modal para solicitud de juego */}
+      {/* Modal para solicitud de AMISTAD */}
+      {solicitudAmistadPendiente && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3>Solicitud de Amistad</h3>
+            </div>
+            
+            <div className={styles.solicitudContent}>
+              <p className={styles.solicitudTexto}>
+                <strong>{solicitudAmistadPendiente.nombreSolicitante}</strong> quiere ser tu amigo
+              </p>
+              
+              <div className={styles.solicitudBotones}>
+                <button 
+                  className={styles.btnAceptar}
+                  onClick={aceptarSolicitudAmistad}
+                >
+                  Aceptar
+                </button>
+                <button 
+                  className={styles.btnRechazar}
+                  onClick={rechazarSolicitudAmistad}
+                >
+                  Rechazar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para solicitud de JUEGO */}
       {solicitudPendiente && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
@@ -390,7 +463,7 @@ export default function Amigos() {
         </div>
       )}
 
-      {/* Modal de mensajes (reemplaza alerts) */}
+      {/* Modal de mensajes */}
       {modalMensaje && (
         <div className={styles.modalOverlay} onClick={cerrarModalMensaje}>
           <div 
