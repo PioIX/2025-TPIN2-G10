@@ -70,7 +70,6 @@ Aquí están algunos bocetos de la interfaz del juego, creados en Canva:
 | idpalabra    | INT            |
 | idcategoria  | INT            |
 
-Esta tabla sirve para relacionar las palabras con sus categorías. La combinación de **idpalabra** y **idcategoria** forma la clave primaria.
 
 ### Partidas
 | Campo        | Tipo           |
