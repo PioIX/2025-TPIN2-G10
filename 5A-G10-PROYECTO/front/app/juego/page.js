@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Button from "../components/Button";
 import styles from "./page.module.css";
+import { useSocket } from "../../hook/useSocket";
 
 export default function TuttiFrutti() {
   const [letra, setLetra] = useState("");
@@ -13,9 +14,13 @@ export default function TuttiFrutti() {
   const [juegoActivo, setJuegoActivo] = useState(false);
   const [puntos, setPuntos] = useState(0);
   const [nombreUsuario, setNombreUsuario] = useState("");
-  const [todasCategorias, setTodasCategorias] = useState([]);
   const [modal, setModal] = useState({ open: false, title: "", message: "" });
+  const [room, setRoom] = useState("");
+  const [juegoIniciado, setJuegoIniciado] = useState(false);
+  const [esperandoOtroJugador, setEsperandoOtroJugador] = useState(true);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { socket, isConnected } = useSocket();
 
   const showModal = (title, message) => {
     setModal({ open: true, title, message });
@@ -27,22 +32,75 @@ export default function TuttiFrutti() {
 
   useEffect(() => {
     cargarNombreUsuario();
-    cargarCategorias();
-  }, []);
+    
+    // Obtener datos de la URL
+    const roomParam = searchParams.get('room');
+    const categoriasParam = searchParams.get('categorias');
+    const letraParam = searchParams.get('letra');
+    
+    if (roomParam) {
+      setRoom(roomParam);
+    }
+    
+    if (categoriasParam) {
+      try {
+        const categoriasArray = JSON.parse(categoriasParam);
+        setCategorias(categoriasArray);
+        console.log("Categorías cargadas:", categoriasArray);
+      } catch (error) {
+        console.error("Error al parsear categorías:", error);
+      }
+    }
+    
+    if (letraParam) {
+      setLetra(letraParam);
+      console.log("Letra cargada:", letraParam);
+    }
+  }, [searchParams]);
 
-  //temporizador
+  useEffect(() => {
+    if (!socket || !room) return;
+
+    // Escuchar cuando el timer inicia
+    socket.on('timerStarted', (data) => {
+      console.log("Timer iniciado sincronizado");
+      setJuegoActivo(true);
+      setJuegoIniciado(true);
+    });
+
+    // Escuchar cuando el juego termina
+    socket.on('gameEnded', (data) => {
+      console.log("Juego terminado:", data);
+      setJuegoActivo(false);
+      showModal("¡BASTA!", data.message);
+    });
+
+    return () => {
+      socket.off('timerStarted');
+      socket.off('gameEnded');
+    };
+  }, [socket, room]);
+
+  // Iniciar el timer una vez que tenemos categorías y letra
+  useEffect(() => {
+    if (categorias.length > 0 && letra && socket && room && !juegoIniciado) {
+      console.log("Enviando señal para iniciar timer");
+      socket.emit('startGameTimer', { room });
+    }
+  }, [categorias, letra, socket, room, juegoIniciado]);
+
+  // Temporizador
   useEffect(() => {
     let intervalo;
     if (juegoActivo && tiempoRestante > 0) {
       intervalo = setInterval(() => {
         setTiempoRestante((prev) => {
           const nuevoTiempo = prev - 1;
-          console.log("Tiempo restante:", nuevoTiempo); 
           return nuevoTiempo;
         });
       }, 1000);
     } else if (tiempoRestante === 0 && juegoActivo) {
-      console.log("¡TIEMPO TERMINADO!"); 
+      console.log("¡TIEMPO TERMINADO!");
       finalizarRondaPorTiempo();
     }
     return () => {
@@ -77,66 +135,32 @@ export default function TuttiFrutti() {
     }
   }
 
-  async function cargarCategorias() {
-    try {
-      const response = await fetch("http://localhost:4001/CategoriaAleatoria", {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-      });
-
-      const result = await response.json();
-      console.log(result);
-      if (result.categorias && result.categorias.length > 0) {
-        await setTodasCategorias(result.categorias);
-      }
-    } catch (error) {
-      console.error("Error al cargar categorías:", error);
-    }
-  }
-
-  function seleccionarCategoriasAleatorias() {
-    const cantidadCategorias = Math.min(7, todasCategorias.length);
-    const categoriasAleatorias = [];
-    const copiaCategorias = [...todasCategorias];
-
-    for (let i = 0; i < cantidadCategorias; i++) {
-      const indiceAleatorio = Math.floor(Math.random() * copiaCategorias.length);
-      categoriasAleatorias.push(copiaCategorias[indiceAleatorio]);
-      copiaCategorias.splice(indiceAleatorio, 1);
-    }
-
-    return categoriasAleatorias;
-  }
-
-  useEffect(() => {
-    if (todasCategorias.length > 0) {
-      iniciarJuego();
-    }
-  }, [todasCategorias]);
-
-  function iniciarJuego() {
-    const letrasDisponibles = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    const letraAleatoria = letrasDisponibles[Math.floor(Math.random() * letrasDisponibles.length)];
-
-    const categoriasSeleccionadas = seleccionarCategoriasAleatorias();
-
-    setLetra(letraAleatoria);
-    setCategorias(categoriasSeleccionadas);
-    setRespuestas({});
-    setTiempoRestante(120);
-    setJuegoActivo(true);
-    console.log("Juego iniciado - Tiempo: 120 segundos");
-  }
-
   function handleInputChange(categoria, valor) {
     setRespuestas((prev) => ({
       ...prev,
       [categoria]: valor,
     }));
+
+    // Enviar respuesta al servidor
+    if (socket && room) {
+      const idLogged = localStorage.getItem("idLogged");
+      socket.emit('sendAnswer', {
+        room,
+        userId: idLogged,
+        categoria,
+        respuesta: valor
+      });
+    }
   }
 
   function finalizarRonda() {
     setJuegoActivo(false);
+    
+    if (socket && room) {
+      const idLogged = localStorage.getItem("idLogged");
+      socket.emit('basta', { room, userId: idLogged });
+    }
+    
     calcularPuntos();
   }
 
@@ -149,41 +173,7 @@ export default function TuttiFrutti() {
     );
   }
 
-  function calcularPuntosMomentaneos() {
-    let puntosRonda = 0;
-
-    Object.entries(respuestas).forEach(([_, respuesta]) => {
-      if (respuesta && respuesta.trim() !== "") {
-        const primeraLetra = respuesta.trim()[0].toUpperCase();
-        if (idLogged == idSolicitante) {
-          if (primeraLetra === letra && respuesta.toLowerCase() == respuestaOponente.toLowerCase()) {
-            puntosRonda += 5;
-            if (primeraLetra === letra && respuesta.toLowerCase() != respuestaOponente.toLowerCase()) {
-              puntosRonda += 10;
-              if (primeraLetra === letra && respuestaOponente == null || respuestaOponente.trim() === "") {
-                puntosRonda += 20;
-              } else {
-                puntosRonda += 0;
-              }
-            } 
-          }
-        
-        } else {
-          puntosRonda += 0;
-        }
-      }
-    });
-
-    setPuntos((prev) => prev + puntosRonda);
-    return puntosRonda;
-  }
-
-  //esa funcion creo q esta al pedo el tema es q hay que postear los puntos una vez que termina la ronda, osea que se aprete el boton o se terminen las letras
-  //podriamos poner todas esas condiciones para q termine y cuente los puntos finales
-  
-
-
-  /*function calcularPuntosTotales() {
+  function calcularPuntos() {
     let puntosRonda = 0;
 
     Object.entries(respuestas).forEach(([_, respuesta]) => {
@@ -192,14 +182,30 @@ export default function TuttiFrutti() {
         if (primeraLetra === letra) {
           puntosRonda += 10;
         } else {
-          puntosRonda += 5;
+          puntosRonda += 0;
         }
       }
     });
 
     setPuntos((prev) => prev + puntosRonda);
     showModal("¡Ronda finalizada!", `Ganaste ${puntosRonda} puntos`);
-  }*/
+  }
+
+  function calcularPuntosSinModal() {
+    let puntosRonda = 0;
+
+    Object.entries(respuestas).forEach(([_, respuesta]) => {
+      if (respuesta && respuesta.trim() !== "") {
+        const primeraLetra = respuesta.trim()[0].toUpperCase();
+        if (primeraLetra === letra) {
+          puntosRonda += 10;
+        }
+      }
+    });
+
+    setPuntos((prev) => prev + puntosRonda);
+    return puntosRonda;
+  }
 
   async function guardarEstadisticas() {
     const idLogged = localStorage.getItem("idLogged");
@@ -210,13 +216,15 @@ export default function TuttiFrutti() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          nombre_usuario: nombreUsuario,
+          mail: nombreUsuario,
           resultado: "ganada",
           puntos: puntos,
         }),
       });
-      alert("¡Estadísticas guardadas!");
-      router.push("/amigos");
+      showModal("¡Éxito!", "Estadísticas guardadas correctamente");
+      setTimeout(() => {
+        router.push("/lobby");
+      }, 2000);
     } catch (error) {
       console.error("Error al guardar:", error);
     }
@@ -284,7 +292,6 @@ export default function TuttiFrutti() {
           }}
         />
         
-        
         <div className={styles.timerContainer}>
           <span className={styles.hourglassIcon}>⏳</span>
           <span className={`${styles.timerText} ${tiempoRestante <= 30 ? styles.timerWarning : ''}`}>
@@ -335,6 +342,7 @@ export default function TuttiFrutti() {
           texto="BASTA PARA MI, BASTA PARA TODOS"
           onClick={chequeo}
           className={styles.buttonRed}
+          disabled={!juegoActivo}
         />
       </div>
 

@@ -41,7 +41,6 @@ const io = require('socket.io')(server, {
 });
 
 const sessionMiddleware = session({
-	//Elegir tu propia key secreta
 	secret: "supersarasa",
 	resave: false,
 	saveUninitialized: false
@@ -53,17 +52,13 @@ io.use((socket, next) => {
 	sessionMiddleware(socket.request, {}, next);
 });
 
-/*
-	A PARTIR DE ACÁ LOS EVENTOS DEL SOCKET
-	A PARTIR DE ACÁ LOS EVENTOS DEL SOCKET
-	A PARTIR DE ACÁ LOS EVENTOS DEL SOCKET
-*/
+// ALMACENAMIENTO DE PARTIDAS ACTIVAS
+const partidasActivas = new Map();
 
 io.on("connection", (socket) => {
 	const req = socket.request;
     console.log('Nueva conexión de socket:', socket.id);
 
-    // evento de registro de usuario 
     socket.on('registerUser', (userId) => {
         socket.userId = userId;
         usuariosConectados.set(userId.toString(), socket.id);
@@ -72,12 +67,40 @@ io.on("connection", (socket) => {
         socket.emit('registrationConfirmed', { userId, socketId: socket.id });
     });
 
-    // evento de enviar la solicitud de juego
+    // SOLICITUD DE AMISTAD
+    socket.on('sendFriendRequest', async (data) => {
+        const { idSolicitante, nombreSolicitante, idReceptor } = data;
+        
+        console.log(`Solicitud de amistad de ${nombreSolicitante} (${idSolicitante}) para usuario ${idReceptor}`);
+        
+        const receptorSocketId = usuariosConectados.get(idReceptor.toString());
+        
+        if (receptorSocketId) {
+            const receptorSocket = io.sockets.sockets.get(receptorSocketId);
+            
+            if (receptorSocket) {
+                receptorSocket.emit('friendRequestReceived', {
+                    idSolicitante,
+                    nombreSolicitante
+                });
+                console.log(`Solicitud de amistad enviada a usuario ${idReceptor}`);
+                
+                socket.emit('friendRequestSent', { 
+                    message: 'Solicitud de amistad enviada' 
+                });
+            }
+        } else {
+            socket.emit('userOffline', { 
+                message: 'El usuario no está conectado' 
+            });
+        }
+    });
+
+    // SOLICITUD DE JUEGO
     socket.on('sendGameRequest', (data) => {
         const { idSolicitante, nombreSolicitante, idReceptor, nombreReceptor } = data;
         
         console.log(`solicitud de ${nombreSolicitante} (${idSolicitante}) para ${nombreReceptor} (${idReceptor})`);
-        console.log('usuarios conectados actualmente:', Array.from(usuariosConectados.keys()));
         
         const receptorSocketId = usuariosConectados.get(idReceptor.toString());
         
@@ -97,25 +120,22 @@ io.on("connection", (socket) => {
                     message: `solicitud enviada a ${nombreReceptor}` 
                 });
             } else {
-                console.log(`socket no encontrado para ${nombreReceptor}`);
                 socket.emit('userOffline', { 
                     message: `${nombreReceptor} no está conectado` 
                 });
             }
         } else {
-            console.log(`usuario ${nombreReceptor} (${idReceptor}) no está en la lista de conectados`);
             socket.emit('userOffline', { 
                 message: `${nombreReceptor} no está conectado` 
             });
         }
     });
 
-    // evento de aceptar la solicitud de juego
-    socket.on('acceptGameRequest', (data) => {
+    // ACEPTAR SOLICITUD DE JUEGO
+    socket.on('acceptGameRequest', async (data) => {
         const { idSolicitante, idReceptor } = data;
         
         console.log(`${idReceptor} aceptó la solicitud de ${idSolicitante}`);
-        
         
         const room = `game-${Math.min(idSolicitante, idReceptor)}-${Math.max(idSolicitante, idReceptor)}-${Date.now()}`;
         
@@ -127,20 +147,47 @@ io.on("connection", (socket) => {
             const receptorSocket = io.sockets.sockets.get(receptorSocketId);
             
             if (solicitanteSocket && receptorSocket) {
+                // Unir ambos sockets a la sala
                 solicitanteSocket.join(room);
                 receptorSocket.join(room);
                 
-                console.log(`se inicio el juego en la sala: ${room}`);
-                
-                io.to(room).emit('gameStarted', {
-                    room,
-                    jugadores: [idSolicitante, idReceptor]
-                });
+                // Generar datos del juego
+                try {
+                    const response = await realizarQuery(`SELECT nombre FROM Categorias ORDER BY RAND() LIMIT 6`);
+                    const categorias = response || [];
+                    
+                    const letrasDisponibles = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+                    const letra = letrasDisponibles[Math.floor(Math.random() * letrasDisponibles.length)];
+                    
+                    // Guardar información de la partida
+                    partidasActivas.set(room, {
+                        categorias,
+                        letra,
+                        jugadores: [idSolicitante, idReceptor],
+                        respuestas: {},
+                        iniciada: false
+                    });
+                    
+                    console.log(`Juego creado en sala: ${room}`);
+                    console.log(`Categorías: ${JSON.stringify(categorias)}`);
+                    console.log(`Letra: ${letra}`);
+                    
+                    // Emitir a ambos jugadores con los mismos datos
+                    io.to(room).emit('gameStarted', {
+                        room,
+                        jugadores: [idSolicitante, idReceptor],
+                        categorias: categorias,
+                        letra: letra
+                    });
+                    
+                } catch (error) {
+                    console.error('Error al obtener categorías:', error);
+                }
             }
         }
     });
 
-    // evento de rechazar la solicitud de juego
+    // RECHAZAR SOLICITUD DE JUEGO
     socket.on('rejectGameRequest', (data) => {
         const { idSolicitante, nombreReceptor } = data;
         
@@ -157,29 +204,72 @@ io.on("connection", (socket) => {
         }
     });
 
+    // INICIAR TIMER DE LA PARTIDA
+    socket.on('startGameTimer', (data) => {
+        const { room } = data;
+        console.log(`Iniciando timer para sala ${room}`);
         
-	socket.on('joinRoom', data => {
-		console.log("🚀 ~ io.on ~ req.session.room:", req.session.room)
-		if (req.session.room != undefined && req.session.room.length > 0)
-			socket.leave(req.session.room);
-            req.session.room = data.room;
-            socket.join(req.session.room);
+        const partida = partidasActivas.get(room);
+        if (partida && !partida.iniciada) {
+            partida.iniciada = true;
+            io.to(room).emit('timerStarted', { startTime: Date.now() });
+        }
+    });
 
-		io.to(req.session.room).emit('chat-messages', { user: req.session.user, room: req.session.room });
-	});
+    // ENVIAR RESPUESTA
+    socket.on('sendAnswer', (data) => {
+        const { room, userId, categoria, respuesta } = data;
+        
+        const partida = partidasActivas.get(room);
+        if (partida) {
+            if (!partida.respuestas[userId]) {
+                partida.respuestas[userId] = {};
+            }
+            partida.respuestas[userId][categoria] = respuesta;
+            
+            // Notificar a los otros jugadores
+            socket.to(room).emit('opponentAnswer', {
+                userId,
+                categoria,
+                respuesta
+            });
+        }
+    });
 
-	socket.on('pingAll', data => {
-		console.log("PING ALL: ", data);
-		io.emit('pingAll', { event: "Ping to all", message: data });
-	});
+    // BASTA
+    socket.on('basta', (data) => {
+        const { room, userId } = data;
+        console.log(`Usuario ${userId} dijo BASTA en sala ${room}`);
+        
+        io.to(room).emit('gameEnded', {
+            userId,
+            message: 'Un jugador dijo BASTA'
+        });
+    });
 
-	socket.on('sendMessage', data => {
-		io.to(req.session.room).emit('newMessage', { room: req.session.room, message: data });
-	});
+    socket.on('joinRoom', data => {
+        if (req.session.room != undefined && req.session.room.length > 0)
+            socket.leave(req.session.room);
+        req.session.room = data.room;
+        socket.join(req.session.room);
+        io.to(req.session.room).emit('chat-messages', { user: req.session.user, room: req.session.room });
+    });
 
-	socket.on('disconnect', () => {
-		console.log("Disconnect");
-	})
+    socket.on('pingAll', data => {
+        io.emit('pingAll', { event: "Ping to all", message: data });
+    });
+
+    socket.on('sendMessage', data => {
+        io.to(req.session.room).emit('newMessage', { room: req.session.room, message: data });
+    });
+
+    socket.on('disconnect', () => {
+        console.log("Disconnect");
+        if (socket.userId) {
+            usuariosConectados.delete(socket.userId.toString());
+            console.log(`Usuario ${socket.userId} desconectado`);
+        }
+    });
 });
 
 
