@@ -47,8 +47,6 @@ export default function Amigos() {
     socket.on('friendRequestSent', (data) => {
       setModalMensaje({ tipo: 'success', mensaje: data.message });
     });
-
-    // AMISTAD ACEPTADA - NOTIFICAR AL SOLICITANTE
     socket.on('friendAdded', (data) => {
       setModalMensaje({ tipo: 'success', mensaje: data.message });
       if (data.shouldReload) {
@@ -56,7 +54,6 @@ export default function Amigos() {
       }
     });
 
-    // AMISTAD ELIMINADA - NOTIFICAR AL ELIMINADO
     socket.on('friendRemoved', (data) => {
       setModalMensaje({ tipo: 'info', mensaje: data.message });
       if (data.shouldReload) {
@@ -64,7 +61,6 @@ export default function Amigos() {
       }
     });
 
-    // SOLICITUD DE JUEGO
     socket.on('gameRequest', (data) => {
       console.log("Recibió la solicitud de juego", data);
       setSolicitudPendiente(data);
@@ -297,6 +293,9 @@ export default function Amigos() {
     }
     setModalMensaje(null);
   }
+
+
+ 
 
   return (
     <div className={styles.container}>

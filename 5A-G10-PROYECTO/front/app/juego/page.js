@@ -18,6 +18,7 @@ export default function TuttiFrutti() {
   const [room, setRoom] = useState("");
   const [juegoIniciado, setJuegoIniciado] = useState(false);
   const [esperandoOtroJugador, setEsperandoOtroJugador] = useState(true);
+  const [nuevaLetra, setNuevaLetra] =useState("");
   const router = useRouter();
   const searchParams = useSearchParams();
   const { socket, isConnected } = useSocket();
@@ -30,16 +31,17 @@ export default function TuttiFrutti() {
     setModal((prev) => ({ ...prev, open: false }));
   };
 
+  // Cargar datos iniciales
   useEffect(() => {
     cargarNombreUsuario();
     
-    // Obtener datos de la URL
     const roomParam = searchParams.get('room');
     const categoriasParam = searchParams.get('categorias');
     const letraParam = searchParams.get('letra');
     
     if (roomParam) {
       setRoom(roomParam);
+      console.log("Room cargada:", roomParam);
     }
     
     if (categoriasParam) {
@@ -58,51 +60,90 @@ export default function TuttiFrutti() {
     }
   }, [searchParams]);
 
+  // Unirse a la sala cuando el socket esté conectado
   useEffect(() => {
-    if (!socket || !room) return;
+    if (!socket || !room || !isConnected) {
+      console.log("Esperando conexión...", { socket: !!socket, room, isConnected });
+      return;
+    }
 
-    // Escuchar cuando el timer inicia
-    socket.on('timerStarted', (data) => {
-      console.log("Timer iniciado sincronizado");
-      setJuegoActivo(true);
-      setJuegoIniciado(true);
+    console.log("Uniéndose a la sala:", room);
+    const idLogged = localStorage.getItem("idLogged");
+    
+    socket.emit('joinRoom', { 
+      room, 
+      userId: idLogged,
+      username: nombreUsuario 
     });
 
-    // Escuchar cuando el juego termina
+    // Escuchar eventos del socket
+    socket.on('timerStarted', (data) => {
+      console.log("Timer iniciado:", data);
+      setJuegoActivo(true);
+      setJuegoIniciado(true);
+      setEsperandoOtroJugador(false);
+      if (data.timeRemaining) {
+        setTiempoRestante(data.timeRemaining);
+      }
+    });
+
+    socket.on('timerUpdate', (data) => {
+      console.log("Timer actualizado:", data.timeRemaining);
+      setTiempoRestante(data.timeRemaining);
+    });
+
     socket.on('gameEnded', (data) => {
       console.log("Juego terminado:", data);
       setJuegoActivo(false);
-      showModal("¡BASTA!", data.message);
+      showModal("¡BASTA!", data.message || "Un jugador dijo BASTA");
+    });
+
+    socket.on('playerJoined', (data) => {
+      console.log("Jugador unido:", data);
+      if (data.playersCount >= 2) {
+        setEsperandoOtroJugador(false);
+      }
+    });
+
+    socket.on('error', (error) => {
+      console.error("Error del socket:", error);
+      showModal("Error", error.message || "Ocurrió un error en la conexión");
     });
 
     return () => {
       socket.off('timerStarted');
+      socket.off('timerUpdate');
       socket.off('gameEnded');
+      socket.off('playerJoined');
+      socket.off('error');
     };
-  }, [socket, room]);
+  }, [socket, room, isConnected, nombreUsuario]);
 
-  // Iniciar el timer una vez que tenemos categorías y letra
+  // Iniciar el timer cuando estén todos los datos listos
   useEffect(() => {
-    if (categorias.length > 0 && letra && socket && room && !juegoIniciado) {
-      console.log("Enviando señal para iniciar timer");
+    if (categorias.length > 0 && letra && socket && room && isConnected && !juegoIniciado) {
+      console.log("Solicitando inicio de juego");
+      setEsperandoOtroJugador(false);
       socket.emit('startGameTimer', { room });
     }
-  }, [categorias, letra, socket, room, juegoIniciado]);
+  }, [categorias, letra, socket, room, isConnected, juegoIniciado]);
 
-  // Temporizador
+  // Temporizador local (backup)
   useEffect(() => {
     let intervalo;
     if (juegoActivo && tiempoRestante > 0) {
       intervalo = setInterval(() => {
         setTiempoRestante((prev) => {
           const nuevoTiempo = prev - 1;
+          if (nuevoTiempo <= 0) {
+            finalizarRondaPorTiempo();
+            return 0;
+          }
           return nuevoTiempo;
         });
       }, 1000);
-    } else if (tiempoRestante === 0 && juegoActivo) {
-      console.log("¡TIEMPO TERMINADO!");
-      finalizarRondaPorTiempo();
     }
+    
     return () => {
       if (intervalo) clearInterval(intervalo);
     };
@@ -142,7 +183,7 @@ export default function TuttiFrutti() {
     }));
 
     // Enviar respuesta al servidor
-    if (socket && room) {
+    if (socket && room && isConnected) {
       const idLogged = localStorage.getItem("idLogged");
       socket.emit('sendAnswer', {
         room,
@@ -156,7 +197,7 @@ export default function TuttiFrutti() {
   function finalizarRonda() {
     setJuegoActivo(false);
     
-    if (socket && room) {
+    if (socket && room && isConnected) {
       const idLogged = localStorage.getItem("idLogged");
       socket.emit('basta', { room, userId: idLogged });
     }
@@ -165,6 +206,8 @@ export default function TuttiFrutti() {
   }
 
   function finalizarRondaPorTiempo() {
+    if (!juegoActivo) return; // Evitar ejecución múltiple
+    
     setJuegoActivo(false);
     const puntosCalculados = calcularPuntosSinModal();
     showModal(
@@ -181,8 +224,6 @@ export default function TuttiFrutti() {
         const primeraLetra = respuesta.trim()[0].toUpperCase();
         if (primeraLetra === letra) {
           puntosRonda += 10;
-        } else {
-          puntosRonda += 0;
         }
       }
     });
@@ -197,9 +238,20 @@ export default function TuttiFrutti() {
     Object.entries(respuestas).forEach(([_, respuesta]) => {
       if (respuesta && respuesta.trim() !== "") {
         const primeraLetra = respuesta.trim()[0].toUpperCase();
-        if (primeraLetra === letra) {
-          puntosRonda += 10;
+        if (idLogged == idSolicitante) {
+          if (primeraLetra === letra && respuesta.toLowerCase() == respuestaOponente.toLowerCase()) {
+            puntosRonda += 5;
+            if (primeraLetra === letra && respuesta.toLowerCase() != respuestaOponente.toLowerCase()) {
+              puntosRonda += 10;
+              if (primeraLetra === letra && respuestaOponente == null || respuestaOponente.trim() === "") {
+                puntosRonda += 20;
+              } else {
+                puntosRonda += 0;
+              }
+            } 
+          }  
         }
+        
       }
     });
 
@@ -273,8 +325,29 @@ export default function TuttiFrutti() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+
+
+  function cambiarLetra(){
+    const letrasDisponibles = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const nuevaLetra = letrasDisponibles[Math.floor(Math.random() * letrasDisponibles.length)];
+    setNuevaLetra(nuevaLetra);
+  }
+
   return (
     <div className={styles.gameContainer}>
+      {/* Indicador de conexión */}
+      {!isConnected && (
+        <div className={styles.connectionWarning}>
+          ⚠️ Conectando al servidor...
+        </div>
+      )}
+      
+      {esperandoOtroJugador && isConnected && (
+        <div className={styles.waitingMessage}>
+          ⏳ Esperando a otro jugador...
+        </div>
+      )}
+
       <div className={styles.topButtons}>
         <Button
           texto="CERRAR SESIÓN"
@@ -290,6 +363,11 @@ export default function TuttiFrutti() {
           onClick={() => {
             router.push("/lobby");
           }}
+        />
+        <Button
+          texto="CAMBIAR LETRA"
+          className={styles.buttonVioleta}
+          onClick={() => cambiarLetra()}
         />
         
         <div className={styles.timerContainer}>

@@ -17,7 +17,8 @@
 
 .buttonNaranja,
 .buttonBlue,
-.buttonRed {
+.buttonRed,  
+.buttonVioleta {
   font-family: 'Fredoka', sans-serif;
   font-weight: 600;
   padding: 12px 24px;
@@ -38,13 +39,18 @@
   background: #4ade80;
   color: white;
 }
-
+.buttonVioleta {
+  background: #c93dc5;
+  color: white;
+}
 .buttonRed {
   background: #ef4444;
   color: white;
   font-size: 18px;
   padding: 16px 32px;
 }
+
+
 
 .buttonRed:disabled {
   background: #9ca3af;
@@ -54,7 +60,8 @@
 
 .buttonNaranja:hover:not(:disabled),
 .buttonBlue:hover:not(:disabled),
-.buttonRed:hover:not(:disabled) {
+.buttonRed:hover:not(:disabled),
+.buttonVioleta:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }

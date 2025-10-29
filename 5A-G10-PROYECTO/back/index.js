@@ -54,6 +54,7 @@ io.use((socket, next) => {
 
 // ALMACENAMIENTO DE PARTIDAS ACTIVAS
 const partidasActivas = new Map();
+const rooms = {};
 
 io.on("connection", (socket) => {
 	const req = socket.request;
