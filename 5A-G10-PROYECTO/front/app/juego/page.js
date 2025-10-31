@@ -18,6 +18,7 @@ export default function TuttiFrutti() {
   const [room, setRoom] = useState("");
   const [juegoIniciado, setJuegoIniciado] = useState(false);
   const [esperandoOtroJugador, setEsperandoOtroJugador] = useState(true);
+  const [estoyUnido, setEstoyUnido] = useState(false);
   const [nuevaLetra, setNuevaLetra] =useState("");
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -76,12 +77,13 @@ export default function TuttiFrutti() {
       username: nombreUsuario 
     });
 
-    // Escuchar eventos del socket
+    //esto es lo que no anda para uno de los jugadores(el que manda la solicitud)
     socket.on('timerStarted', (data) => {
       console.log("Timer iniciado:", data);
       setJuegoActivo(true);
       setJuegoIniciado(true);
       setEsperandoOtroJugador(false);
+      setEstoyUnido(true);
       if (data.timeRemaining) {
         setTiempoRestante(data.timeRemaining);
       }
@@ -102,6 +104,7 @@ export default function TuttiFrutti() {
       console.log("Jugador unido:", data);
       if (data.playersCount >= 2) {
         setEsperandoOtroJugador(false);
+        setEstoyUnido(true);
       }
     });
 
@@ -124,7 +127,9 @@ export default function TuttiFrutti() {
     if (categorias.length > 0 && letra && socket && room && isConnected && !juegoIniciado) {
       console.log("Solicitando inicio de juego");
       setEsperandoOtroJugador(false);
+      setEstoyUnido(true);
       socket.emit('startGameTimer', { room });
+      
     }
   }, [categorias, letra, socket, room, isConnected, juegoIniciado]);
 
@@ -406,7 +411,11 @@ export default function TuttiFrutti() {
                       placeholder={juegoActivo ? `${letra}...` : ""}
                       className={`${styles.input} ${!juegoActivo ? styles.inputDisabled : ""}`}
                     />
+                  
                   </td>
+                  
+
+
                 );
               })}
               <td className={styles.puntosCell}>{puntos}</td>
