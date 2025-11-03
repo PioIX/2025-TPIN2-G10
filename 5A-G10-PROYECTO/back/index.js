@@ -157,7 +157,7 @@ io.on("connection", (socket) => {
                     const response = await realizarQuery(`SELECT nombre FROM Categorias ORDER BY RAND() LIMIT 6`);
                     const categorias = response || [];
                     
-                    const letrasDisponibles = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+                    const letrasDisponibles = "ABCDEFGHIJLMNOPQRSTUVZ";
                     const letra = letrasDisponibles[Math.floor(Math.random() * letrasDisponibles.length)];
                     
                     // Guardar información de la partida
@@ -187,6 +187,11 @@ io.on("connection", (socket) => {
             }
         }
     });
+
+    socket.on('checkPlayers', (data => {
+        const { room } = data;
+         io.to(room).emit('contarJugadores', data);
+    }))
 
     // RECHAZAR SOLICITUD DE JUEGO
     socket.on('rejectGameRequest', (data) => {
