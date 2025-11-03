@@ -19,7 +19,7 @@ export default function TuttiFrutti() {
   const [juegoIniciado, setJuegoIniciado] = useState(false);
   const [esperandoOtroJugador, setEsperandoOtroJugador] = useState(true);
   const [estoyUnido, setEstoyUnido] = useState(false);
-  const [nuevaLetra, setNuevaLetra] =useState("");
+  const [nuevaRonda, setNuevaRonda] =useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { socket, isConnected } = useSocket();
@@ -108,10 +108,21 @@ export default function TuttiFrutti() {
       }
     });
 
+    socket.on('contarJugadores', (data) => {
+      console.log("Contar jugadores:", data)
+      if (data.userId !== idLogged) {
+        setEsperandoOtroJugador(false);
+        setEstoyUnido(true);
+        socket.emit('startGameTimer', { room });
+      }
+      ;});
+
     socket.on('error', (error) => {
       console.error("Error del socket:", error);
       showModal("Error", error.message || "Ocurrió un error en la conexión");
     });
+
+    socket.emit('checkPlayers', { room: room, userId: idLogged });
 
     return () => {
       socket.off('timerStarted');
@@ -124,7 +135,7 @@ export default function TuttiFrutti() {
 
   // Iniciar el timer cuando estén todos los datos listos
   useEffect(() => {
-    if (categorias.length > 0 && letra && socket && room && isConnected && !juegoIniciado) {
+    if (categorias.length > 0 && letra && socket && room && isConnected && juegoIniciado) {
       console.log("Solicitando inicio de juego");
       setEsperandoOtroJugador(false);
       setEstoyUnido(true);
@@ -210,6 +221,15 @@ export default function TuttiFrutti() {
     calcularPuntos();
   }
 
+  function empezarNuevaRonda() {
+    setRespuestas({});
+    setTiempoRestante(120);
+    setJuegoActivo(true);
+    setNuevaRonda(true);
+  }
+
+
+
   function finalizarRondaPorTiempo() {
     if (!juegoActivo) return; // Evitar ejecución múltiple
     
@@ -264,7 +284,7 @@ export default function TuttiFrutti() {
     return puntosRonda;
   }
 
-  async function guardarEstadisticas() {
+  async function guardarEstadisticas() {//hacer que ande o ponerla directamente 
     const idLogged = localStorage.getItem("idLogged");
     if (!idLogged) return;
 
@@ -322,6 +342,7 @@ export default function TuttiFrutti() {
     }
 
     finalizarRonda();
+    nuevaRonda(true);
   }
 
   const formatTime = (seconds) => {
@@ -331,12 +352,6 @@ export default function TuttiFrutti() {
   };
 
 
-
-  function cambiarLetra(){
-    const letrasDisponibles = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    const nuevaLetra = letrasDisponibles[Math.floor(Math.random() * letrasDisponibles.length)];
-    setNuevaLetra(nuevaLetra);
-  }
 
   return (
     <div className={styles.gameContainer}>
@@ -369,12 +384,6 @@ export default function TuttiFrutti() {
             router.push("/lobby");
           }}
         />
-        <Button
-          texto="CAMBIAR LETRA"
-          className={styles.buttonVioleta}
-          onClick={() => cambiarLetra()}
-        />
-        
         <div className={styles.timerContainer}>
           <span className={styles.hourglassIcon}>⏳</span>
           <span className={`${styles.timerText} ${tiempoRestante <= 30 ? styles.timerWarning : ''}`}>
@@ -411,7 +420,16 @@ export default function TuttiFrutti() {
                       placeholder={juegoActivo ? `${letra}...` : ""}
                       className={`${styles.input} ${!juegoActivo ? styles.inputDisabled : ""}`}
                     />
-                  
+                    {nuevaRonda && (
+                      <input
+                      type="text"
+                      value={respuestas[nombreCategoria] || ""}
+                      onChange={(e) => handleInputChange(nombreCategoria, e.target.value)}
+                      disabled={!juegoActivo}
+                      placeholder={juegoActivo ? `${letra}...` : ""}
+                      className={`${styles.input} ${!juegoActivo ? styles.inputDisabled : ""}`}
+                    />
+                    )}
                   </td>
                   
 
