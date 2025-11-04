@@ -67,6 +67,10 @@ io.on("connection", (socket) => {
         console.log('usuarios conectados:', Array.from(usuariosConectados.keys()));
         socket.emit('registrationConfirmed', { userId, socketId: socket.id });
     });
+    function generarLetraAleatoria() {
+        const letrasDisponibles = "ABCDEFGHIJLMNOPQRSTUVZ";
+        return letrasDisponibles[Math.floor(Math.random() * letrasDisponibles.length)];
+    }
 
     // SOLICITUD DE AMISTAD
     socket.on('sendFriendRequest', async (data) => {
@@ -146,48 +150,85 @@ io.on("connection", (socket) => {
         if (solicitanteSocketId && receptorSocketId) {
             const solicitanteSocket = io.sockets.sockets.get(solicitanteSocketId);
             const receptorSocket = io.sockets.sockets.get(receptorSocketId);
-            
+
             if (solicitanteSocket && receptorSocket) {
-                // Unir ambos sockets a la sala
                 solicitanteSocket.join(room);
                 receptorSocket.join(room);
-                
-                // Generar datos del juego
+
                 try {
                     const response = await realizarQuery(`SELECT nombre FROM Categorias ORDER BY RAND() LIMIT 6`);
                     const categorias = response || [];
-                    
-                    const letrasDisponibles = "ABCDEFGHIJLMNOPQRSTUVZ";
-                    const letra = letrasDisponibles[Math.floor(Math.random() * letrasDisponibles.length)];
-                    
+                    const letra = generarLetraAleatoria();
+
                     // Guardar información de la partida
                     partidasActivas.set(room, {
                         categorias,
                         letra,
                         jugadores: [idSolicitante, idReceptor],
                         respuestas: {},
-                        iniciada: false
+                        iniciada: false,
+                        rondaActual: 1
                     });
-                    
+
                     console.log(`Juego creado en sala: ${room}`);
-                    console.log(`Categorías: ${JSON.stringify(categorias)}`);
-                    console.log(`Letra: ${letra}`);
-                    
-                    // Emitir a ambos jugadores con los mismos datos
+
                     io.to(room).emit('gameStarted', {
                         room,
                         jugadores: [idSolicitante, idReceptor],
                         categorias: categorias,
-                        letra: letra
+                        letra: letra,
+                        ronda: 1
                     });
-                    
+
                 } catch (error) {
                     console.error('Error al obtener categorías:', error);
                 }
             }
         }
     });
+    socket.on('solicitarNuevaRonda', (data) => {
+        const { room, userId } = data;
+        console.log(`Usuario ${userId} solicita nueva ronda en sala ${room}`);
+        
+        const partida = partidasActivas.get(room);
+        if (!partida) {
+            socket.emit('error', { message: 'Partida no encontrada' });
+            return;
+        }
+        if (!partida.jugadoresListos) {
+        partida.jugadoresListos = new Set();
+    }
+        partida.jugadoresListos.add(userId);
 
+        console.log(`Jugadores listos: ${partida.jugadoresListos.size}/${partida.jugadores.length}`);
+
+        // Si ambos jugadores están listos, iniciar nueva ronda
+        if (partida.jugadoresListos.size === partida.jugadores.length) {
+            console.log('Ambos jugadores listos, iniciando nueva ronda');
+
+            // Generar nueva letra
+            const nuevaLetra = generarLetraAleatoria();
+            partida.letra = nuevaLetra;
+            partida.rondaActual = (partida.rondaActual || 1) + 1;
+            partida.respuestas = {};
+            partida.iniciada = false;
+            partida.jugadoresListos.clear();
+
+            // Notificar a ambos jugadores
+            io.to(room).emit('nuevaRondaIniciada', {
+                letra: nuevaLetra,
+                ronda: partida.rondaActual,
+                categorias: partida.categorias
+            });
+        } else {
+            // Notificar al otro jugador que uno está esperando
+            socket.to(room).emit('esperandoOtroJugador', {
+                mensaje: 'Tu oponente está listo para la siguiente ronda'
+            });
+        }
+    }); 
+
+    
     socket.on('checkPlayers', (data => {
         const { room } = data;
          io.to(room).emit('contarJugadores', data);
@@ -244,15 +285,36 @@ io.on("connection", (socket) => {
 
     // BASTA
     socket.on('basta', (data) => {
-        const { room, userId } = data;
+        const { room, userId, respuestas } = data;
         console.log(`Usuario ${userId} dijo BASTA en sala ${room}`);
+        
+        const partida = partidasActivas.get(room);
+        if (partida) {
+            // Guardar las respuestas del jugador que dijo BASTA
+            partida.respuestas[userId] = respuestas;
+        }
         
         io.to(room).emit('gameEnded', {
             userId,
-            message: 'Un jugador dijo BASTA'
+            message: 'Un jugador dijo BASTA',
+            respuestasOponente: respuestas
         });
     });
-
+    socket.on('enviarRespuestasFinales', (data) => {
+        const { room, userId, respuestas } = data;
+        console.log(`Usuario ${userId} envía respuestas finales en sala ${room}`);
+        
+        const partida = partidasActivas.get(room);
+        if (partida) {
+            partida.respuestas[userId] = respuestas;
+        }
+        
+        // Enviar las respuestas al otro jugador
+        socket.to(room).emit('respuestasFinalesOponente', {
+            userId,
+            respuestas
+        });
+    });
     socket.on('joinRoom', data => {
         if (req.session.room != undefined && req.session.room.length > 0)
             socket.leave(req.session.room);
