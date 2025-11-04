@@ -283,21 +283,11 @@ export default function TuttiFrutti() {
   } 
   
 
-  function empezarNuevaRonda() {
-   setRespuestas({});
-    setTiempoRestante(120);
-    setJuegoActivo(true);
-    setRondaActual(prev => prev + 1);
-    if (socket && room && isConnected) {
-      socket.emit('startGameTimer', { room });
-    }
-  }
-  //se tiene q hacer la nueva letra y todo eso
-
+  
 
 
   function finalizarRondaPorTiempo() {
-    if (!juegoActivo) return; 
+    if (!juegoActivo) return;  //aca falla tipo a que al otro jugador le aparezca el modal del tiempo terminado
     
     setJuegoActivo(false);
     /*const puntosCalculados = calcularPuntosSinModal();
@@ -350,12 +340,12 @@ export default function TuttiFrutti() {
 
     Object.entries(respuestas).forEach(([categoria, respuesta]) => {
       if (respuesta && respuesta.trim() !== "") {
-        const primeraLetra = respuesta.trim()[0].toUpperCase();
-        if (primeraLetra === letra) {
-          const respuestaOponente = respuestasOtroJugador?.[categoria];
-          if (!respuestaOponente || respuestaOponente.trim() === "") {
+        const respuestaOponente = respuestasOtroJugador?.[categoria];
+        const primeraLetraMiRespuesta = respuesta.trim()[0].toUpperCase();
+        if (primeraLetraMiRespuesta === letra.toUpperCase()) {
+          if ( !respuestaOponente || respuestaOponente.trim() === "") {
             puntosRonda += 20;
-          } else if (respuesta.toLowerCase() === respuestaOponente.toLowerCase()) {
+          } else if (respuesta.trim().toLowerCase() === respuestaOponente.trim().toLowerCase()) {
             puntosRonda += 5;
           } else {
             puntosRonda += 10;
@@ -377,8 +367,26 @@ export default function TuttiFrutti() {
       const idLogged = localStorage.getItem("idLogged");
       socket.emit('solicitarNuevaRonda', { room, userId: idLogged });
       setEsperandoNuevaRonda(true);
+      empezarNuevaRonda();
     }
   }
+  function empezarNuevaRonda() {
+    setRespuestas({});
+    setTiempoRestante(120);
+    setJuegoActivo(true);
+    setEsperandoNuevaRonda(false);
+    setRondaActual(prev => prev + 1);
+    if (socket && room && isConnected) {
+      
+      socket.emit('startGameTimer', { room });
+
+    }
+  }
+  //la letra la hace el socket en el back
+
+
+
+
 
   async function guardarEstadisticas() {//hacer que ande o ponerla directamente 
     const idLogged = localStorage.getItem("idLogged");
@@ -395,9 +403,9 @@ export default function TuttiFrutti() {
         }),
       });
       showModal("¡Éxito!", "Estadísticas guardadas correctamente");
-      setTimeout(() => {
+      /*setTimeout(() => {
         router.push("/lobby");
-      }, 2000);
+      }, 2000);*/
     } catch (error) {
       console.error("Error al guardar:", error);
     }
@@ -543,17 +551,12 @@ export default function TuttiFrutti() {
             </tr>
           </tbody>
 
-          {!juegoActivo && !esperandoNuevaRonda && historialRondas.length > 0 && (
-            <div className={styles.bottomButton}>
-              <Button
-                texto="JUGAR NUEVA RONDA"
-                onClick={solicitarNuevaRonda}
-                className={styles.buttonBlue}
-              />
-            </div>
-          )}
+          
 
         </table>
+
+
+        
       </div>
 
       <div className={styles.bottomButton}>
@@ -563,6 +566,17 @@ export default function TuttiFrutti() {
           className={styles.buttonRed}
           disabled={!juegoActivo}
         />
+      </div>
+      <div>
+        {!juegoActivo && !esperandoNuevaRonda && historialRondas.length > 0 && (
+            <div className={styles.bottomButton}>
+              <Button
+                texto="JUGAR NUEVA RONDA"
+                onClick={solicitarNuevaRonda}
+                className={styles.buttonBlue}
+              />
+            </div>
+          )}      
       </div>
 
       {modal.open && (

@@ -197,16 +197,16 @@ io.on("connection", (socket) => {
         }
         if (!partida.jugadoresListos) {
         partida.jugadoresListos = new Set();
-    }
+        }
         partida.jugadoresListos.add(userId);
 
-        console.log(`Jugadores listos: ${partida.jugadoresListos.size}/${partida.jugadores.length}`);
+        console.log(`SOLICITANDO NUEVA RONDA`);
 
-        // Si ambos jugadores están listos, iniciar nueva ronda
+        
         if (partida.jugadoresListos.size === partida.jugadores.length) {
             console.log('Ambos jugadores listos, iniciando nueva ronda');
 
-            // Generar nueva letra
+           
             const nuevaLetra = generarLetraAleatoria();
             partida.letra = nuevaLetra;
             partida.rondaActual = (partida.rondaActual || 1) + 1;
@@ -214,14 +214,14 @@ io.on("connection", (socket) => {
             partida.iniciada = false;
             partida.jugadoresListos.clear();
 
-            // Notificar a ambos jugadores
+           
             io.to(room).emit('nuevaRondaIniciada', {
                 letra: nuevaLetra,
                 ronda: partida.rondaActual,
                 categorias: partida.categorias
             });
         } else {
-            // Notificar al otro jugador que uno está esperando
+           
             socket.to(room).emit('esperandoOtroJugador', {
                 mensaje: 'Tu oponente está listo para la siguiente ronda'
             });
