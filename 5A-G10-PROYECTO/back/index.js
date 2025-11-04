@@ -1108,7 +1108,9 @@ app.get('/Categorias', async function(req, res){
    }
 });
 
-// Obtener historial de un jugador basado en datos existentes
+// Agregar esta ruta al index.js después de la ruta de /Ranking
+
+// Obtener historial de un jugador usando la tabla Partidas existente
 app.get('/HistorialPartidas', async function(req, res) {
     const { idjugador } = req.query;
     
@@ -1117,60 +1119,70 @@ app.get('/HistorialPartidas', async function(req, res) {
     }
 
     try {
-        // Obtener datos del jugador
-        const jugadorData = await realizarQuery(`
+        // Obtener todas las partidas del jugador
+        const partidas = await realizarQuery(`
             SELECT 
-                idusuario,
-                nombre,
-                partidasjugadas,
-                partidasganadas,
-                partidasperdidas,
-                puntos
-            FROM Jugadores 
-            WHERE idusuario = ${idjugador}
+                p.idpartida,
+                p.idusuario,
+                p.fecha,
+                p.puntosobtenidos,
+                p.resultado,
+                j.nombre as nombre_jugador
+            FROM Partidas p
+            INNER JOIN Jugadores j ON p.idusuario = j.idusuario
+            WHERE p.idusuario = ${idjugador}
+            ORDER BY p.fecha DESC
         `);
 
-        if (jugadorData.length === 0) {
-            return res.status(404).json({ error: "Jugador no encontrado" });
+        if (partidas.length === 0) {
+            return res.status(200).json({
+                message: 'No hay partidas jugadas',
+                historial: []
+            });
         }
 
-        const jugador = jugadorData[0];
-        
-        // Obtener amigos del jugador
+        // Obtener los amigos del jugador para asignarlos como oponentes
         const amigos = await realizarQuery(`
             SELECT 
                 j.idusuario,
-                j.nombre,
-                j.puntos
+                j.nombre
             FROM Amigos a
             INNER JOIN Jugadores j ON a.idamigo = j.idusuario
             WHERE a.idjugador = ${idjugador}
         `);
 
-        // Si no hay amigos, generar historial simulado básico
+        // Si no tiene amigos, obtener jugadores aleatorios
+        let posiblesOponentes = amigos;
         if (amigos.length === 0) {
-            // Obtener jugadores aleatorios para simular partidas
-            const jugadoresAleatorios = await realizarQuery(`
-                SELECT idusuario, nombre, puntos
+            posiblesOponentes = await realizarQuery(`
+                SELECT idusuario, nombre
                 FROM Jugadores
                 WHERE idusuario != ${idjugador}
                 ORDER BY RAND()
-                LIMIT 5
+                LIMIT 10
             `);
-
-            const historialSimulado = generarHistorialSimulado(
-                jugador,
-                jugadoresAleatorios
-            );
-
-            return res.status(200).json({
-                message: 'Historial de partidas (simulado)',
-                historial: historialSimulado
-            });
         }
 
-        // Generar historial basado en estadísticas reales
-        const historialProcesado = generarHistorialConAmigos(jugador, amigos);
+        // Procesar el historial
+        const historialProcesado = partidas.map((partida, index) => {
+            // Asignar un oponente (rotando entre los disponibles)
+            const oponente = posiblesOponentes.length > 0 
+                ? posiblesOponentes[index % posiblesOponentes.length]
+                : { idusuario: 0, nombre: 'Oponente' };
+
+            const gano = partida.resultado === 'ganada' || partida.resultado === 'victoria' || partida.resultado === 'Ganada' || partida.resultado === 'Victoria';
+
+            return {
+                idhistorial: partida.idpartida,
+                fecha: partida.fecha,
+                oponente: oponente.nombre,
+                idOponente: oponente.idusuario,
+                resultado: gano ? 'Victoria' : 'Derrota',
+                gano: gano,
+                puntos: partida.puntosobtenidos || 0,
+                ganador: gano ? partida.nombre_jugador : oponente.nombre
+            };
+        });
 
         res.status(200).json({
             message: 'Historial de partidas',
@@ -1183,131 +1195,34 @@ app.get('/HistorialPartidas', async function(req, res) {
     }
 });
 
-// Función para generar historial basado en estadísticas y amigos
-function generarHistorialConAmigos(jugador, amigos) {
-    const historial = [];
-    const totalPartidas = jugador.partidasjugadas || 0;
-    const ganadas = jugador.partidasganadas || 0;
-    const perdidas = jugador.partidasperdidas || 0;
-
-    if (totalPartidas === 0) {
-        return [];
-    }
-
-    // Crear fechas distribuidas en los últimos 30 días
-    const fechaActual = new Date();
+// Ruta para guardar una nueva partida (llamar cuando termine el juego)
+app.post('/GuardarPartida', async function(req, res) {
+    const { idusuario, puntosobtenidos, resultado } = req.body;
     
-    // Generar partidas ganadas
-    for (let i = 0; i < ganadas; i++) {
-        const diasAtras = Math.floor((i / totalPartidas) * 30);
-        const fecha = new Date(fechaActual);
-        fecha.setDate(fecha.getDate() - diasAtras);
-        fecha.setHours(Math.floor(Math.random() * 24));
-        fecha.setMinutes(Math.floor(Math.random() * 60));
-
-        const oponente = amigos[i % amigos.length];
-        const puntosGanados = Math.floor(Math.random() * 50) + 50; // Entre 50-100 puntos
-
-        historial.push({
-            idhistorial: i + 1,
-            fecha: fecha.toISOString().slice(0, 19).replace('T', ' '),
-            oponente: oponente.nombre,
-            idOponente: oponente.idusuario,
-            resultado: 'Victoria',
-            gano: true,
-            puntos: puntosGanados,
-            ganador: jugador.nombre
+    if (!idusuario || resultado === undefined) {
+        return res.status(400).json({ 
+            res: "Faltan parámetros (idusuario, resultado)", 
+            guardado: false 
         });
     }
 
-    // Generar partidas perdidas
-    for (let i = 0; i < perdidas; i++) {
-        const diasAtras = Math.floor(((i + ganadas) / totalPartidas) * 30);
-        const fecha = new Date(fechaActual);
-        fecha.setDate(fecha.getDate() - diasAtras);
-        fecha.setHours(Math.floor(Math.random() * 24));
-        fecha.setMinutes(Math.floor(Math.random() * 60));
-
-        const oponente = amigos[i % amigos.length];
-
-        historial.push({
-            idhistorial: ganadas + i + 1,
-            fecha: fecha.toISOString().slice(0, 19).replace('T', ' '),
-            oponente: oponente.nombre,
-            idOponente: oponente.idusuario,
-            resultado: 'Derrota',
-            gano: false,
-            puntos: 0,
-            ganador: oponente.nombre
+    try {
+        const fechaActual = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        
+        await realizarQuery(`
+            INSERT INTO Partidas (idusuario, fecha, puntosobtenidos, resultado)
+            VALUES (${idusuario}, "${fechaActual}", ${puntosobtenidos || 0}, "${resultado}")
+        `);
+        
+        res.json({ 
+            res: "Partida guardada correctamente", 
+            guardado: true 
+        });
+    } catch (error) {
+        console.error("Error al guardar partida:", error);
+        res.status(500).json({ 
+            res: "Error interno", 
+            guardado: false 
         });
     }
-
-    // Ordenar por fecha descendente (más recientes primero)
-    historial.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-
-    return historial;
-}
-
-// Función para generar historial simulado cuando no hay amigos
-function generarHistorialSimulado(jugador, jugadoresAleatorios) {
-    const historial = [];
-    const totalPartidas = jugador.partidasjugadas || 0;
-    const ganadas = jugador.partidasganadas || 0;
-    const perdidas = jugador.partidasperdidas || 0;
-
-    if (totalPartidas === 0 || jugadoresAleatorios.length === 0) {
-        return [];
-    }
-
-    const fechaActual = new Date();
-    
-    // Generar partidas ganadas
-    for (let i = 0; i < ganadas; i++) {
-        const diasAtras = Math.floor((i / totalPartidas) * 30);
-        const fecha = new Date(fechaActual);
-        fecha.setDate(fecha.getDate() - diasAtras);
-        fecha.setHours(Math.floor(Math.random() * 24));
-        fecha.setMinutes(Math.floor(Math.random() * 60));
-
-        const oponente = jugadoresAleatorios[i % jugadoresAleatorios.length];
-        const puntosGanados = Math.floor(Math.random() * 50) + 50;
-
-        historial.push({
-            idhistorial: i + 1,
-            fecha: fecha.toISOString().slice(0, 19).replace('T', ' '),
-            oponente: oponente.nombre,
-            idOponente: oponente.idusuario,
-            resultado: 'Victoria',
-            gano: true,
-            puntos: puntosGanados,
-            ganador: jugador.nombre
-        });
-    }
-
-    // Generar partidas perdidas
-    for (let i = 0; i < perdidas; i++) {
-        const diasAtras = Math.floor(((i + ganadas) / totalPartidas) * 30);
-        const fecha = new Date(fechaActual);
-        fecha.setDate(fecha.getDate() - diasAtras);
-        fecha.setHours(Math.floor(Math.random() * 24));
-        fecha.setMinutes(Math.floor(Math.random() * 60));
-
-        const oponente = jugadoresAleatorios[i % jugadoresAleatorios.length];
-
-        historial.push({
-            idhistorial: ganadas + i + 1,
-            fecha: fecha.toISOString().slice(0, 19).replace('T', ' '),
-            oponente: oponente.nombre,
-            idOponente: oponente.idusuario,
-            resultado: 'Derrota',
-            gano: false,
-            puntos: 0,
-            ganador: oponente.nombre
-        });
-    }
-
-    // Ordenar por fecha descendente
-    historial.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-
-    return historial;
-}
+});
