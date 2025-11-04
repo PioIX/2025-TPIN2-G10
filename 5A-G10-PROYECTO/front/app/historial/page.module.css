@@ -286,6 +286,7 @@
   transform: translateY(-2px);
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
 }
+
 .buttonGreen {
   flex: 1;
   padding: 16px 24px;
@@ -308,6 +309,7 @@
   transform: translateY(-2px);
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
 }
+
 
 .buttonRed {
   flex: 1;
@@ -332,41 +334,3 @@
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .container {
-    padding: 20px 16px;
-  }
-
-  .historialTable {
-    padding: 20px;
-  }
-
-  .tableHeaders {
-    grid-template-columns: 1fr;
-    display: none;
-  }
-
-  .tableRow {
-    grid-template-columns: 1fr;
-    gap: 12px;
-    padding: 20px;
-  }
-
-  .cell {
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .cell::before {
-    content: attr(data-label);
-    font-weight: 700;
-    color: white;
-    font-size: 12px;
-    text-transform: uppercase;
-  }
-
-  .bottomButtons {
-    flex-direction: column;
-  }
-}
