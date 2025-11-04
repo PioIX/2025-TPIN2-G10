@@ -172,7 +172,16 @@ export default function Historial() {
       {/* Botones inferiores */}
       <div className={styles.bottomButtons}>
         <Button
+
           texto="VOLVER AL RANKING"
+
+          texto="LOBBY"
+          className={styles.buttonGreen}
+          onClick={() => router.push("/lobby")}
+        />
+        <Button
+          texto="RANKING"
+
           className={styles.buttonBlue}
           onClick={() => router.push("/ranking")}
         />

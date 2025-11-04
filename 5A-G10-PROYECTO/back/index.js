@@ -1175,3 +1175,121 @@ app.get('/Categorias', async function(req, res){
    }
 });
 
+// Agregar esta ruta al index.js después de la ruta de /Ranking
+
+// Obtener historial de un jugador usando la tabla Partidas existente
+app.get('/HistorialPartidas', async function(req, res) {
+    const { idjugador } = req.query;
+    
+    if (!idjugador) {
+        return res.status(400).json({ error: "Falta el ID del jugador" });
+    }
+
+    try {
+        // Obtener todas las partidas del jugador
+        const partidas = await realizarQuery(`
+            SELECT 
+                p.idpartida,
+                p.idusuario,
+                p.fecha,
+                p.puntosobtenidos,
+                p.resultado,
+                j.nombre as nombre_jugador
+            FROM Partidas p
+            INNER JOIN Jugadores j ON p.idusuario = j.idusuario
+            WHERE p.idusuario = ${idjugador}
+            ORDER BY p.fecha DESC
+        `);
+
+        if (partidas.length === 0) {
+            return res.status(200).json({
+                message: 'No hay partidas jugadas',
+                historial: []
+            });
+        }
+
+        // Obtener los amigos del jugador para asignarlos como oponentes
+        const amigos = await realizarQuery(`
+            SELECT 
+                j.idusuario,
+                j.nombre
+            FROM Amigos a
+            INNER JOIN Jugadores j ON a.idamigo = j.idusuario
+            WHERE a.idjugador = ${idjugador}
+        `);
+
+        // Si no tiene amigos, obtener jugadores aleatorios
+        let posiblesOponentes = amigos;
+        if (amigos.length === 0) {
+            posiblesOponentes = await realizarQuery(`
+                SELECT idusuario, nombre
+                FROM Jugadores
+                WHERE idusuario != ${idjugador}
+                ORDER BY RAND()
+                LIMIT 10
+            `);
+        }
+
+        // Procesar el historial
+        const historialProcesado = partidas.map((partida, index) => {
+            // Asignar un oponente (rotando entre los disponibles)
+            const oponente = posiblesOponentes.length > 0 
+                ? posiblesOponentes[index % posiblesOponentes.length]
+                : { idusuario: 0, nombre: 'Oponente' };
+
+            const gano = partida.resultado === 'ganada' || partida.resultado === 'victoria' || partida.resultado === 'Ganada' || partida.resultado === 'Victoria';
+
+            return {
+                idhistorial: partida.idpartida,
+                fecha: partida.fecha,
+                oponente: oponente.nombre,
+                idOponente: oponente.idusuario,
+                resultado: gano ? 'Victoria' : 'Derrota',
+                gano: gano,
+                puntos: partida.puntosobtenidos || 0,
+                ganador: gano ? partida.nombre_jugador : oponente.nombre
+            };
+        });
+
+        res.status(200).json({
+            message: 'Historial de partidas',
+            historial: historialProcesado
+        });
+
+    } catch (error) {
+        console.error("Error al obtener historial:", error);
+        res.status(500).json({ error: "Error interno" });
+    }
+});
+
+// Ruta para guardar una nueva partida (llamar cuando termine el juego)
+app.post('/GuardarPartida', async function(req, res) {
+    const { idusuario, puntosobtenidos, resultado } = req.body;
+    
+    if (!idusuario || resultado === undefined) {
+        return res.status(400).json({ 
+            res: "Faltan parámetros (idusuario, resultado)", 
+            guardado: false 
+        });
+    }
+
+    try {
+        const fechaActual = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        
+        await realizarQuery(`
+            INSERT INTO Partidas (idusuario, fecha, puntosobtenidos, resultado)
+            VALUES (${idusuario}, "${fechaActual}", ${puntosobtenidos || 0}, "${resultado}")
+        `);
+        
+        res.json({ 
+            res: "Partida guardada correctamente", 
+            guardado: true 
+        });
+    } catch (error) {
+        console.error("Error al guardar partida:", error);
+        res.status(500).json({ 
+            res: "Error interno", 
+            guardado: false 
+        });
+    }
+});
