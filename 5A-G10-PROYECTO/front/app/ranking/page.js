@@ -130,6 +130,11 @@ export default function Ranking() {
       {/* Botones inferiores */}
       <div className={styles.bottomButtons}>
         <Button
+          texto="LOBBY"
+          className={styles.buttonGreen}
+          onClick={() => router.push("/lobby")}
+        />
+        <Button
           texto="HISTORIAL"
           className={styles.buttonYellow}
           onClick={() => router.push("/historial")}
