@@ -186,7 +186,35 @@ io.on("connection", (socket) => {
             }
         }
     });
+
     socket.on('solicitarNuevaRonda', (data) => {
+        const { room, userId } = data;
+        console.log(`Usuario ${userId} solicita nueva ronda en sala ${room}`);
+        const receptorSocketId = usuariosConectados.get(idReceptor.toString());
+        
+        if (receptorSocketId) {
+            const receptorSocket = io.sockets.sockets.get(receptorSocketId);
+            
+            if (receptorSocket) {
+                receptorSocket.emit('nuevaRonda', {
+                    idSolicitante,
+                    nombreSolicitante,
+                    idReceptor,
+                    nombreReceptor
+                });
+                console.log(`solicitud enviada a ${nombreReceptor}`);
+                
+                socket.emit('requestSent', { 
+                    message: `solicitud enviada a ${nombreReceptor}` 
+                });
+            }
+        }
+    });
+
+
+
+
+    socket.on('acceptNuevaRonda', (data) => {
         const { room, userId } = data;
         console.log(`Usuario ${userId} solicita nueva ronda en sala ${room}`);
         
@@ -200,10 +228,13 @@ io.on("connection", (socket) => {
         }
         partida.jugadoresListos.add(userId);
 
+        console.log("partido: ", partida.jugadoresListos);
+        console.log("size partida: ", partida.jugadoresListos.size);
+
         console.log(`SOLICITANDO NUEVA RONDA`);
 
         
-        if (partida.jugadoresListos.size === partida.jugadores.length) {
+        if (partida.jugadoresListos.length === partida.jugadores.length) {
             console.log('Ambos jugadores listos, iniciando nueva ronda');
 
            
@@ -234,7 +265,7 @@ io.on("connection", (socket) => {
          io.to(room).emit('contarJugadores', data);
     }))
 
-    // RECHAZAR SOLICITUD DE JUEGO
+    // RECHAZAR SOLICITUD DE JUEGO. creo que puedo usar este evento para rechazar la nueva partida
     socket.on('rejectGameRequest', (data) => {
         const { idSolicitante, nombreReceptor } = data;
         
@@ -250,6 +281,7 @@ io.on("connection", (socket) => {
             }
         }
     });
+
 
     // INICIAR TIMER DE LA PARTIDA
     socket.on('startGameTimer', (data) => {

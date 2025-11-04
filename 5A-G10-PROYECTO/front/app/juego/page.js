@@ -10,7 +10,7 @@ export default function TuttiFrutti() {
   const [letra, setLetra] = useState("");
   const [categorias, setCategorias] = useState([]);
   const [respuestas, setRespuestas] = useState({});
-  const [tiempoRestante, setTiempoRestante] = useState(120);
+  const [tiempoRestante, setTiempoRestante] = useState(10);
   const [juegoActivo, setJuegoActivo] = useState(false);
   const [puntos, setPuntos] = useState(0);
   const [nombreUsuario, setNombreUsuario] = useState("");
@@ -25,6 +25,7 @@ export default function TuttiFrutti() {
   const [letraActual, setLetraActual] = useState("");
   const [esperandoNuevaRonda, setEsperandoNuevaRonda] = useState(false);
   const [respuestasOponente, setRespuestasOponente] = useState(null);
+  const [solicitudPendiente, setSolicitudPendiente] = useState(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { socket, isConnected } = useSocket();
@@ -113,14 +114,30 @@ export default function TuttiFrutti() {
       setRespuestasOponente(data.respuestas);
     });
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     socket.on('nuevaRondaIniciada', (data) => {
       console.log("Nueva ronda iniciada:", data);
-      setLetra(data.letra);
-      setRondaActual(data.ronda);
+      setLetra(data.nuevaLetra);
+      setRondaActual(data.rondaActual);
       setRespuestas({});
       setRespuestasOponente(null);
-      setTiempoRestante(120);
-      setJuegoActivo(true);
+      setTiempoRestante(10);
+      setJuegoActivo(false);//eijgodnhgndgndjfngkjndf
       setEsperandoNuevaRonda(false);
       //esto no anda osea a uno de los dos se le repite tres veces la misma fila y al otro se queda tieso
       socket.emit('startGameTimer', { room });
@@ -203,7 +220,7 @@ export default function TuttiFrutti() {
         setTiempoRestante((prev) => {
           const nuevoTiempo = prev - 1;
           if (nuevoTiempo <= 0) {
-            finalizarRondaPorTiempo();
+            finalizarRondaPorTiempo(); //cuado finaliza el timer no renderizar nueva fila, hacer el modal de solicitar nueva ronda, ver porque no entra a solicitar nuev ronda del back, ver console log de partidas jugadores qcy, ahi no entraba
             return 0;
           }
           return nuevoTiempo;
@@ -362,17 +379,53 @@ export default function TuttiFrutti() {
 
 
 
+  async function envioSolicitudJuego(amigo) {
+    socket.emit('solicitarNuevaRonda', {
+      idSolicitante: parseInt(idLogged),
+      nombreSolicitante: nombreUsuario,
+      idReceptor: parseInt(amigo.idusuario),
+      nombreReceptor: amigo.nombre
+    });
+  }
+
+  function aceptarSolicitud() {
+    if (!solicitudPendiente) return;
+
+    socket.emit('aceptarNuevaRonda', {
+      idSolicitante: parseInt(solicitudPendiente.idSolicitante),
+      idReceptor: parseInt(idLogged)
+    });
+
+    setSolicitudPendiente(null);
+  }
+
+  function rechazarSolicitud() {
+    if (!solicitudPendiente) return;
+
+    socket.emit('rechazarNuevaRonda', {
+      idSolicitante: parseInt(solicitudPendiente.idSolicitante),
+      nombreReceptor: nombreUsuario
+    });
+
+    setSolicitudPendiente(null);
+  }
+
+
   function solicitarNuevaRonda() {
     if (socket && room && isConnected) {
       const idLogged = localStorage.getItem("idLogged");
-      socket.emit('solicitarNuevaRonda', { room, userId: idLogged });
+      socket.emit('solicitarNuevaRonda', { room: room, userId: idLogged });
+      showModal(
+        "",
+        `Debes completar todas las categorías antes de decir BASTA`
+      );
       setEsperandoNuevaRonda(true);
       empezarNuevaRonda();
     }
   }
   function empezarNuevaRonda() {
     setRespuestas({});
-    setTiempoRestante(120);
+    setTiempoRestante(10);
     setJuegoActivo(true);
     setEsperandoNuevaRonda(false);
     setRondaActual(prev => prev + 1);
@@ -567,6 +620,51 @@ export default function TuttiFrutti() {
           disabled={!juegoActivo}
         />
       </div>
+      {/* Modal para solicitud de nuevaronda  HACER!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!*/}
+      {solicitudPendiente && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3>Solicitud de Nueva ronda</h3>
+            </div>
+            
+            <div className={styles.solicitudContent}>
+              <p className={styles.solicitudTexto}>
+                <strong>{solicitudPendiente.nombreSolicitante}</strong> quiere jugar una super partida de Tutti Frutti con vos!
+              </p>
+              
+              <div className={styles.solicitudBotones}>
+                <button 
+                  className={styles.btnAceptar}
+                  onClick={aceptarSolicitud}
+                >
+                  Aceptar
+                </button>
+                <button 
+                  className={styles.btnRechazar}
+                  onClick={rechazarSolicitud}
+                >
+                  Rechazar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
       <div>
         {!juegoActivo && !esperandoNuevaRonda && historialRondas.length > 0 && (
             <div className={styles.bottomButton}>
