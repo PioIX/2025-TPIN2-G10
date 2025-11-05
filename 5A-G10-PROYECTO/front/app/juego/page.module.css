@@ -332,3 +332,63 @@
   color: #fff;
   font-size: 14px;
 }
+.solicitudContent {
+  padding: 20px;
+  text-align: center;
+}
+
+.solicitudTexto {
+  font-size: 18px;
+  margin-bottom: 30px;
+  color: #333;
+}
+
+.solicitudBotones {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+}
+
+.btnAceptar,
+.btnRechazar {
+  padding: 12px 30px;
+  font-size: 16px;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btnAceptar {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.btnAceptar:hover {
+  background-color: #45a049;
+  transform: scale(1.05);
+}
+
+.btnRechazar {
+  background-color: #f44336;
+  color: white;
+}
+
+.btnRechazar:hover {
+  background-color: #da190b;
+  transform: scale(1.05);
+}
+
+.modalHeader {
+  background-color: #2196F3;
+  color: white;
+  padding: 15px;
+  margin: -20px -20px 20px -20px;
+  border-radius: 10px 10px 0 0;
+}
+
+.modalHeader h3 {
+  margin: 0;
+  font-size: 20px;
+}

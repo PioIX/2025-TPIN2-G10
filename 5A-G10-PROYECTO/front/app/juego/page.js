@@ -67,7 +67,7 @@ export default function TuttiFrutti() {
     }
   }, [searchParams]);
 
-  // Unirse a la sala cuando el socket esté conectado
+  // USE EFFECT DE EVENTOS DEL SOCKET
   useEffect(() => {
     if (!socket || !room || !isConnected) {
       console.log("Esperando conexión...", { socket: !!socket, room, isConnected });
@@ -103,20 +103,45 @@ export default function TuttiFrutti() {
     socket.on('gameEnded', (data) => {
       console.log("Juego terminado:", data);
       setJuegoActivo(false);
-      setRespuestasOponente(data.respuestasOponente);
-      const puntosRonda = calcularPuntosSinModal(data.respuestasOponente);
-      guardarRondaEnHistorial(puntosRonda);
-      showModal("¡BASTA!", data.message || "Un jugador dijo BASTA");
+      if (data.respuestasOponente) {
+        setRespuestasOponente(data.respuestasOponente);
+        const puntosRonda = calcularPuntosSinModal(data.respuestasOponente);
+        guardarRondaEnHistorial(puntosRonda);
+        showModal("¡BASTA!", data.message || "Un jugador dijo BASTA. Obtuviste " + puntosRonda + " puntos.");
+        } else {
+        
+        showModal("¡BASTA!", data.message || "Un jugador dijo BASTA.");
+      }
     });
-
     socket.on('respuestasFinalesOponente', (data) => {
-      console.log("Respuestas finales del oponente:", data);
+      console.log("Respuestas finales del oponente:", data);//ESTO ES LO ULTIMO Q ME CONSOLOGUEA. lo raro es que al que retan le consologuea solo las dos primeras letras como respuesta
       setRespuestasOponente(data.respuestas);
+      const puntosRonda = calcularPuntosSinModal(data.respuestas); 
+      guardarRondaEnHistorial(puntosRonda); 
+      showModal("¡Ronda Finalizada!", `Obtuviste ${puntosRonda} puntos.`);
     });
 
 
 
+    socket.on('solicitudNuevaRonda', (data) => {
+      console.log("Solicitud de nueva ronda recibida:", data);
+      setSolicitudPendiente({
+        idSolicitante: data.idSolicitante,
+        nombreSolicitante: data.nombreSolicitante,
+        room: data.room
+      });
+    });
 
+    socket.on('solicitudEnviada', (data) => {
+        console.log(data.message);
+        showModal("Solicitud enviada", data.message);
+    });
+
+    socket.on('nuevaRondaRechazada', (data) => {
+        console.log("Nueva ronda rechazada:", data);
+        setEsperandoNuevaRonda(false);
+        showModal("Ronda rechazada", data.message);
+    });
 
 
 
@@ -132,15 +157,19 @@ export default function TuttiFrutti() {
 
     socket.on('nuevaRondaIniciada', (data) => {
       console.log("Nueva ronda iniciada:", data);
-      setLetra(data.nuevaLetra);
-      setRondaActual(data.rondaActual);
+      closeModal();
+      setLetra(data.letra);
+      setRondaActual(data.ronda);
       setRespuestas({});
       setRespuestasOponente(null);
       setTiempoRestante(10);
-      setJuegoActivo(false);//eijgodnhgndgndjfngkjndf
       setEsperandoNuevaRonda(false);
+      setJuegoActivo(false);//eijgodnhgndgndjfngkjndf
+    
       //esto no anda osea a uno de los dos se le repite tres veces la misma fila y al otro se queda tieso
-      socket.emit('startGameTimer', { room });
+      setTimeout(() => {
+        socket.emit('startGameTimer', { room });
+      }, 300);
     });
 
     socket.on('esperandoOtroJugador', (data) => {
@@ -177,6 +206,9 @@ export default function TuttiFrutti() {
       socket.off('gameEnded');
       socket.off('playerJoined');
       socket.off('error');
+      socket.off('solicitudNuevaRonda');
+      socket.off('solicitudEnviada');
+      socket.off('nuevaRondaRechazada');
       socket.off('nuevaRondaIniciada');
       socket.off('esperandoOtroJugador');
       socket.off('respuestasFinalesOponente');
@@ -203,14 +235,14 @@ export default function TuttiFrutti() {
 
   // Iniciar el timer cuando estén todos los datos listos
   useEffect(() => {
-    if (categorias.length > 0 && letra && socket && room && isConnected && juegoIniciado) {
+    if (categorias.length > 0 && letra && socket && room && isConnected && juegoIniciado  && rondaActual === 1) {
       console.log("Solicitando inicio de juego");
       setEsperandoOtroJugador(false);
       setEstoyUnido(true);
       socket.emit('startGameTimer', { room });
       
     }
-  }, [categorias, letra, socket, room, isConnected, juegoIniciado]);
+  }, [categorias, letra, socket, room, isConnected, juegoIniciado, rondaActual]);
 
   // Temporizador local (backup)
   useEffect(() => {
@@ -296,7 +328,7 @@ export default function TuttiFrutti() {
       puntos: puntosRonda
     }]);*/
   
-    showModal("¡Ronda finalizada!", `Ganaste ${puntosRonda} puntos`);
+    //showModal("¡Ronda finalizada!", `Ganaste ${puntosRonda} puntos`);
   } 
   
 
@@ -316,12 +348,22 @@ export default function TuttiFrutti() {
     }]);*/
     if (socket && room && isConnected) {
       const idLogged = localStorage.getItem("idLogged");
+      /*socket.emit('enviarRespuestasFinales', {
+        room,
+        userId: idLogged,
+        respuestas: respuestas
+      });*/
       socket.emit('enviarRespuestasFinales', {
         room,
         userId: idLogged,
         respuestas: respuestas
       });
+      showModal(
+      "¡TIEMPO TERMINADO!",
+      `Se acabó el tiempo. Esperando que tu oponente envíe sus respuestas para calcular puntos.`
+      );
     }
+    /*
     setTimeout(() => {
       const puntosCalculados = calcularPuntosSinModal(respuestasOponente);
       guardarRondaEnHistorial(puntosCalculados);
@@ -330,7 +372,8 @@ export default function TuttiFrutti() {
         "¡TIEMPO TERMINADO!",
         `Se acabó el tiempo. Obtuviste ${puntosCalculados} puntos con las palabras que completaste.`
       );
-    }, 1000);
+    }, 1000);*/
+
   
     
   }
@@ -353,19 +396,27 @@ export default function TuttiFrutti() {
 
   function calcularPuntosSinModal() {
     let puntosRonda = 0;
-    const idLogged = localStorage.getItem("idLogged");
+    const idUser = localStorage.getItem("idLogged");
 
     Object.entries(respuestas).forEach(([categoria, respuesta]) => {
+      if (!respuestasOponente || !respuestas) {
+        console.log("no hay respuestas")
+      }
+
       if (respuesta && respuesta.trim() !== "") {
-        const respuestaOponente = respuestasOtroJugador?.[categoria];
+        const respuestaOponente = respuestasOponente?.[categoria];
         const primeraLetraMiRespuesta = respuesta.trim()[0].toUpperCase();
         if (primeraLetraMiRespuesta === letra.toUpperCase()) {
           if ( !respuestaOponente || respuestaOponente.trim() === "") {
             puntosRonda += 20;
-          } else if (respuesta.trim().toLowerCase() === respuestaOponente.trim().toLowerCase()) {
+          }if (respuesta.trim().toLowerCase() === respuestaOponente.trim().toLowerCase()) {
             puntosRonda += 5;
-          } else {
+          
+
+          }if (respuesta.trim().toLowerCase() !== respuestaOponente.trim().toLowerCase()) {
             puntosRonda += 10;
+          } else {
+            puntosRonda += 0;
           }
         }
         
@@ -379,21 +430,21 @@ export default function TuttiFrutti() {
 
 
 
-  async function envioSolicitudJuego(amigo) {
+  /*async function envioSolicitudJuego(amigo) {
     socket.emit('solicitarNuevaRonda', {
       idSolicitante: parseInt(idLogged),
       nombreSolicitante: nombreUsuario,
       idReceptor: parseInt(amigo.idusuario),
       nombreReceptor: amigo.nombre
     });
-  }
+  }*/
 
   function aceptarSolicitud() {
     if (!solicitudPendiente) return;
 
-    socket.emit('aceptarNuevaRonda', {
-      idSolicitante: parseInt(solicitudPendiente.idSolicitante),
-      idReceptor: parseInt(idLogged)
+    socket.emit('acceptNuevaRonda', {
+      room: solicitudPendiente.room,
+      userId: parseInt(localStorage.getItem("idLogged"))
     });
 
     setSolicitudPendiente(null);
@@ -403,8 +454,8 @@ export default function TuttiFrutti() {
     if (!solicitudPendiente) return;
 
     socket.emit('rechazarNuevaRonda', {
-      idSolicitante: parseInt(solicitudPendiente.idSolicitante),
-      nombreReceptor: nombreUsuario
+      room: solicitudPendiente.room,
+      idSolicitante: parseInt(solicitudPendiente.idSolicitante)
     });
 
     setSolicitudPendiente(null);
@@ -414,21 +465,20 @@ export default function TuttiFrutti() {
   function solicitarNuevaRonda() {
     if (socket && room && isConnected) {
       const idLogged = localStorage.getItem("idLogged");
-      socket.emit('solicitarNuevaRonda', { room: room, userId: idLogged });
-      showModal(
-        "",
-        `Debes completar todas las categorías antes de decir BASTA`
-      );
+      setJuegoActivo(false);
       setEsperandoNuevaRonda(true);
-      empezarNuevaRonda();
+      socket.emit('solicitarNuevaRonda', { room: room, userId: parseInt(idLogged) });
+      
     }
   }
+
   function empezarNuevaRonda() {
     setRespuestas({});
     setTiempoRestante(10);
     setJuegoActivo(true);
     setEsperandoNuevaRonda(false);
     setRondaActual(prev => prev + 1);
+    
     if (socket && room && isConnected) {
       
       socket.emit('startGameTimer', { room });
@@ -630,7 +680,7 @@ export default function TuttiFrutti() {
             
             <div className={styles.solicitudContent}>
               <p className={styles.solicitudTexto}>
-                <strong>{solicitudPendiente.nombreSolicitante}</strong> quiere jugar una super partida de Tutti Frutti con vos!
+                <strong>{solicitudPendiente.nombreSolicitante}</strong> quiere jugar otra ronda
               </p>
               
               <div className={styles.solicitudBotones}>
