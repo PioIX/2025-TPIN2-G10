@@ -213,7 +213,8 @@ io.on("connection", (socket) => {
             
             console.log(`Solicitud de nueva ronda enviada al jugador ${idOponente}`);
                 io.to(room).emit('solicitudEnviada', { 
-                message: 'Solicitud enviada, esperando respuesta...' 
+                message: 'Solicitud enviada, esperando respuesta...',
+                userId: userId
             });
 
             

@@ -10,7 +10,7 @@ export default function TuttiFrutti() {
   const [letra, setLetra] = useState("");
   const [categorias, setCategorias] = useState([]);
   const [respuestas, setRespuestas] = useState({});
-  const [tiempoRestante, setTiempoRestante] = useState(10);
+  const [tiempoRestante, setTiempoRestante] = useState(2);
   const [juegoActivo, setJuegoActivo] = useState(false);
   const [puntos, setPuntos] = useState(0);
   const [nombreUsuario, setNombreUsuario] = useState("");
@@ -114,7 +114,7 @@ export default function TuttiFrutti() {
       }
     });
     socket.on('respuestasFinalesOponente', (data) => {
-      console.log("Respuestas finales del oponente:", data);//ESTO ES LO ULTIMO Q ME CONSOLOGUEA. lo raro es que al que retan le consologuea solo las dos primeras letras como respuesta
+      console.log("Respuestas finales del oponente:", data);
       if (data.id != idLogged) {
         setRespuestasOponente(data.respuestas);
         const puntosRonda = calcularPuntosSinModal(data.respuestas);
@@ -126,7 +126,7 @@ export default function TuttiFrutti() {
 
 
 
-    socket.on('solicitudNuevaRonda', (data) => {//esto va queriendo despues tengo que seguir!
+    socket.on('solicitudNuevaRonda', (data) => {//esto va queriendo despues tengo que seguir!!!!!!!!!!!!!!!!!!!!!!!!!!!
       console.log(data.idSolicitante)
       if (data.idSolicitante != idLogged) {
         console.log("Solicitud de nueva ronda recibida:", data);
@@ -139,8 +139,9 @@ export default function TuttiFrutti() {
     });
 
     socket.on('solicitudEnviada', (data) => {
-      console.log(data.message);
-      showModal("Solicitud enviada", data.message);
+      if (data.userId==idLogged) {//ESTO ANDA 
+        showModal("Solicitud enviada", data.message);
+      }
     });
 
     socket.on('nuevaRondaRechazada', (data) => {
@@ -168,7 +169,7 @@ export default function TuttiFrutti() {
       setRondaActual(data.ronda);
       setRespuestas({});
       setRespuestasOponente(null);
-      setTiempoRestante(10);
+      setTiempoRestante(2);
       setEsperandoNuevaRonda(false);
       setJuegoActivo(false);//eijgodnhgndgndjfngkjndf
 
@@ -225,7 +226,7 @@ export default function TuttiFrutti() {
 
   function guardarRondaEnHistorial(puntosRonda) {
     setHistorialRondas(prev => {
-      // Verificar que no exista ya esta ronda
+      
       const yaExiste = prev.some(r => r.numero === rondaActual);
       if (yaExiste) {
         return prev;
@@ -325,17 +326,7 @@ export default function TuttiFrutti() {
       socket.emit('basta', { room, userId: idLogged, respuestas: respuestas });
     }
 
-    /*const puntosRonda = calcularPuntosSinModal();
-
-
-    setHistorialRondas(prev => [...prev, {
-      numero: rondaActual,
-      letra: letra,
-      respuestas: { ...respuestas },
-      puntos: puntosRonda
-    }]);*/
-
-    //showModal("¡Ronda finalizada!", `Ganaste ${puntosRonda} puntos`);
+   
   }
 
 
@@ -345,21 +336,14 @@ export default function TuttiFrutti() {
   function finalizarRondaPorTiempo() {
     if (!juegoActivo) return;  //aca falla tipo a que al otro jugador le aparezca el modal del tiempo terminado
 
-    setJuegoActivo(false);
-    /*const puntosCalculados = calcularPuntosSinModal();
-    setHistorialRondas(prev => [...prev, {
-      numero: rondaActual,
-      letra: letra,
-      respuestas: { ...respuestas },
-      puntos: puntosCalculados
-    }]);*/
+    setJuegoActivo(false)
+    guardarRondaEnHistorial();
+
+
+
     if (socket && room && isConnected) {
       const idLogged = localStorage.getItem("idLogged");
-      /*socket.emit('enviarRespuestasFinales', {
-        room,
-        userId: idLogged,
-        respuestas: respuestas
-      });*/
+      
       socket.emit('enviarRespuestasFinales', {
         room,
         userId: idLogged,
@@ -370,36 +354,11 @@ export default function TuttiFrutti() {
         `Se acabó el tiempo. Esperando que tu oponente envíe sus respuestas para calcular puntos.`
       );
     }
-    /*
-    setTimeout(() => {
-      const puntosCalculados = calcularPuntosSinModal(respuestasOponente);
-      guardarRondaEnHistorial(puntosCalculados);
-      
-      showModal(
-        "¡TIEMPO TERMINADO!",
-        `Se acabó el tiempo. Obtuviste ${puntosCalculados} puntos con las palabras que completaste.`
-      );
-    }, 1000);*/
-
-
+    
 
   }
 
-  /* function calcularPuntos() {
-     let puntosRonda = 0;
- 
-     Object.entries(respuestas).forEach(([_, respuesta]) => {
-       if (respuesta && respuesta.trim() !== "") {
-         const primeraLetra = respuesta.trim()[0].toUpperCase();
-         if (primeraLetra === letra) {
-           puntosRonda += 10;
-         }
-       }
-     });
- 
-     setPuntos((prev) => prev + puntosRonda);
-     showModal("¡Ronda finalizada!", `Ganaste ${puntosRonda} puntos`);
-   }*/
+
 
   function calcularPuntosSinModal() {
     let puntosRonda = 0;
@@ -481,7 +440,7 @@ export default function TuttiFrutti() {
     }
   }
 
-  function empezarNuevaRonda() {
+  /*function empezarNuevaRonda() {
     setRespuestas({});
     setTiempoRestante(10);
     setJuegoActivo(true);
@@ -494,7 +453,7 @@ export default function TuttiFrutti() {
 
     }
   }
-  //la letra la hace el socket en el back
+  //la letra la hace el socket en el back*/
 
 
 
@@ -637,13 +596,15 @@ export default function TuttiFrutti() {
               </tr>
             ))}
 
-
+            
             <tr className={styles.currentRow}>
               <td className={styles.letraCell}>{letra || "-"}</td>
               {categorias.map((categoria, index) => {
                 const nombreCategoria = categoria.nombre || categoria;
+                
                 return (
                   <td key={index} className={styles.inputCell}>
+
                     <input
                       type="text"
                       value={respuestas[nombreCategoria] || ""}
