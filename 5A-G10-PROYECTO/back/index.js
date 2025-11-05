@@ -190,74 +190,98 @@ io.on("connection", (socket) => {
     socket.on('solicitarNuevaRonda', (data) => {
         const { room, userId } = data;
         console.log(`Usuario ${userId} solicita nueva ronda en sala ${room}`);
-        const receptorSocketId = usuariosConectados.get(idReceptor.toString());
-        
-        if (receptorSocketId) {
-            const receptorSocket = io.sockets.sockets.get(receptorSocketId);
-            
-            if (receptorSocket) {
-                receptorSocket.emit('nuevaRonda', {
-                    idSolicitante,
-                    nombreSolicitante,
-                    idReceptor,
-                    nombreReceptor
-                });
-                console.log(`solicitud enviada a ${nombreReceptor}`);
-                
-                socket.emit('requestSent', { 
-                    message: `solicitud enviada a ${nombreReceptor}` 
-                });
-            }
-        }
-    });
-
-
-
-
-    socket.on('acceptNuevaRonda', (data) => {
-        const { room, userId } = data;
-        console.log(`Usuario ${userId} solicita nueva ronda en sala ${room}`);
         
         const partida = partidasActivas.get(room);
         if (!partida) {
             socket.emit('error', { message: 'Partida no encontrada' });
             return;
         }
-        if (!partida.jugadoresListos) {
-        partida.jugadoresListos = new Set();
-        }
-        partida.jugadoresListos.add(userId);
-
-        console.log("partido: ", partida.jugadoresListos);
-        console.log("size partida: ", partida.jugadoresListos.size);
-
-        console.log(`SOLICITANDO NUEVA RONDA`);
-
         
-        if (partida.jugadoresListos.length === partida.jugadores.length) {
-            console.log('Ambos jugadores listos, iniciando nueva ronda');
+       
+        const idOponente = partida.jugadores.find(id => id.toString() !== userId.toString());  
+        console.log("oponente:", idOponente);    
+        const receptorSocketId = usuariosConectados.get(idOponente.toString());
+        console.log("socket del otro", receptorSocketId);
 
-           
+        if (receptorSocketId) {
+
+            const receptorSocket = io.sockets.sockets.get(receptorSocketId);
+            
+            if (receptorSocket) {
+                realizarQuery(`SELECT nombre FROM Jugadores WHERE idusuario = ${userId}`)
+                    .then(resultado => {
+                        const nombreSolicitante = resultado[0]?.nombre || 'Jugador';
+                        
+                        receptorSocket.emit('solicitudNuevaRonda', {
+                            idSolicitante: userId,
+                            nombreSolicitante: nombreSolicitante,
+                            room: room
+                        });
+                        
+                        console.log(`Solicitud de nueva ronda enviada al jugador ${idOponente}`);
+                        socket.emit('solicitudEnviada', { 
+                            message: 'Solicitud enviada, esperando respuesta...' 
+                        });
+                    });
+            }
+        } else {
+            socket.emit('userOffline', { 
+                message: 'El otro jugador no está conectado' 
+            });
+        }
+    });
+
+
+
+
+    socket.on('acceptNuevaRonda', async (data) => {
+        const { room, userId } = data;
+        console.log(`Usuario ${userId} aceptó nueva ronda en sala ${room}`);
+        
+        const partida = partidasActivas.get(room);
+        if (!partida) {
+            socket.emit('error', { message: 'Partida no encontrada' });
+            return;
+        }
+        
+        try {
+            // Generar nueva letra y actualizar partida
             const nuevaLetra = generarLetraAleatoria();
             partida.letra = nuevaLetra;
             partida.rondaActual = (partida.rondaActual || 1) + 1;
             partida.respuestas = {};
             partida.iniciada = false;
-            partida.jugadoresListos.clear();
-
-           
+            
+            console.log(`Nueva ronda iniciada: ${partida.rondaActual}, letra: ${nuevaLetra}`);
+            
+            // Notificar a AMBOS jugadores
             io.to(room).emit('nuevaRondaIniciada', {
                 letra: nuevaLetra,
                 ronda: partida.rondaActual,
                 categorias: partida.categorias
             });
-        } else {
-           
-            socket.to(room).emit('esperandoOtroJugador', {
-                mensaje: 'Tu oponente está listo para la siguiente ronda'
-            });
+            
+        } catch (error) {
+            console.error('Error al iniciar nueva ronda:', error);
+            socket.emit('error', { message: 'Error al iniciar nueva ronda' });
         }
     }); 
+    socket.on('rechazarNuevaRonda', (data) => {
+        const { room, idSolicitante } = data;
+        console.log(`Nueva ronda rechazada en sala ${room}`);
+        
+        const solicitanteSocketId = usuariosConectados.get(idSolicitante.toString());
+        
+        if (solicitanteSocketId) {
+            const solicitanteSocket = io.sockets.sockets.get(solicitanteSocketId);
+            
+            if (solicitanteSocket) {
+                solicitanteSocket.emit('nuevaRondaRechazada', {
+                    message: 'Tu oponente rechazó jugar otra ronda'
+                });
+            }
+        }
+    });
 
     
     socket.on('checkPlayers', (data => {
@@ -265,7 +289,7 @@ io.on("connection", (socket) => {
          io.to(room).emit('contarJugadores', data);
     }))
 
-    // RECHAZAR SOLICITUD DE JUEGO. creo que puedo usar este evento para rechazar la nueva partida
+    // RECHAZAR SOLICITUD DE JUEGO.
     socket.on('rejectGameRequest', (data) => {
         const { idSolicitante, nombreReceptor } = data;
         
@@ -320,18 +344,38 @@ io.on("connection", (socket) => {
         const { room, userId, respuestas } = data;
         console.log(`Usuario ${userId} dijo BASTA en sala ${room}`);
         
-        const partida = partidasActivas.get(room);
+        /*const partida = partidasActivas.get(room);
         if (partida) {
             // Guardar las respuestas del jugador que dijo BASTA
             partida.respuestas[userId] = respuestas;
         }
+        */
+       if (!partida || partida.terminada) return;
+
+        partida.respuestas[userId] = respuestas;
+        partida.basta = userId; // Marcar quien dijo basta
+        partidasActivas.set(room, partida);
+
         
+        const idOponente = partida.jugadores.find(id => id.toString() !== userId.toString());
+        const oponenteSocketId = usuariosConectados.get(idOponente.toString());
+        
+        
+        if (oponenteSocketId) {
+            io.to(oponenteSocketId).emit('opponentBasta', {
+                message: '¡El otro jugador dijo BASTA!',
+                respuestasJugadorLocal: respuestas // Opcional: enviar al oponente las respuestas
+            });
+        }
+    
+    /*
         io.to(room).emit('gameEnded', {
             userId,
             message: 'Un jugador dijo BASTA',
             respuestasOponente: respuestas
-        });
+        });*/
     });
+    /*
     socket.on('enviarRespuestasFinales', (data) => {
         const { room, userId, respuestas } = data;
         console.log(`Usuario ${userId} envía respuestas finales en sala ${room}`);
@@ -346,6 +390,36 @@ io.on("connection", (socket) => {
             userId,
             respuestas
         });
+    });*/
+    socket.on('enviarRespuestasFinales', (data) => {
+        const { room, userId, respuestas } = data;
+        const partida = partidasActivas.get(room);
+        if (!partida) return;
+
+        // 1. Guardar respuestas del jugador actual
+        partida.respuestas[userId] = respuestas;
+
+        // 2. Determinar el oponente y sus respuestas
+        const idOponente = partida.jugadores.find(id => id.toString() !== userId.toString());
+        const respuestasOponente = partida.respuestas[idOponente];
+        const oponenteSocketId = usuariosConectados.get(idOponente.toString());
+
+        // 3. Emitir las respuestas finales
+        if (respuestasOponente) {
+            // Enviar al jugador actual las del oponente
+            io.to(socket.id).emit('respuestasFinalesOponente', { respuestas: respuestasOponente });
+
+            // Enviar al oponente las del jugador actual (si no lo hicimos antes)
+            if (oponenteSocketId) {
+                io.to(oponenteSocketId).emit('respuestasFinalesOponente', { respuestas: respuestas });
+            }
+        } else {
+            // Si no hay respuestas del oponente, debe esperar a que el oponente las envíe.
+            // Esto puede pasar si un jugador dijo basta y el otro aun no reaccionó.
+            // Se puede implementar un pequeño timeout o una bandera de 'esperandoRespuestas'.
+        }
+        
+        partidasActivas.set(room, partida); // Actualizar partida
     });
     socket.on('joinRoom', data => {
         if (req.session.room != undefined && req.session.room.length > 0)
