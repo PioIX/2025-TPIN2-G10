@@ -10,7 +10,7 @@ export default function TuttiFrutti() {
   const [letra, setLetra] = useState("");
   const [categorias, setCategorias] = useState([]);
   const [respuestas, setRespuestas] = useState({});
-  const [tiempoRestante, setTiempoRestante] = useState(2);
+  const [tiempoRestante, setTiempoRestante] = useState(30);
   const [juegoActivo, setJuegoActivo] = useState(false);
   const [puntos, setPuntos] = useState(0);
   const [nombreUsuario, setNombreUsuario] = useState("");
@@ -25,7 +25,6 @@ export default function TuttiFrutti() {
   const [letraActual, setLetraActual] = useState("");
   const [esperandoNuevaRonda, setEsperandoNuevaRonda] = useState(false);
   const [respuestasOponente, setRespuestasOponente] = useState(null);
-  const [solicitudPendiente, setSolicitudPendiente] = useState(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { socket, isConnected } = useSocket();
@@ -115,12 +114,13 @@ export default function TuttiFrutti() {
     });
     socket.on('respuestasFinalesOponente', (data) => {
       console.log("Respuestas finales del oponente:", data);
-      if (data.id != idLogged) {
+      if (data.id != idLogged) {//si el id de la data es desigual a mi id se pone como respuestaoponente la data del iddesigual al mio
         setRespuestasOponente(data.respuestas);
-        const puntosRonda = calcularPuntosSinModal(data.respuestas);
-        guardarRondaEnHistorial(puntosRonda);
-        console.log("¡Ronda Finalizada!", `Obtuviste ${puntosRonda} puntos.`)
-        showModal("¡Ronda Finalizada!", `Obtuviste ${puntosRonda} puntos.`);
+        calcularPuntosSinModal()
+        //const puntosRonda = calcularPuntosSinModal(data.respuestas);
+        //guardarRondaEnHistorial(puntosRonda);
+        //console.log("¡Ronda Finalizada!", `Obtuviste ${puntosRonda} puntos.`)
+        //showModal("¡Ronda Finalizada!", `Obtuviste ${puntosRonda} puntos.`);
       }
     });
 
@@ -173,7 +173,7 @@ export default function TuttiFrutti() {
       setEsperandoNuevaRonda(false);
       setJuegoActivo(false);//eijgodnhgndgndjfngkjndf
 
-      //esto no anda osea a uno de los dos se le repite tres veces la misma fila y al otro se queda tieso
+      
       setTimeout(() => {
         socket.emit('startGameTimer', { room });
       }, 300);
@@ -260,7 +260,7 @@ export default function TuttiFrutti() {
         setTiempoRestante((prev) => {
           const nuevoTiempo = prev - 1;
           if (nuevoTiempo <= 0) {
-            finalizarRondaPorTiempo(); //cuado finaliza el timer no renderizar nueva fila, hacer el modal de solicitar nueva ronda, ver porque no entra a solicitar nuev ronda del back, ver console log de partidas jugadores qcy, ahi no entraba
+            finalizarRondaPorTiempo();
             return 0;
           }
           return nuevoTiempo;
@@ -334,7 +334,7 @@ export default function TuttiFrutti() {
 
 
   function finalizarRondaPorTiempo() {
-    if (!juegoActivo) return;  //aca falla tipo a que al otro jugador le aparezca el modal del tiempo terminado
+    if (!juegoActivo) return;  
 
     setJuegoActivo(false)
     guardarRondaEnHistorial();
@@ -362,17 +362,18 @@ export default function TuttiFrutti() {
 
   function calcularPuntosSinModal() {
     let puntosRonda = 0;
-    const idUser = localStorage.getItem("idLogged");
-
+    const idLogged = localStorage.getItem("idLogged");
+    console.log("mis respuestas", respuestas, "respuestaoponente", respuestasOponente)//no llega hasta aca tirs null
     Object.entries(respuestas).forEach(([categoria, respuesta]) => {
+      
       if (!respuestasOponente || !respuestas) {
         console.log("no hay respuestas")
       }
 
-      if (respuesta && respuesta.trim() !== "") {
+      if (respuestas && respuestas.trim() !== "") {
         const respuestaOponente = respuestasOponente?.[categoria];
-        const primeraLetraMiRespuesta = respuesta.trim()[0].toUpperCase();
-        if (primeraLetraMiRespuesta === letra.toUpperCase()) {
+        const primeraLetraMiRespuesta = respuestas.trim()[0].toUpperCase();
+        if (primeraLetraMiRespuesta === letra.toUpperCase()|| primeraLetraMiRespuesta === letra.toLowerCase()) {
           if (!respuestaOponente || respuestaOponente.trim() === "") {
             puntosRonda += 20;
           } if (respuesta.trim().toLowerCase() === respuestaOponente.trim().toLowerCase()) {
@@ -596,32 +597,38 @@ export default function TuttiFrutti() {
               </tr>
             ))}
 
+            {!solicitudPendiente && !esperandoNuevaRonda && juegoActivo && (
+              
             
-            <tr className={styles.currentRow}>
-              <td className={styles.letraCell}>{letra || "-"}</td>
-              {categorias.map((categoria, index) => {
-                const nombreCategoria = categoria.nombre || categoria;
-                
-                return (
-                  <td key={index} className={styles.inputCell}>
+              <tr className={styles.currentRow}>
+                <td className={styles.letraCell}>{letra || "-"}</td>
+                {categorias.map((categoria, index) => {
+                  const nombreCategoria = categoria.nombre || categoria;
+                  
+                  return (
+                    <td key={index} className={styles.inputCell}>
 
-                    <input
-                      type="text"
-                      value={respuestas[nombreCategoria] || ""}
-                      onChange={(e) => handleInputChange(nombreCategoria, e.target.value)}
-                      disabled={!juegoActivo}
-                      placeholder={juegoActivo ? `${letra}...` : ""}
-                      className={`${styles.input} ${!juegoActivo ? styles.inputDisabled : ""}`}
-                    />
+                      <input
+                        type="text"
+                        value={respuestas[nombreCategoria] || ""}
+                        onChange={(e) => handleInputChange(nombreCategoria, e.target.value)}
+                        disabled={!juegoActivo}
+                        placeholder={juegoActivo ? `${letra}...` : ""}
+                        className={`${styles.input} ${!juegoActivo ? styles.inputDisabled : ""}`}
+                      />
 
-                  </td>
+                    </td>
 
 
 
-                );
-              })}
-              <td className={styles.puntosCell}>{puntos}</td>
-            </tr>
+                  );
+                })}
+                <td className={styles.puntosCell}>{puntos}</td>
+              </tr>
+            
+            )
+            }
+
           </tbody>
 
 
