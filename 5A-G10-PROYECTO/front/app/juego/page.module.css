@@ -115,7 +115,10 @@
   animation: pulseWarning 0.8s infinite;
 }
 
-
+.waitingMessage,
+.connectionWarning {
+  font-family: 'Fredoka', sans-serif;
+}
 
 .tableContainer {
   flex: 1;
