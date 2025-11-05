@@ -25,6 +25,8 @@ export default function TuttiFrutti() {
   const [letraActual, setLetraActual] = useState("");
   const [esperandoNuevaRonda, setEsperandoNuevaRonda] = useState(false);
   const [respuestasOponente, setRespuestasOponente] = useState(null);
+  const [respuestasOponente, setRespuestasOponente] = useState(null);
+  const [solicitudPendiente, setSolicitudPendiente] = useState(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { socket, isConnected } = useSocket();
@@ -117,10 +119,10 @@ export default function TuttiFrutti() {
       if (data.id != idLogged) {//si el id de la data es desigual a mi id se pone como respuestaoponente la data del iddesigual al mio
         setRespuestasOponente(data.respuestas);
         calcularPuntosSinModal()
-        //const puntosRonda = calcularPuntosSinModal(data.respuestas);
-        //guardarRondaEnHistorial(puntosRonda);
-        //console.log("¡Ronda Finalizada!", `Obtuviste ${puntosRonda} puntos.`)
-        //showModal("¡Ronda Finalizada!", `Obtuviste ${puntosRonda} puntos.`);
+       /* const puntosRonda = calcularPuntosSinModal(data.respuestas);
+        guardarRondaEnHistorial(puntosRonda);
+        console.log("¡Ronda Finalizada!", `Obtuviste ${puntosRonda} puntos.`)
+        showModal("¡Ronda Finalizada!", `Obtuviste ${puntosRonda} puntos.`);*/
       }
     });
 
