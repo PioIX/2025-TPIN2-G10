@@ -9,11 +9,13 @@ import { useSocket } from "../../hook/useSocket";
 
 export default function TuttiFrutti() {
   const [letra, setLetra] = useState("");
+  const [palabras, setPalabras] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [respuestas, setRespuestas] = useState({});
   const [tiempoRestante, setTiempoRestante] = useState(8);
   const [juegoActivo, setJuegoActivo] = useState(false);
   const [puntos, setPuntos] = useState(0);
+  const [puntosRonda, setPuntosRonda] = useState(0);
   const [nombreUsuario, setNombreUsuario] = useState("");
   const [modal, setModal] = useState({ open: false, title: "", message: "" });
   const [room, setRoom] = useState("");
@@ -25,7 +27,7 @@ export default function TuttiFrutti() {
   const [rondaActual, setRondaActual] = useState(1);
   const [letraActual, setLetraActual] = useState("");
   const [esperandoNuevaRonda, setEsperandoNuevaRonda] = useState(false);
-  const [respuestasOponente, setRespuestasOponente] = useState(null);
+  const [respuestasOponente, setRespuestasOponente] = useState([]);
   const [solicitudPendiente, setSolicitudPendiente] = useState(null);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -106,8 +108,8 @@ export default function TuttiFrutti() {
       setJuegoActivo(false);
       if (data.respuestas) {
         setRespuestasOponente(data.respuestas);
-        const puntosRonda = calcularPuntosSinModal(data.respuestas);
-        guardarRondaEnHistorial(puntosRonda);
+        //const puntosRonda = calcularPuntosSinModal(data.respuestas);
+        //guardarRondaEnHistorial(puntosRonda);
         showModal("¡BASTA!", data.message || "Un jugador dijo BASTA. Obtuviste " + puntosRonda + " puntos.");
       } else {
 
@@ -116,14 +118,18 @@ export default function TuttiFrutti() {
     });
     socket.on('respuestasFinalesOponente', (data) => {
       console.log("Respuestas finales del oponente:", data);
+      setRespuestasOponente(data.respuestas);
       if (data.id != idLogged) {//si el id de la data es desigual a mi id se pone como respuestaoponente la data del iddesigual al mio
         setRespuestasOponente(data.respuestas);
 
-        const puntosRonda = calcularPuntosSinModal(data.respuestas);
-        guardarRondaEnHistorial(puntosRonda);
+        //const puntosRonda = calcularPuntosSinModal(data.respuestas);
+        //guardarRondaEnHistorial(puntosRonda);
         console.log("¡Ronda Finalizada!", `Obtuviste ${puntosRonda} puntos.`)
         showModal("¡Ronda Finalizada!", `Obtuviste ${puntosRonda} puntos.`);
       }
+      console.log("RESPUESTASSSSSSSSSSSSS", data);
+      console.log("HHSKGHDHGIDGDGDGKJDGJND:", respuestasOponente);
+
     });
 
 
@@ -263,6 +269,48 @@ export default function TuttiFrutti() {
     };
   }, [juegoActivo, tiempoRestante]);
 
+
+
+  useEffect(() => {
+    if (respuestas != {} && respuestasOponente != null) {
+
+      let puntosRonda = 0;
+      //const idLogged = localStorage.getItem("idLogged");
+
+      console.log("mis respuestas", respuestas, "respuestaoponente", respuestasOponente)// funciona hasta acá
+      Object.entries(respuestas).forEach(([categoria, respuesta]) => {
+
+        if (!respuestasOponente || !respuestas) {
+          console.log("no hay respuestas")
+        }
+
+        if (respuestas != undefined && respuesta.length != 0 && respuestasOponente != undefined && respuestasOponente.length != 0) {
+          const respuestaOponente = respuestasOponente?.[categoria];
+          console.log("RESPUESTA ES:_ ", respuestas)
+          const primeraLetraMiRespuesta = respuestas.respuesta
+          if (primeraLetraMiRespuesta === letra.toUpperCase() || primeraLetraMiRespuesta === letra.toLowerCase()) {
+            if (!respuestaOponente || respuestaOponente === "") {
+              puntosRonda += 20;
+            } if (respuesta === respuestaOponente) {
+              puntosRonda += 5;
+
+
+            } if (respuesta !== respuestaOponente) {
+              puntosRonda += 10;
+            } else {
+              puntosRonda += 0;
+            }
+          }
+
+        }
+      });
+
+      setPuntosRonda(puntosRonda)
+      setPuntos((prev) => prev + puntosRonda);
+    }
+
+  }, [respuestasOponente, respuestas])
+
   async function cargarNombreUsuario() {
     const idLogged = localStorage.getItem("idLogged");
     if (!idLogged) {
@@ -291,9 +339,10 @@ export default function TuttiFrutti() {
   }
 
   function handleInputChange(categoria, valor) {
+    let valorMayus = valor.toUpperCase()
     setRespuestas((prev) => ({
       ...prev,
-      [categoria]: valor,
+      [categoria]: valorMayus,
     }));
 
     // Enviar respuesta al servidor
@@ -303,7 +352,7 @@ export default function TuttiFrutti() {
         room,
         userId: idLogged,
         categoria,
-        respuesta: valor
+        respuesta: valorMayus
       });
     }
   }
@@ -339,54 +388,35 @@ export default function TuttiFrutti() {
         userId: idLogged,
         respuestas: respuestas
       });
-      setRespuestas(respuestas)
       console.log("MIS RESPUESTAS SON: ", respuestas)//esto llega 
       showModal(
         "¡TIEMPO TERMINADO!",
         `Se acabó el tiempo. Esperando que tu oponente envíe sus respuestas para calcular puntos.`
       );
-      calcularPuntosSinModal()
+      //calcularPuntosSinModal()
     }
 
 
   }
+  //hay que hacer esto y la verificacion de puntos y letra
+  function ListaPalabras() {
+    const verificarPalabra = async (palabra, categoria) => {
+      try {
+        const res = await fetch(`http://localhost:4001/VerificarPalabra?palabra=${palabra}&categoria=${categoria}`);
+        const data = await res.json();
 
-
-
-  function calcularPuntosSinModal() {
-    let puntosRonda = 0;
-    const idLogged = localStorage.getItem("idLogged");
-
-    console.log("mis respuestas", respuestas, "respuestaoponente", respuestasOponente)//no llega hasta aca tirs null
-    Object.entries(respuestas).forEach(([categoria, respuesta]) => {
-
-      if (!respuestasOponente || !respuestas) {
-        console.log("no hay respuestas")
-      }
-
-      if (respuestas && respuestasOponente) {
-        const respuestaOponente = respuestasOponente?.[categoria];
-        const primeraLetraMiRespuesta = respuestas.trim()[0].toUpperCase();
-        if (primeraLetraMiRespuesta === letra.toUpperCase() || primeraLetraMiRespuesta === letra.toLowerCase()) {
-          if (!respuestaOponente || respuestaOponente.trim() === "") {
-            puntosRonda += 20;
-          } if (respuesta.trim().toLowerCase() === respuestaOponente.trim().toLowerCase()) {
-            puntosRonda += 5;
-
-
-          } if (respuesta.trim().toLowerCase() !== respuestaOponente.trim().toLowerCase()) {
-            puntosRonda += 10;
-          } else {
-            puntosRonda += 0;
-          }
+        if (data.existe) {
+          console.log("La palabra existe:", data.palabra);
+        } else {
+          console.log("La palabra NO existe");
         }
-
+      } catch (error) {
+        console.error("Error al verificar palabra:", error);
       }
-    });
+    };
+  };
 
-    setPuntos((prev) => prev + puntosRonda);
-    return puntosRonda;
-  }
+
 
   function aceptarSolicitud() {
     if (!solicitudPendiente) return;
@@ -501,7 +531,7 @@ export default function TuttiFrutti() {
 
       {esperandoOtroJugador && isConnected && (
         <div className={styles.waitingMessage}>
-          Esperando al otro jugador 
+          Esperando al otro jugador
         </div>
       )}
 
@@ -525,7 +555,7 @@ export default function TuttiFrutti() {
           texto="TERMINAR PARTIDA"
           className={styles.buttonVioleta}
           onClick={() => {
-            guardarEstadisticas();{/*fijarse si andaa*/}
+            guardarEstadisticas(); {/*fijarse si andaa*/ }
           }}
         />
         <div className={styles.timerContainer}>
