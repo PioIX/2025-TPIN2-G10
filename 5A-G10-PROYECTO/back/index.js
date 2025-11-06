@@ -1393,3 +1393,51 @@ app.post('/GuardarPartida', async function(req, res) {
         });
     }
 });
+
+app.get('/LlevoPalabras', async function(req, res){
+   try {
+     let respuesta;
+     if (req.query != undefined) {
+         respuesta =  await realizarQuery(`SELECT * FROM Palabras  `);
+     } else {
+         respuesta = await realizarQuery(`SELECT * FROM Palabras `);
+     } 
+     console.log(respuesta)
+     if (respuesta.length > 0) {
+         res.send({ palabras: respuesta } )
+    }
+    else{
+         res.send({ res: "Palabras no encontrada" })
+    }
+   } catch (e) {
+        console.log(e);
+        res.send("Hubo un error, " + e)
+        
+   }
+});
+//HACER
+app.get('/VerificarPalabra', async function (req, res) {
+  try {
+    const { palabra, categoria } = req.query;
+
+    if (!palabra || !categoria) {
+      return res.status(400).send({ error: "Faltan parámetros 'palabra' o 'categoria'" });
+    }
+
+    const query = `
+      SELECT * FROM Palabras 
+      WHERE palabra = ? AND categoria_nombre = ?
+    `;
+
+    const resultado = await realizarQuery(query, [palabra, categoria]);
+
+    if (resultado.length > 0) {
+      res.send({ existe: true, palabra: resultado[0] });
+    } else {
+      res.send({ existe: false });
+    }
+  } catch (e) {
+    console.error(e);
+    res.status(500).send({ error: "Hubo un error en el servidor" });
+  }
+});
