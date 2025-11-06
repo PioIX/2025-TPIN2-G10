@@ -348,7 +348,6 @@ export default function Amigos() {
         </div>
       </div>
 
-      {/* Modal para agregar amigos */}
       {mostrarModal && (
         <div
           className={styles.modalOverlay}
@@ -360,12 +359,11 @@ export default function Amigos() {
           >
             <div className={styles.modalHeader}>
               <h3>Enviar Solicitud de Amistad</h3>
-              <button
+              <Button
+                texto="×"
                 className={styles.closeButton}
                 onClick={() => setMostrarModal(false)}
-              >
-                ×
-              </button>
+              />
             </div>
 
             <div className={styles.usuariosLista}>
@@ -380,12 +378,11 @@ export default function Amigos() {
                         {usuario.mail}
                       </span>
                     </div>
-                    <button
+                    <Button
+                      texto="Enviar solicitud"
                       className={styles.btnAgregar}
                       onClick={() => enviarSolicitudAmistad(usuario)}
-                    >
-                      Enviar solicitud
-                    </button>
+                    />
                   </div>
                 ))
               ) : (
@@ -398,7 +395,6 @@ export default function Amigos() {
         </div>
       )}
 
-      {/* Modal para solicitud de AMISTAD */}
       {solicitudAmistadPendiente && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
@@ -412,25 +408,23 @@ export default function Amigos() {
               </p>
               
               <div className={styles.solicitudBotones}>
-                <button 
+                <Button 
+                  texto="Aceptar"
                   className={styles.btnAceptar}
                   onClick={aceptarSolicitudAmistad}
-                >
-                  Aceptar
-                </button>
-                <button 
+                />
+                <Button 
+                  texto="Rechazar"
                   className={styles.btnRechazar}
                   onClick={rechazarSolicitudAmistad}
-                >
-                  Rechazar
-                </button>
+                />
+                
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal para solicitud de JUEGO */}
       {solicitudPendiente && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
@@ -444,25 +438,23 @@ export default function Amigos() {
               </p>
               
               <div className={styles.solicitudBotones}>
-                <button 
+                <Button
+                  texto="Aceptar" 
                   className={styles.btnAceptar}
                   onClick={aceptarSolicitud}
-                >
-                  Aceptar
-                </button>
-                <button 
+                />
+                 
+                <Button 
+                  texto="Rechazar"
                   className={styles.btnRechazar}
                   onClick={rechazarSolicitud}
-                >
-                  Rechazar
-                </button>
+                />
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal de mensajes */}
       {modalMensaje && (
         <div className={styles.modalOverlay} onClick={cerrarModalMensaje}>
           <div 
@@ -482,12 +474,11 @@ export default function Amigos() {
             </div>
             
             <div className={styles.modalMensajeFooter}>
-              <button 
+              <Button 
+                texto="Aceptar"
                 className={`${styles.btnModalMensaje} ${styles[`btn${modalMensaje.tipo.charAt(0).toUpperCase() + modalMensaje.tipo.slice(1)}`]}`}
                 onClick={cerrarModalMensaje}
-              >
-                Aceptar
-              </button>
+              />
             </div>
           </div>
         </div>
