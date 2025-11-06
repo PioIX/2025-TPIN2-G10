@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Button from "../components/Button";
+import Input from "../components/Input";
 import styles from "./page.module.css";
 import { useSocket } from "../../hook/useSocket";
 
@@ -10,7 +11,7 @@ export default function TuttiFrutti() {
   const [letra, setLetra] = useState("");
   const [categorias, setCategorias] = useState([]);
   const [respuestas, setRespuestas] = useState({});
-  const [tiempoRestante, setTiempoRestante] = useState(30);
+  const [tiempoRestante, setTiempoRestante] = useState(8);
   const [juegoActivo, setJuegoActivo] = useState(false);
   const [puntos, setPuntos] = useState(0);
   const [nombreUsuario, setNombreUsuario] = useState("");
@@ -24,7 +25,6 @@ export default function TuttiFrutti() {
   const [rondaActual, setRondaActual] = useState(1);
   const [letraActual, setLetraActual] = useState("");
   const [esperandoNuevaRonda, setEsperandoNuevaRonda] = useState(false);
-  const [respuestasOponente, setRespuestasOponente] = useState(null);
   const [respuestasOponente, setRespuestasOponente] = useState(null);
   const [solicitudPendiente, setSolicitudPendiente] = useState(null);
   const router = useRouter();
@@ -104,9 +104,9 @@ export default function TuttiFrutti() {
     socket.on('gameEnded', (data) => {
       console.log("Juego terminado:", data);
       setJuegoActivo(false);
-      if (data.respuestasOponente) {
-        setRespuestasOponente(data.respuestasOponente);
-        const puntosRonda = calcularPuntosSinModal(data.respuestasOponente);
+      if (data.respuestas) {
+        setRespuestasOponente(data.respuestas);
+        const puntosRonda = calcularPuntosSinModal(data.respuestas);
         guardarRondaEnHistorial(puntosRonda);
         showModal("¡BASTA!", data.message || "Un jugador dijo BASTA. Obtuviste " + puntosRonda + " puntos.");
       } else {
@@ -118,17 +118,17 @@ export default function TuttiFrutti() {
       console.log("Respuestas finales del oponente:", data);
       if (data.id != idLogged) {//si el id de la data es desigual a mi id se pone como respuestaoponente la data del iddesigual al mio
         setRespuestasOponente(data.respuestas);
-        calcularPuntosSinModal()
-       /* const puntosRonda = calcularPuntosSinModal(data.respuestas);
+
+        const puntosRonda = calcularPuntosSinModal(data.respuestas);
         guardarRondaEnHistorial(puntosRonda);
         console.log("¡Ronda Finalizada!", `Obtuviste ${puntosRonda} puntos.`)
-        showModal("¡Ronda Finalizada!", `Obtuviste ${puntosRonda} puntos.`);*/
+        showModal("¡Ronda Finalizada!", `Obtuviste ${puntosRonda} puntos.`);
       }
     });
 
 
 
-    socket.on('solicitudNuevaRonda', (data) => {//esto va queriendo despues tengo que seguir!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    socket.on('solicitudNuevaRonda', (data) => {
       console.log(data.idSolicitante)
       if (data.idSolicitante != idLogged) {
         console.log("Solicitud de nueva ronda recibida:", data);
@@ -141,7 +141,7 @@ export default function TuttiFrutti() {
     });
 
     socket.on('solicitudEnviada', (data) => {
-      if (data.userId==idLogged) {//ESTO ANDA 
+      if (data.userId == idLogged) {
         showModal("Solicitud enviada", data.message);
       }
     });
@@ -152,18 +152,6 @@ export default function TuttiFrutti() {
       showModal("Ronda rechazada", data.message);
     });
 
-
-
-
-
-
-
-
-
-
-
-
-
     socket.on('nuevaRondaIniciada', (data) => {
       console.log("Nueva ronda iniciada:", data);
       closeModal();
@@ -173,9 +161,9 @@ export default function TuttiFrutti() {
       setRespuestasOponente(null);
       setTiempoRestante(2);
       setEsperandoNuevaRonda(false);
-      setJuegoActivo(false);//eijgodnhgndgndjfngkjndf
+      setJuegoActivo(false);
 
-      
+
       setTimeout(() => {
         socket.emit('startGameTimer', { room });
       }, 300);
@@ -228,7 +216,7 @@ export default function TuttiFrutti() {
 
   function guardarRondaEnHistorial(puntosRonda) {
     setHistorialRondas(prev => {
-      
+
       const yaExiste = prev.some(r => r.numero === rondaActual);
       if (yaExiste) {
         return prev;
@@ -328,7 +316,7 @@ export default function TuttiFrutti() {
       socket.emit('basta', { room, userId: idLogged, respuestas: respuestas });
     }
 
-   
+
   }
 
 
@@ -336,7 +324,7 @@ export default function TuttiFrutti() {
 
 
   function finalizarRondaPorTiempo() {
-    if (!juegoActivo) return;  
+    if (!juegoActivo) return;
 
     setJuegoActivo(false)
     guardarRondaEnHistorial();
@@ -345,18 +333,21 @@ export default function TuttiFrutti() {
 
     if (socket && room && isConnected) {
       const idLogged = localStorage.getItem("idLogged");
-      
+
       socket.emit('enviarRespuestasFinales', {
         room,
         userId: idLogged,
         respuestas: respuestas
       });
+      setRespuestas(respuestas)
+      console.log("MIS RESPUESTAS SON: ", respuestas)//esto llega 
       showModal(
         "¡TIEMPO TERMINADO!",
         `Se acabó el tiempo. Esperando que tu oponente envíe sus respuestas para calcular puntos.`
       );
+      calcularPuntosSinModal()
     }
-    
+
 
   }
 
@@ -365,17 +356,18 @@ export default function TuttiFrutti() {
   function calcularPuntosSinModal() {
     let puntosRonda = 0;
     const idLogged = localStorage.getItem("idLogged");
+
     console.log("mis respuestas", respuestas, "respuestaoponente", respuestasOponente)//no llega hasta aca tirs null
     Object.entries(respuestas).forEach(([categoria, respuesta]) => {
-      
+
       if (!respuestasOponente || !respuestas) {
         console.log("no hay respuestas")
       }
 
-      if (respuestas && respuestas.trim() !== "") {
+      if (respuestas && respuestasOponente) {
         const respuestaOponente = respuestasOponente?.[categoria];
         const primeraLetraMiRespuesta = respuestas.trim()[0].toUpperCase();
-        if (primeraLetraMiRespuesta === letra.toUpperCase()|| primeraLetraMiRespuesta === letra.toLowerCase()) {
+        if (primeraLetraMiRespuesta === letra.toUpperCase() || primeraLetraMiRespuesta === letra.toLowerCase()) {
           if (!respuestaOponente || respuestaOponente.trim() === "") {
             puntosRonda += 20;
           } if (respuesta.trim().toLowerCase() === respuestaOponente.trim().toLowerCase()) {
@@ -389,24 +381,12 @@ export default function TuttiFrutti() {
           }
         }
 
-
       }
     });
 
     setPuntos((prev) => prev + puntosRonda);
     return puntosRonda;
   }
-
-
-
-  /*async function envioSolicitudJuego(amigo) {
-    socket.emit('solicitarNuevaRonda', {
-      idSolicitante: parseInt(idLogged),
-      nombreSolicitante: nombreUsuario,
-      idReceptor: parseInt(amigo.idusuario),
-      nombreReceptor: amigo.nombre
-    });
-  }*/
 
   function aceptarSolicitud() {
     if (!solicitudPendiente) return;
@@ -443,24 +423,6 @@ export default function TuttiFrutti() {
     }
   }
 
-  /*function empezarNuevaRonda() {
-    setRespuestas({});
-    setTiempoRestante(10);
-    setJuegoActivo(true);
-    setEsperandoNuevaRonda(false);
-    setRondaActual(prev => prev + 1);
-
-    if (socket && room && isConnected) {
-
-      socket.emit('startGameTimer', { room });
-
-    }
-  }
-  //la letra la hace el socket en el back*/
-
-
-
-
 
   async function guardarEstadisticas() {//hacer que ande o ponerla directamente 
     const idLogged = localStorage.getItem("idLogged");
@@ -472,14 +434,12 @@ export default function TuttiFrutti() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mail: nombreUsuario,
-          resultado: "ganada",
+          resultado: "ganada",//esto hay q hacerlo bien
           puntos: puntos,
         }),
       });
       showModal("¡Éxito!", "Estadísticas guardadas correctamente");
-      /*setTimeout(() => {
-        router.push("/lobby");
-      }, 2000);*/
+      router.push("/ranking")
     } catch (error) {
       console.error("Error al guardar:", error);
     }
@@ -533,16 +493,15 @@ export default function TuttiFrutti() {
 
   return (
     <div className={styles.gameContainer}>
-      {/* Indicador de conexión */}
       {!isConnected && (
         <div className={styles.connectionWarning}>
-          ⚠️ Conectando al servidor...
+          Conectando al servidor.
         </div>
       )}
 
       {esperandoOtroJugador && isConnected && (
         <div className={styles.waitingMessage}>
-          ⏳ Esperando a otro jugador...
+          Esperando al otro jugador 
         </div>
       )}
 
@@ -560,6 +519,13 @@ export default function TuttiFrutti() {
           className={styles.buttonBlue}
           onClick={() => {
             router.push("/lobby");
+          }}
+        />
+        <Button
+          texto="TERMINAR PARTIDA"
+          className={styles.buttonVioleta}
+          onClick={() => {
+            guardarEstadisticas();{/*fijarse si andaa*/}
           }}
         />
         <div className={styles.timerContainer}>
@@ -600,44 +566,34 @@ export default function TuttiFrutti() {
             ))}
 
             {!solicitudPendiente && !esperandoNuevaRonda && juegoActivo && (
-              
-            
+
+
               <tr className={styles.currentRow}>
                 <td className={styles.letraCell}>{letra || "-"}</td>
                 {categorias.map((categoria, index) => {
                   const nombreCategoria = categoria.nombre || categoria;
-                  
+
                   return (
                     <td key={index} className={styles.inputCell}>
 
-                      <input
-                        type="text"
+                      <Input
                         value={respuestas[nombreCategoria] || ""}
                         onChange={(e) => handleInputChange(nombreCategoria, e.target.value)}
-                        disabled={!juegoActivo}
                         placeholder={juegoActivo ? `${letra}...` : ""}
                         className={`${styles.input} ${!juegoActivo ? styles.inputDisabled : ""}`}
                       />
-
                     </td>
-
-
 
                   );
                 })}
                 <td className={styles.puntosCell}>{puntos}</td>
               </tr>
-            
+
             )
             }
 
           </tbody>
-
-
-
         </table>
-
-
 
       </div>
 
@@ -648,8 +604,8 @@ export default function TuttiFrutti() {
           className={styles.buttonRed}
           disabled={!juegoActivo}
         />
+
       </div>
-      {/* Modal para solicitud de nuevaronda  HACER!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!*/}
       {solicitudPendiente && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
@@ -663,37 +619,22 @@ export default function TuttiFrutti() {
               </p>
 
               <div className={styles.solicitudBotones}>
-                <button
-                  className={styles.btnAceptar}
+                <Button
+                  texto="Aceptar"
                   onClick={aceptarSolicitud}
-                >
-                  Aceptar
-                </button>
-                <button
+                  className={styles.btnAceptar}
+
+                />
+                <Button
+                  texto="Rechazar"
                   className={styles.btnRechazar}
                   onClick={rechazarSolicitud}
-                >
-                  Rechazar
-                </button>
+                />
               </div>
             </div>
           </div>
         </div>
       )}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
       <div>
         {!juegoActivo && !esperandoNuevaRonda && historialRondas.length > 0 && (
           <div className={styles.bottomButton}>
