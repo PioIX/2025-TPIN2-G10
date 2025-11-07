@@ -530,19 +530,28 @@ app.delete('/BorrarJugador', async function (req, res) {
     let mail = req.body.mail;
 
     if (!mail) {
-        return res.send({ res: "Falta ingresar un mail de jugador", borrada: false });
+        return res.send({ res: "Falta ingresar el mail del jugador", borrada: false });
     }
 
     try {
-        let respuesta = await realizarQuery(`SELECT * FROM Jugadores WHERE mail="${req.body.mail}"`);
-        if (respuesta.length > 0) {
-            await realizarQuery(`DELETE FROM Jugadores WHERE mail="${req.body.mail}"`);
-            res.send({ res: "Jugador eliminado", borrada: true });
-        } else {
-            res.send({ res: "El jugador no existe", borrada: false });
+        // Primero buscar el idusuario basado en el mail
+        let respuesta = await realizarQuery(`SELECT idusuario FROM Jugadores WHERE mail="${mail}"`);
+
+        if (respuesta.length === 0) {
+            return res.send({ res: "El jugador no existe", borrada: false });
         }
+
+        let idusuario = respuesta[0].id; // Obtener el idusuario del jugador
+
+        // Eliminar las partidas asociadas al jugador usando el idusuario
+        await realizarQuery(`DELETE FROM Partidas WHERE idusuario="${idusuario}"`);
+
+        // Eliminar al jugador
+        await realizarQuery(`DELETE FROM Jugadores WHERE idusuario="${idusuario}"`);
+
+        res.send({ res: "Jugador y partidas eliminados", borrada: true });
     } catch (error) {
-        console.error("Error al borrar jugador:", error);
+        console.error("Error al borrar jugador y partidas:", error);
         res.status(500).send({ res: "Error interno", borrada: false });
     }
 });
@@ -558,7 +567,9 @@ app.delete('/EliminarCategoria', async function (req, res) {
     }
 
     try {
-        let respuesta = await realizarQuery(`SELECT * FROM Categorias WHERE nombre="${req.body.nombre}"`);
+        let respuesta = await realizarQuery(`SELECT Categorias.nombre , Palabras.categoria_nombre FROM Categorias 
+            INNER JOIN Palabras ON Categorias.nombre = Palabras.categoria_nombre 
+            WHERE nombre="${req.body.nombre}"`);
         if (respuesta.length > 0) {
             await realizarQuery(`DELETE FROM Categorias WHERE nombre="${req.body.nombre}"`);
             res.send({ res: "Categoria eliminada", borrada: true });

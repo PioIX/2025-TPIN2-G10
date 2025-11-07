@@ -38,11 +38,11 @@ export default function AdminPage() {
 
       const result = await response.json();
 
-      if (result.success) {
-        showModal("Éxito", "Jugador eliminado correctamente");
+      if (result.borrada) {
+        showModal("Éxito", result.res || "Jugador y partidas eliminados correctamente");
         setMailJugador("");
       } else {
-        showModal("Error", result.message || "No se pudo eliminar el jugador");
+        showModal("Error", result.res || "No se pudo eliminar el jugador");
       }
     } catch (error) {
       console.error(error);
