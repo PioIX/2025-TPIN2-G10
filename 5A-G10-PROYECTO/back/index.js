@@ -1,6 +1,6 @@
 
 //ES EL INDEX DEL PROYECTO ANTERIOR PERO LO VOY A USAR DE BASE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-const session = require('express-session');	
+const session = require('express-session');
 var express = require('express'); //Tipo de servidor: Express
 const usuariosConectados = new Map();
 var bodyParser = require('body-parser'); //Convierte los JSON
@@ -12,13 +12,13 @@ var port = process.env.PORT || 4001; //Ejecuto el servidor en el puerto 3000
 
 // Convierte una petición recibida (POST-GET...) a objeto JSON
 app.use(express.json());
-app.use(bodyParser.urlencoded({extended:false}));
+app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(cors());
 
 
 
-app.get('/', function(req, res){
+app.get('/', function (req, res) {
     res.status(200).send({
         message: 'GET Home route working fine!'
     });
@@ -28,28 +28,28 @@ app.get('/', function(req, res){
 
 
 const server = app.listen(port, () => {
-	console.log(`Servidor NodeJS corriendo en http://localhost:${port}/`);
+    console.log(`Servidor NodeJS corriendo en http://localhost:${port}/`);
 });;
 
 const io = require('socket.io')(server, {
-	cors: {
-		// IMPORTANTE: REVISAR PUERTO DEL FRONTEND
-		origin: ["http://localhost:3000", "http://localhost:3001"], // Permitir el origen localhost:3000
-		methods: ["GET", "POST", "PUT", "DELETE"],  	// Métodos permitidos
-		credentials: true                           	// Habilitar el envío de cookies
-	}
+    cors: {
+        // IMPORTANTE: REVISAR PUERTO DEL FRONTEND
+        origin: ["http://localhost:3000", "http://localhost:3001"], // Permitir el origen localhost:3000
+        methods: ["GET", "POST", "PUT", "DELETE"],  	// Métodos permitidos
+        credentials: true                           	// Habilitar el envío de cookies
+    }
 });
 
 const sessionMiddleware = session({
-	secret: "supersarasa",
-	resave: false,
-	saveUninitialized: false
+    secret: "supersarasa",
+    resave: false,
+    saveUninitialized: false
 });
 
 app.use(sessionMiddleware);
 
 io.use((socket, next) => {
-	sessionMiddleware(socket.request, {}, next);
+    sessionMiddleware(socket.request, {}, next);
 });
 
 // ALMACENAMIENTO DE PARTIDAS ACTIVAS
@@ -57,7 +57,7 @@ const partidasActivas = new Map();
 const rooms = {};
 
 io.on("connection", (socket) => {
-	const req = socket.request;
+    const req = socket.request;
     console.log('Nueva conexión de socket:', socket.id);
 
     socket.on('registerUser', (userId) => {
@@ -75,28 +75,28 @@ io.on("connection", (socket) => {
     // SOLICITUD DE AMISTAD
     socket.on('sendFriendRequest', async (data) => {
         const { idSolicitante, nombreSolicitante, idReceptor } = data;
-        
+
         console.log(`Solicitud de amistad de ${nombreSolicitante} (${idSolicitante}) para usuario ${idReceptor}`);
-        
+
         const receptorSocketId = usuariosConectados.get(idReceptor.toString());
-        
+
         if (receptorSocketId) {
             const receptorSocket = io.sockets.sockets.get(receptorSocketId);
-            
+
             if (receptorSocket) {
                 receptorSocket.emit('friendRequestReceived', {
                     idSolicitante,
                     nombreSolicitante
                 });
                 console.log(`Solicitud de amistad enviada a usuario ${idReceptor}`);
-                
-                socket.emit('friendRequestSent', { 
-                    message: 'Solicitud de amistad enviada' 
+
+                socket.emit('friendRequestSent', {
+                    message: 'Solicitud de amistad enviada'
                 });
             }
         } else {
-            socket.emit('userOffline', { 
-                message: 'El usuario no está conectado' 
+            socket.emit('userOffline', {
+                message: 'El usuario no está conectado'
             });
         }
     });
@@ -104,14 +104,14 @@ io.on("connection", (socket) => {
     // SOLICITUD DE JUEGO
     socket.on('sendGameRequest', (data) => {
         const { idSolicitante, nombreSolicitante, idReceptor, nombreReceptor } = data;
-        
+
         console.log(`solicitud de ${nombreSolicitante} (${idSolicitante}) para ${nombreReceptor} (${idReceptor})`);
-        
+
         const receptorSocketId = usuariosConectados.get(idReceptor.toString());
-        
+
         if (receptorSocketId) {
             const receptorSocket = io.sockets.sockets.get(receptorSocketId);
-            
+
             if (receptorSocket) {
                 receptorSocket.emit('gameRequest', {
                     idSolicitante,
@@ -120,18 +120,18 @@ io.on("connection", (socket) => {
                     nombreReceptor
                 });
                 console.log(`solicitud enviada a ${nombreReceptor}`);
-                
-                socket.emit('requestSent', { 
-                    message: `solicitud enviada a ${nombreReceptor}` 
+
+                socket.emit('requestSent', {
+                    message: `solicitud enviada a ${nombreReceptor}`
                 });
             } else {
-                socket.emit('userOffline', { 
-                    message: `${nombreReceptor} no está conectado` 
+                socket.emit('userOffline', {
+                    message: `${nombreReceptor} no está conectado`
                 });
             }
         } else {
-            socket.emit('userOffline', { 
-                message: `${nombreReceptor} no está conectado` 
+            socket.emit('userOffline', {
+                message: `${nombreReceptor} no está conectado`
             });
         }
     });
@@ -139,14 +139,14 @@ io.on("connection", (socket) => {
     // ACEPTAR SOLICITUD DE JUEGO
     socket.on('acceptGameRequest', async (data) => {
         const { idSolicitante, idReceptor } = data;
-        
+
         console.log(`${idReceptor} aceptó la solicitud de ${idSolicitante}`);
-        
+
         const room = `game-${Math.min(idSolicitante, idReceptor)}-${Math.max(idSolicitante, idReceptor)}-${Date.now()}`;
-        
+
         const solicitanteSocketId = usuariosConectados.get(idSolicitante.toString());
         const receptorSocketId = usuariosConectados.get(idReceptor.toString());
-        
+
         if (solicitanteSocketId && receptorSocketId) {
             const solicitanteSocket = io.sockets.sockets.get(solicitanteSocketId);
             const receptorSocket = io.sockets.sockets.get(receptorSocketId);
@@ -190,17 +190,17 @@ io.on("connection", (socket) => {
     socket.on('solicitarNuevaRonda', (data) => {
         const { room, userId } = data;
         console.log(`Usuario ${userId} solicita nueva ronda en sala ${room}`);
-        
+
         const partida = partidasActivas.get(room);
         if (!partida) {
             socket.emit('error', { message: 'Partida no encontrada' });
             return;
         }
-        
-       
-        const idOponente = partida.jugadores.find(id => id.toString() !== userId.toString());  
-        console.log("oponente:", idOponente);    
-        
+
+
+        const idOponente = partida.jugadores.find(id => id.toString() !== userId.toString());
+        console.log("oponente:", idOponente);
+
         //const receptorSocketId = usuariosConectados.get(idOponente.toString());
         //console.log("socket del otro", receptorSocketId);
 
@@ -210,17 +210,17 @@ io.on("connection", (socket) => {
                 idSolicitante: userId,
                 room: room
             });
-            
+
             console.log(`Solicitud de nueva ronda enviada al jugador ${idOponente}`);
-                io.to(room).emit('solicitudEnviada', { 
+            io.to(room).emit('solicitudEnviada', {
                 message: 'Solicitud enviada, esperando respuesta...',
                 userId: userId
             });
 
-            
+
         } else {
-            socket.emit('userOffline', { 
-                message: 'El otro jugador no está conectado' 
+            socket.emit('userOffline', {
+                message: 'El otro jugador no está conectado'
             });
         }
     });
@@ -231,67 +231,67 @@ io.on("connection", (socket) => {
     socket.on('acceptNuevaRonda', async (data) => {
         const { room, userId } = data;
         console.log(`Usuario ${userId} aceptó nueva ronda en sala ${room}`);
-        
+
         const partida = partidasActivas.get(room);
         if (!partida) {
             socket.emit('error', { message: 'Partida no encontrada' });
             return;
         }
-        
+
         try {
-            
+
             const nuevaLetra = generarLetraAleatoria();
             partida.letra = nuevaLetra;
             partida.rondaActual = (partida.rondaActual || 1) + 1;
             partida.respuestas = {};
             partida.iniciada = false;
-            
+
             console.log(`Nueva ronda iniciada: ${partida.rondaActual}, letra: ${nuevaLetra}`);
-            
+
             // Notificar a AMBOS jugadores
             io.to(room).emit('nuevaRondaIniciada', {
                 letra: nuevaLetra,
                 ronda: partida.rondaActual,
                 categorias: partida.categorias
             });
-            
+
         } catch (error) {
             console.error('Error al iniciar nueva ronda:', error);
             socket.emit('error', { message: 'Error al iniciar nueva ronda' });
         }
-    }); 
+    });
     socket.on('rechazarNuevaRonda', (data) => {
         const { room, userId } = data;
         console.log(`Nueva ronda rechazada en sala ${room}`);
-        
+
         const idOponente = usuariosConectados.get(idOponente.toString());
-        
+
         if (idOponente) {
             //const solicitanteSocket = io.sockets.sockets.get(solicitanteSocketId);
-            
-           
+
+
             io.to(room).emit('nuevaRondaRechazada', {
                 message: 'Tu oponente rechazó jugar otra ronda'
             });
-            
+
         }
     });
 
-    
+
     socket.on('checkPlayers', (data => {
         const { room } = data;
-         io.to(room).emit('contarJugadores', data);
+        io.to(room).emit('contarJugadores', data);
     }))
 
     // RECHAZAR SOLICITUD DE JUEGO.
     socket.on('rejectGameRequest', (data) => {
         const { room, userId, idOponente } = data;
-        
+
         const solicitanteSocketId = usuariosConectados.get(idSolicitante.toString());
-        
+
         if (idSolicitante) {
             const idSolicitante = io.sockets.sockets.get(solicitanteSocketId);
-            
+
             if (idSolicitante) {
                 io.to(room).emit('gameRejected', {
                     message: `${nombreReceptor} rechazó tu solicitud`
@@ -305,7 +305,7 @@ io.on("connection", (socket) => {
     socket.on('startGameTimer', (data) => {
         const { room } = data;
         console.log(`Iniciando timer para sala ${room}`);
-        
+
         const partida = partidasActivas.get(room);
         if (partida && !partida.iniciada) {
             partida.iniciada = true;
@@ -316,14 +316,14 @@ io.on("connection", (socket) => {
     // ENVIAR RESPUESTA
     socket.on('sendAnswer', (data) => {
         const { room, userId, categoria, respuesta } = data;
-        
+
         const partida = partidasActivas.get(room);
         if (partida) {
             if (!partida.respuestas[userId]) {
                 partida.respuestas[userId] = {};
             }
             partida.respuestas[userId][categoria] = respuesta;
-            
+
             // Notificar a los otros jugadores
             socket.to(room).emit('opponentAnswer', {
                 userId,
@@ -337,38 +337,114 @@ io.on("connection", (socket) => {
     socket.on('basta', (data) => {
         const { room, userId, respuestas } = data;
         console.log(`Usuario ${userId} dijo BASTA en sala ${room}`);
-        
+
         /*const partida = partidasActivas.get(room);
         if (partida) {
             // Guardar las respuestas del jugador que dijo BASTA
             partida.respuestas[userId] = respuestas;
         }
         */
-       if (!partida || partida.terminada) return;
+        if (!partida || partida.terminada) return;
 
         partida.respuestas[userId] = respuestas;
         partida.basta = userId; // Marcar quien dijo basta
         partidasActivas.set(room, partida);
 
-        
+
         const idOponente = partida.jugadores.find(id => id.toString() !== userId.toString());
         const oponenteSocketId = usuariosConectados.get(idOponente.toString());
-        
-        
+
+
         if (oponenteSocketId) {
             io.to(oponenteSocketId).emit('opponentBasta', {
                 message: '¡El otro jugador dijo BASTA!',
                 respuestasJugadorLocal: respuestas // Opcional: enviar al oponente las respuestas
             });
         }
-    
-    /*
-        io.to(room).emit('gameEnded', {
-            userId,
-            message: 'Un jugador dijo BASTA',
-            respuestasOponente: respuestas
-        });*/
+
+        /*
+            io.to(room).emit('gameEnded', {
+                userId,
+                message: 'Un jugador dijo BASTA',
+                respuestasOponente: respuestas
+            });*/
     });
+    // Agregar después del evento 'basta' en index.js
+
+    socket.on('enviarRespuestasValidadas', async (data) => {
+        const { room, userId, respuestasValidadas } = data;
+        const partida = partidasActivas.get(room);
+
+        if (!partida) return;
+
+        // Guardar respuestas validadas del jugador
+        partida.respuestasValidadas = partida.respuestasValidadas || {};
+        partida.respuestasValidadas[userId] = respuestasValidadas;
+
+        // Verificar si ambos jugadores ya enviaron sus respuestas
+        const jugadoresConRespuestas = Object.keys(partida.respuestasValidadas).length;
+
+        if (jugadoresConRespuestas === 2) {
+            // Calcular puntos para ambos jugadores
+            const [jugador1Id, jugador2Id] = partida.jugadores;
+            const respuestas1 = partida.respuestasValidadas[jugador1Id];
+            const respuestas2 = partida.respuestasValidadas[jugador2Id];
+
+            const puntosJugador1 = calcularPuntos(respuestas1, respuestas2);
+            const puntosJugador2 = calcularPuntos(respuestas2, respuestas1);
+
+            // Enviar resultados a ambos jugadores
+            const socket1 = io.sockets.sockets.get(usuariosConectados.get(jugador1Id.toString()));
+            const socket2 = io.sockets.sockets.get(usuariosConectados.get(jugador2Id.toString()));
+
+            if (socket1) {
+                socket1.emit('resultadosRonda', {
+                    misPuntos: puntosJugador1,
+                    misRespuestas: respuestas1,
+                    respuestasOponente: respuestas2,
+                    puntosOponente: puntosJugador2
+                });
+            }
+
+            if (socket2) {
+                socket2.emit('resultadosRonda', {
+                    misPuntos: puntosJugador2,
+                    misRespuestas: respuestas2,
+                    respuestasOponente: respuestas1,
+                    puntosOponente: puntosJugador1
+                });
+            }
+
+            // Limpiar para la próxima ronda
+            partida.respuestasValidadas = {};
+        }
+    });
+
+    // Función para calcular puntos
+    function calcularPuntos(misRespuestas, respuestasOponente) {
+        let puntos = 0;
+
+        for (const [categoria, miRespuesta] of Object.entries(misRespuestas)) {
+            if (!miRespuesta.valida) continue; // Si mi respuesta no es válida, 0 puntos
+
+            const respuestaOpo = respuestasOponente[categoria];
+
+            // Caso 1: Solo yo tengo respuesta válida
+            if (!respuestaOpo || !respuestaOpo.valida) {
+                puntos += 20;
+            }
+            // Caso 2: Ambos tenemos la misma respuesta válida
+            else if (miRespuesta.palabra.toLowerCase() === respuestaOpo.palabra.toLowerCase()) {
+                puntos += 5;
+            }
+            // Caso 3: Ambos tenemos respuestas válidas pero diferentes
+            else {
+                puntos += 10;
+            }
+        }
+
+        return puntos;
+    }
     /*
     socket.on('enviarRespuestasFinales', (data) => {
         const { room, userId, respuestas } = data;
@@ -401,18 +477,18 @@ io.on("connection", (socket) => {
         // 3. Emitir las respuestas finales
         if (respuestasOponente) {
             // Enviar al jugador actual las del oponente
-            io.to(socket.id).emit('respuestasFinalesOponente', { respuestas: respuestasOponente , id: idOponente});
+            io.to(socket.id).emit('respuestasFinalesOponente', { respuestas: respuestasOponente, id: idOponente });
 
             // Enviar al oponente las del jugador actual (si no lo hicimos antes)
             if (oponenteSocketId) {
-                io.to(oponenteSocketId).emit('respuestasFinalesOponente', { respuestas: respuestas, id :userId });
+                io.to(oponenteSocketId).emit('respuestasFinalesOponente', { respuestas: respuestas, id: userId });
             }
         } else {
             // Si no hay respuestas del oponente, debe esperar a que el oponente las envíe.
             // Esto puede pasar si un jugador dijo basta y el otro aun no reaccionó.
             // Se puede implementar un pequeño timeout o una bandera de 'esperandoRespuestas'.
         }
-        
+
         partidasActivas.set(room, partida); // Actualizar partida
     });
     socket.on('joinRoom', data => {
@@ -446,26 +522,26 @@ io.on("connection", (socket) => {
 //pedidos del ahorcado!!!!!!!!!!!!!!!!!!!!!!!!!
 
 //get palabras aleatorias
-app.get('/CategoriaAleatoria', async function(req, res){
-   try {
-     let respuesta;
-     if (req.query.nombre != undefined) {
-         respuesta =  await realizarQuery(`SELECT nombre FROM Categorias ORDER BY RAND() LIMIT 6`);
-     } else {
-         respuesta = await realizarQuery(`SELECT nombre FROM Categorias ORDER BY RAND() LIMIT 6`);
-     } 
-     console.log(respuesta)
-     if (respuesta.length > 0) {
-         res.send({ categorias: respuesta } )
-    }
-    else{
-         res.send({ res: "Categoria no encontrada" })
-    }
-   } catch (e) {
+app.get('/CategoriaAleatoria', async function (req, res) {
+    try {
+        let respuesta;
+        if (req.query.nombre != undefined) {
+            respuesta = await realizarQuery(`SELECT nombre FROM Categorias ORDER BY RAND() LIMIT 6`);
+        } else {
+            respuesta = await realizarQuery(`SELECT nombre FROM Categorias ORDER BY RAND() LIMIT 6`);
+        }
+        console.log(respuesta)
+        if (respuesta.length > 0) {
+            res.send({ categorias: respuesta })
+        }
+        else {
+            res.send({ res: "Categoria no encontrada" })
+        }
+    } catch (e) {
         console.log(e);
         res.send("Hubo un error, " + e)
-        
-   }
+
+    }
 });
 
 
@@ -483,16 +559,16 @@ app.put('/ActualizarEstadisticas', async function (req, res) {
         let query = ""
         if (resultado == "ganada") {
             let datos = await realizarQuery(`SELECT partidasganadas, partidasjugadas, puntos FROM Jugadores WHERE mail = "${mail}"`)
-            let {partidas_ganadas , partidas_jugadas } = datos[0]
-            console.log({partidasganadas , partidasjugadas})
+            let { partidas_ganadas, partidas_jugadas } = datos[0]
+            console.log({ partidasganadas, partidasjugadas })
             query = `UPDATE Jugadores SET partidasjugadas = ${partidasjugadas + 1}, partidasganadas = ${partidasganadas + 1}, puntos = ${puntos + datos[0].puntosRonda} WHERE mail= "${mail}"`;
         } else {
             let datos = await realizarQuery(`SELECT partidasperdidas, partidasjugadas, puntos FROM Jugadores WHERE mail= "${mail}"`)
-            let {partidasjugadas , partidasperdidas } = datos[0]
-            console.log({partidasjugadas , partidasperdidas})
+            let { partidasjugadas, partidasperdidas } = datos[0]
+            console.log({ partidasjugadas, partidasperdidas })
             query = `UPDATE Jugadores SET partidasjugadas = ${partidasjugadas + 1}, partidasperdidas = ${partidasperdidas + 1}, puntos = ${puntos + datos[0].puntos} WHERE mail = "${mail}"`;
         }
-        
+
         await realizarQuery(query);
         res.send({ res: "Estadísticas actualizadas correctamente" });
     } catch (e) {
@@ -586,69 +662,69 @@ app.delete('/EliminarCategoria', async function (req, res) {
 //para administradores, agregar palabra y en que categoria va
 //agregar palabra, para administradores
 
-app.post('/AgregarPalabra', async function(req, res) {
-  console.log("/AgregarPalabra req.body:", req.body);
-  try {
-    const { palabra, categoria } = req.body;
+app.post('/AgregarPalabra', async function (req, res) {
+    console.log("/AgregarPalabra req.body:", req.body);
+    try {
+        const { palabra, categoria } = req.body;
 
-    
-    if (!palabra) {
-      return res.json({ res: "Falta palabra", publicada: false });
-    }
-    if (!categoria) {
-      return res.json({ res: "Falta categoría", publicada: false });
-    }
 
-    
-    let categoriaExiste = await realizarQuery(`SELECT idcategoria FROM Categorias WHERE nombre="${categoria}"`);
-    
-    if (categoriaExiste.length === 0) {
-      return res.json({ res: "Esa categoría no existe", publicada: false });
-    }
+        if (!palabra) {
+            return res.json({ res: "Falta palabra", publicada: false });
+        }
+        if (!categoria) {
+            return res.json({ res: "Falta categoría", publicada: false });
+        }
 
-    const idcategoria = categoriaExiste[0].idcategoria;
 
-    let palabraExiste = await realizarQuery(`SELECT idpalabra FROM Palabras WHERE palabra="${palabra}"`);
-    
-    let idpalabra;
+        let categoriaExiste = await realizarQuery(`SELECT idcategoria FROM Categorias WHERE nombre="${categoria}"`);
 
-    if (palabraExiste.length === 0) {
-      
-      await realizarQuery(`INSERT INTO Palabras (palabra) VALUES ("${palabra}")`);
-      
-      
-      let palabraInsertada = await realizarQuery(`SELECT idpalabra FROM Palabras WHERE palabra="${palabra}"`);
-      idpalabra = palabraInsertada[0].idpalabra;
-    } else {
-      
-      idpalabra = palabraExiste[0].idpalabra;
-    }
+        if (categoriaExiste.length === 0) {
+            return res.json({ res: "Esa categoría no existe", publicada: false });
+        }
 
-    
-    let relacionExiste = await realizarQuery(`
+        const idcategoria = categoriaExiste[0].idcategoria;
+
+        let palabraExiste = await realizarQuery(`SELECT idpalabra FROM Palabras WHERE palabra="${palabra}"`);
+
+        let idpalabra;
+
+        if (palabraExiste.length === 0) {
+
+            await realizarQuery(`INSERT INTO Palabras (palabra) VALUES ("${palabra}")`);
+
+
+            let palabraInsertada = await realizarQuery(`SELECT idpalabra FROM Palabras WHERE palabra="${palabra}"`);
+            idpalabra = palabraInsertada[0].idpalabra;
+        } else {
+
+            idpalabra = palabraExiste[0].idpalabra;
+        }
+
+
+        let relacionExiste = await realizarQuery(`
       SELECT * FROM PalabrasCategorias 
       WHERE idpalabra=${idpalabra} AND idcategoria=${idcategoria}
     `);
 
-    if (relacionExiste.length !== 0) {
-      return res.json({ res: `"${palabra}" ya está en la categoría "${categoria}"`, publicada: false });
-    }
+        if (relacionExiste.length !== 0) {
+            return res.json({ res: `"${palabra}" ya está en la categoría "${categoria}"`, publicada: false });
+        }
 
-    
-    await realizarQuery(`
+
+        await realizarQuery(`
       INSERT INTO PalabrasCategorias (idpalabra, idcategoria) 
       VALUES (${idpalabra}, ${idcategoria})
     `);
 
-    res.json({ 
-      res: `"${palabra}" agregada en la categoría "${categoria}"`, 
-      publicada: true 
-    });
+        res.json({
+            res: `"${palabra}" agregada en la categoría "${categoria}"`,
+            publicada: true
+        });
 
-  } catch (e) {
-    console.error("Error en /AgregarPalabra:", e);
-    res.status(500).json({ res: "Error interno", publicada: false });
-  }
+    } catch (e) {
+        console.error("Error en /AgregarPalabra:", e);
+        res.status(500).json({ res: "Error interno", publicada: false });
+    }
 });
 
 
@@ -657,8 +733,8 @@ app.post('/AgregarPalabra', async function(req, res) {
 
 
 //login jugadores
-app.post('/LoginJugadores', async function(req,res) {
-    console.log(req.body) 
+app.post('/LoginJugadores', async function (req, res) {
+    console.log(req.body)
     let respuesta;
     if (req.body.mail != undefined) {
         respuesta = await realizarQuery(`SELECT * FROM Jugadores WHERE mail="${req.body.mail}"`)
@@ -667,29 +743,29 @@ app.post('/LoginJugadores', async function(req,res) {
             if (req.body.contraseña != undefined) {
                 respuesta = await realizarQuery(`SELECT * FROM Jugadores WHERE mail="${req.body.mail}" && contraseña="${req.body.contraseña}"`)
                 console.log(respuesta)
-                if  (respuesta.length > 0) {
+                if (respuesta.length > 0) {
                     res.json({
                         res: "Jugador existe",
                         loguea: true,
                         idLogged: respuesta[0].idusuario,
                         admin: Boolean(respuesta[0].administrador)
-})
+                    })
                 }
-                else{
-                    res.json({res:"Contraseña incorrecta",loguea:false}) 
+                else {
+                    res.json({ res: "Contraseña incorrecta", loguea: false })
                 }
-            }else{
-                res.json({res:"Falta ingresar contraseña",loguea:false})                
+            } else {
+                res.json({ res: "Falta ingresar contraseña", loguea: false })
             }
-        } 
-        else{
-            res.json({res:"Esta mal el mail",loguea:false})
         }
-    
-    }else {
-        res.json({res:"Falta ingresar el mail",loguea:false})
+        else {
+            res.json({ res: "Esta mal el mail", loguea: false })
+        }
 
-    }    
+    } else {
+        res.json({ res: "Falta ingresar el mail", loguea: false })
+
+    }
 
 })
 
@@ -698,40 +774,40 @@ app.post('/LoginJugadores', async function(req,res) {
 
 
 //get usuarios
-app.get('/Jugadores', async function(req, res){
-   try {
-     let respuesta;
-     if (req.query.mail != undefined) {
-         respuesta = await realizarQuery(`SELECT * FROM Jugadores WHERE mail="${req.query.mail}" `)
-     } else {
-         respuesta = await realizarQuery("SELECT * FROM Jugadores");
-     }
-     res.status(200).json({
-         message: 'Aca estan los jugadores',
-         jugadores: respuesta
-    });
-   } catch (e) {
+app.get('/Jugadores', async function (req, res) {
+    try {
+        let respuesta;
+        if (req.query.mail != undefined) {
+            respuesta = await realizarQuery(`SELECT * FROM Jugadores WHERE mail="${req.query.mail}" `)
+        } else {
+            respuesta = await realizarQuery("SELECT * FROM Jugadores");
+        }
+        res.status(200).json({
+            message: 'Aca estan los jugadores',
+            jugadores: respuesta
+        });
+    } catch (e) {
         console.log(e);
         res.json("Hubo un error, " + e)
-        
-   }
+
+    }
 });
 
 
 //get amistades
-app.get('/Amigos', async function(req, res){
+app.get('/Amigos', async function (req, res) {
     console.log(req.query)
     try {
         let amigos = []
         if (req.query.idjugador != undefined) {
             const amistades = await realizarQuery(`SELECT idamigo FROM Amigos WHERE idjugador = ${req.query.idjugador}`)
-            
+
             for (let i = 0; i < amistades.length; i++) {
                 const datosAmigo = await realizarQuery(`SELECT * FROM Jugadores WHERE idusuario = ${amistades[i].idamigo}`)
                 amigos.push(datosAmigo[0])
             }
-            
-            if(amigos.length > 0){
+
+            if (amigos.length > 0) {
                 res.status(200).json({
                     message: 'Aquí están los amigos',
                     amigos: amigos
@@ -761,7 +837,7 @@ app.get('/Amigos', async function(req, res){
 
 //get mensajes del chat
 
-app.get('/MensajesChat', async function(req, res) {
+app.get('/MensajesChat', async function (req, res) {
     const { id_chat, id_usuario } = req.query;
     if (!id_chat || !id_usuario) {
         return res.status(400).json({ error: "Faltan parámetros" });
@@ -804,8 +880,8 @@ app.get('/MensajesChat', async function(req, res) {
             INNER JOIN UsuariosPorChat ON Chats.id_chat = UsuariosPorChat.id_chat INNER JOIN Usuarios ON UsuariosPorChat.id_usuario = Usuarios.id_usuario
             WHERE Mensajes.id_chat = "${id_chat}" ORDER BY Mensajes.hora_de_envio ASC
         `);*/
-        
-            const mensajes = await realizarQuery(`
+
+        const mensajes = await realizarQuery(`
                 SELECT Mensajes.id_mensaje, Mensajes.mensaje, Mensajes.hora_de_envio, Usuarios.nombre, Usuarios.id_usuario
                 FROM Mensajes
                 INNER JOIN Usuarios ON Mensajes.id_usuario = Usuarios.id_usuario
@@ -824,49 +900,49 @@ app.get('/MensajesChat', async function(req, res) {
 
 
 //get chats
-app.get('/Chats', async function(req, res){
-   try {
-     let respuesta;
-     if (req.query.id_chat != undefined) {
-         respuesta = await realizarQuery(`SELECT * FROM Chats WHERE id_chat=${req.query.id_chat}`)
-     } else {
-         respuesta = await realizarQuery("SELECT * FROM Chats");
-     }
-     res.status(200).send({
-         message: 'Aca estan los chats',
-         chats: respuesta
-    });
-   } catch (e) {
+app.get('/Chats', async function (req, res) {
+    try {
+        let respuesta;
+        if (req.query.id_chat != undefined) {
+            respuesta = await realizarQuery(`SELECT * FROM Chats WHERE id_chat=${req.query.id_chat}`)
+        } else {
+            respuesta = await realizarQuery("SELECT * FROM Chats");
+        }
+        res.status(200).send({
+            message: 'Aca estan los chats',
+            chats: respuesta
+        });
+    } catch (e) {
         console.log(e);
         res.send("Hubo un error, " + e)
-        
-   }
+
+    }
 });
 
 
 
 //get mensajes
-app.get('/Mensajes', async function(req, res){
-   try {
-     let respuesta;
-     if (req.query.id_mensaje != undefined) {
-         respuesta = await realizarQuery(`SELECT * FROM Mensajes WHERE id_mensaje=${req.query.id_mensaje}`)
-     } else {
-         respuesta = await realizarQuery("SELECT * FROM Mensajes");
-     }
-     res.status(200).send({
-         message: 'Aca estan los mensajes',
-         mensajes: respuesta
-    });
-   } catch (e) {
+app.get('/Mensajes', async function (req, res) {
+    try {
+        let respuesta;
+        if (req.query.id_mensaje != undefined) {
+            respuesta = await realizarQuery(`SELECT * FROM Mensajes WHERE id_mensaje=${req.query.id_mensaje}`)
+        } else {
+            respuesta = await realizarQuery("SELECT * FROM Mensajes");
+        }
+        res.status(200).send({
+            message: 'Aca estan los mensajes',
+            mensajes: respuesta
+        });
+    } catch (e) {
         console.log(e);
         res.send("Hubo un error, " + e)
-        
-   }
+
+    }
 });
 
 //PEDIR AYUDA A RIVAS PARA HACER EL PEDIDO
-app.get('/MensajesChats', async function (req,res){
+app.get('/MensajesChats', async function (req, res) {
     console.log(req.query)
     const mensajes = await realizarQuery(` SELECT DISTINCT id_chat FROM UsuariosPorChat WHERE id_usuario =  ${req.body.idLogged};`)
     let contactos = []
@@ -878,35 +954,35 @@ app.get('/MensajesChats', async function (req,res){
         contactos.push(auxiliar)
     }
     console.log(contactos)
-    if(chats.length > 0){
-        res.send({contactos})
-    }else{
-        res.send({res: "no tiene contactos"})
+    if (chats.length > 0) {
+        res.send({ contactos })
+    } else {
+        res.send({ res: "no tiene contactos" })
     }
-     
+
 })
 
 
 
 
 //get user_chat
-app.get('/User_chat', async function(req, res){
-   try {
-     let respuesta;
-     if (req.query.id_userchat != undefined) {
-         respuesta = await realizarQuery(`SELECT * FROM User_chat WHERE id_userchat=${req.query.id_userchat}`)
-     } else {
-         respuesta = await realizarQuery("SELECT * FROM User_chat");
-     }
-     res.status(200).send({
-         message: 'Aca estan los userChat',
-         user_chat: respuesta
-    });
-   } catch (e) {
+app.get('/User_chat', async function (req, res) {
+    try {
+        let respuesta;
+        if (req.query.id_userchat != undefined) {
+            respuesta = await realizarQuery(`SELECT * FROM User_chat WHERE id_userchat=${req.query.id_userchat}`)
+        } else {
+            respuesta = await realizarQuery("SELECT * FROM User_chat");
+        }
+        res.status(200).send({
+            message: 'Aca estan los userChat',
+            user_chat: respuesta
+        });
+    } catch (e) {
         console.log(e);
         res.send("Hubo un error, " + e)
-        
-   }
+
+    }
 });
 
 //delete usuarios
@@ -979,46 +1055,46 @@ app.delete('/BorrarMensaje', async function (req, res) {
 });
 
 //registro
-app.post('/RegistroJugadores', async function(req, res) {
-  console.log("/RegistroJugadores req.body:", req.body);
-  try {
-    const { contraseña, nombre, mail } = req.body;
+app.post('/RegistroJugadores', async function (req, res) {
+    console.log("/RegistroJugadores req.body:", req.body);
+    try {
+        const { contraseña, nombre, mail } = req.body;
 
-    if (!mail) {
-      return res.json({ res: "Falta mail", registro: false });
-    }
-
-    let respuesta = await realizarQuery(`SELECT * FROM Jugadores WHERE mail="${mail}"`);
-
-    if (respuesta.length !== 0) {
-      return res.json({ res: "Ese mail ya existe", registro: false });
-    }
-
-    /*let usuarios = await realizarQuery(`SELECT id_usuario FROM Usuarios `);
-    let id = -1
-    for (let i = 0; i < usuarios.length; i++) {
-        if(id < usuarios[i].id_usuario){
-            id = usuarios[i].id_usuario
+        if (!mail) {
+            return res.json({ res: "Falta mail", registro: false });
         }
-        
-    }
-    id++;*/
-    await realizarQuery(`
+
+        let respuesta = await realizarQuery(`SELECT * FROM Jugadores WHERE mail="${mail}"`);
+
+        if (respuesta.length !== 0) {
+            return res.json({ res: "Ese mail ya existe", registro: false });
+        }
+
+        /*let usuarios = await realizarQuery(`SELECT id_usuario FROM Usuarios `);
+        let id = -1
+        for (let i = 0; i < usuarios.length; i++) {
+            if(id < usuarios[i].id_usuario){
+                id = usuarios[i].id_usuario
+            }
+            
+        }
+        id++;*/
+        await realizarQuery(`
       INSERT INTO Jugadores (  contraseña, nombre, mail)
       VALUES ("${contraseña}", "${nombre}", "${mail}")
     `);
 
-    res.json({ res: "Usuario agregado", registro: true, idLogged: idusuario });
-  } catch (e) {
-    console.error("Error en /RegistroUsuarios:", e);
-    res.status(500).json({ res: "Error interno", registro: false });
-  }
+        res.json({ res: "Usuario agregado", registro: true, idLogged: idusuario });
+    } catch (e) {
+        console.error("Error en /RegistroUsuarios:", e);
+        res.status(500).json({ res: "Error interno", registro: false });
+    }
 });
 
 
 
 //post para obtener los chats de un usuario
-app.post('/Chats', async function (req,res){
+app.post('/Chats', async function (req, res) {
     console.log(req.body)
     const chats = await realizarQuery(` SELECT DISTINCT id_chat FROM UsuariosPorChat WHERE id_usuario =  ${req.body.idLogged};`)
     let contactos = []
@@ -1030,12 +1106,12 @@ app.post('/Chats', async function (req,res){
         contactos.push(auxiliar)
     }
     console.log(contactos)
-    if(chats.length > 0){
-        res.send({contactos})
-    }else{
-        res.send({res: "no tiene contactos"})
+    if (chats.length > 0) {
+        res.send({ contactos })
+    } else {
+        res.send({ res: "no tiene contactos" })
     }
-     
+
 })
 
 
@@ -1062,7 +1138,7 @@ app.post('/insertarMensaje', async (req, res) => {
 
 
 // trabajo anterior de chats
-app.post('/CrearChat', async function(req, res) {
+app.post('/CrearChat', async function (req, res) {
     const { id_usuario1, id_usuario2 } = req.body;
     console.log("id_usuario1", id_usuario1)
     console.log("id_usuario2", id_usuario2)
@@ -1075,7 +1151,7 @@ app.post('/CrearChat', async function(req, res) {
         const chatsUsuario1 = await realizarQuery(`
             SELECT id_chat FROM UsuariosPorChat WHERE id_usuario = ${id_usuario1}
         `);
-        
+
         const chatsUsuario2 = await realizarQuery(`
             SELECT id_chat FROM UsuariosPorChat WHERE id_usuario = ${id_usuario2}
         `);
@@ -1088,12 +1164,12 @@ app.post('/CrearChat', async function(req, res) {
                     const chatInfo = await realizarQuery(`
                         SELECT es_grupo FROM Chats WHERE id_chat = ${chat1.id_chat}
                     `);
-                    
+
                     if (chatInfo[0].es_grupo === 0) {
-                        return res.json({ 
-                            message: "El chat ya existe", 
+                        return res.json({
+                            message: "El chat ya existe",
                             creado: false,
-                            id_chat: chat1.id_chat 
+                            id_chat: chat1.id_chat
                         });
                     }
                 }
@@ -1122,10 +1198,10 @@ app.post('/CrearChat', async function(req, res) {
             VALUES (${nuevoIdChat}, ${id_usuario2})
         `);
 
-        res.json({ 
-            message: "Chat creado exitosamente", 
+        res.json({
+            message: "Chat creado exitosamente",
             creado: true,
-            id_chat: nuevoIdChat 
+            id_chat: nuevoIdChat
         });
 
     } catch (error) {
@@ -1135,9 +1211,9 @@ app.post('/CrearChat', async function(req, res) {
 });
 
 
-app.get('/UsuariosDisponibles', async function(req, res) {
+app.get('/UsuariosDisponibles', async function (req, res) {
     const { idjugador } = req.query;
-    
+
     if (!idjugador) {
         return res.status(400).json({ error: "Falta el ID del jugador" });
     }
@@ -1172,13 +1248,13 @@ app.get('/UsuariosDisponibles', async function(req, res) {
 });
 
 //agregar un nuevo amigo
-app.post('/AgregarAmigo', async function(req, res) {
+app.post('/AgregarAmigo', async function (req, res) {
     const { idjugador, idamigo } = req.body;
 
     if (!idjugador || !idamigo) {
-        return res.status(400).json({ 
-            res: "Faltan parámetros", 
-            agregado: false 
+        return res.status(400).json({
+            res: "Faltan parámetros",
+            agregado: false
         });
     }
 
@@ -1190,9 +1266,9 @@ app.post('/AgregarAmigo', async function(req, res) {
         `);
 
         if (amistadExistente.length > 0) {
-            return res.json({ 
-                res: "Ya son amigos", 
-                agregado: false 
+            return res.json({
+                res: "Ya son amigos",
+                agregado: false
             });
         }
 
@@ -1207,15 +1283,15 @@ app.post('/AgregarAmigo', async function(req, res) {
             VALUES (${idamigo}, ${idjugador})
         `);
 
-        res.json({ 
-            res: "Amigo agregado correctamente", 
-            agregado: true 
+        res.json({
+            res: "Amigo agregado correctamente",
+            agregado: true
         });
     } catch (error) {
         console.error("Error al agregar amigo:", error);
-        res.status(500).json({ 
-            res: "Error interno", 
-            agregado: false 
+        res.status(500).json({
+            res: "Error interno",
+            agregado: false
         });
     }
 });
@@ -1251,47 +1327,47 @@ app.delete('/EliminarAmigo', async function (req, res) {
     }
 });
 
-app.get('/Ranking', async function(req, res){
-   try {
-     const respuesta = await realizarQuery(`
+app.get('/Ranking', async function (req, res) {
+    try {
+        const respuesta = await realizarQuery(`
        SELECT idusuario, nombre, partidas_jugadas, partidas_ganadas, partidas_perdidas, puntos 
        FROM Jugadores 
        ORDER BY puntos DESC
      `);
-     
-     res.status(200).json({
-         message: 'Ranking de jugadores',
-         jugadores: respuesta
-     });
-   } catch (e) {
+
+        res.status(200).json({
+            message: 'Ranking de jugadores',
+            jugadores: respuesta
+        });
+    } catch (e) {
         console.log(e);
         res.status(500).json({ error: "Hubo un error: " + e });
-   }
+    }
 });
-app.get('/Categorias', async function(req, res){
-   try {
-     let respuesta;
-     if (req.query.nombre != undefined) {
-         respuesta = await realizarQuery(`SELECT * FROM Categorias WHERE nombre="${req.query.nombre}"`)
-     } else {
-         respuesta = await realizarQuery("SELECT * FROM Categorias");
-     }
-     res.status(200).json({
-         message: 'Aquí están las categorías',
-         categorias: respuesta
-    });
-   } catch (e) {
+app.get('/Categorias', async function (req, res) {
+    try {
+        let respuesta;
+        if (req.query.nombre != undefined) {
+            respuesta = await realizarQuery(`SELECT * FROM Categorias WHERE nombre="${req.query.nombre}"`)
+        } else {
+            respuesta = await realizarQuery("SELECT * FROM Categorias");
+        }
+        res.status(200).json({
+            message: 'Aquí están las categorías',
+            categorias: respuesta
+        });
+    } catch (e) {
         console.log(e);
         res.json("Hubo un error, " + e)
-   }
+    }
 });
 
 // Agregar esta ruta al index.js después de la ruta de /Ranking
 
 // Obtener historial de un jugador usando la tabla Partidas existente
-app.get('/HistorialPartidas', async function(req, res) {
+app.get('/HistorialPartidas', async function (req, res) {
     const { idjugador } = req.query;
-    
+
     if (!idjugador) {
         return res.status(400).json({ error: "Falta el ID del jugador" });
     }
@@ -1344,7 +1420,7 @@ app.get('/HistorialPartidas', async function(req, res) {
         // Procesar el historial
         const historialProcesado = partidas.map((partida, index) => {
             // Asignar un oponente (rotando entre los disponibles)
-            const oponente = posiblesOponentes.length > 0 
+            const oponente = posiblesOponentes.length > 0
                 ? posiblesOponentes[index % posiblesOponentes.length]
                 : { idusuario: 0, nombre: 'Oponente' };
 
@@ -1374,59 +1450,61 @@ app.get('/HistorialPartidas', async function(req, res) {
 });
 
 // Ruta para guardar una nueva partida (llamar cuando termine el juego)
-app.post('/GuardarPartida', async function(req, res) {
+app.post('/GuardarPartida', async function (req, res) {
     const { idusuario, puntosobtenidos, resultado } = req.body;
-    
+
     if (!idusuario || resultado === undefined) {
-        return res.status(400).json({ 
-            res: "Faltan parámetros (idusuario, resultado)", 
-            guardado: false 
+        return res.status(400).json({
+            res: "Faltan parámetros (idusuario, resultado)",
+            guardado: false
         });
     }
 
     try {
         const fechaActual = new Date().toISOString().slice(0, 19).replace('T', ' ');
-        
+
         await realizarQuery(`
             INSERT INTO Partidas (idusuario, fecha, puntosobtenidos, resultado)
             VALUES (${idusuario}, "${fechaActual}", ${puntosobtenidos || 0}, "${resultado}")
         `);
-        
-        res.json({ 
-            res: "Partida guardada correctamente", 
-            guardado: true 
+
+        res.json({
+            res: "Partida guardada correctamente",
+            guardado: true
         });
     } catch (error) {
         console.error("Error al guardar partida:", error);
-        res.status(500).json({ 
-            res: "Error interno", 
-            guardado: false 
+        res.status(500).json({
+            res: "Error interno",
+            guardado: false
         });
     }
 });
 
-app.get('/LlevoPalabras', async function(req, res){
-   try {
-     let respuesta;
-     if (req.query != undefined) {
-         respuesta =  await realizarQuery(`SELECT * FROM Palabras  `);
-     } else {
-         respuesta = await realizarQuery(`SELECT * FROM Palabras `);
-     } 
-     console.log(respuesta)
-     if (respuesta.length > 0) {
-         res.send({ palabras: respuesta } )
-    }
-    else{
-         res.send({ res: "Palabras no encontrada" })
-    }
-   } catch (e) {
+app.get('/LlevoPalabras', async function (req, res) {
+    try {
+        let respuesta;
+        if (req.query != undefined) {
+            respuesta = await realizarQuery(`SELECT * FROM Palabras  `);
+        } else {
+            respuesta = await realizarQuery(`SELECT * FROM Palabras `);
+        }
+        console.log(respuesta)
+        if (respuesta.length > 0) {
+            res.send({ palabras: respuesta })
+        }
+        else {
+            res.send({ res: "Palabras no encontrada" })
+        }
+    } catch (e) {
         console.log(e);
         res.send("Hubo un error, " + e)
-        
-   }
+
+    }
 });
 //HACER
+// En index.js - REEMPLAZA el endpoint /VerificarPalabra
+
 app.get('/VerificarPalabra', async function (req, res) {
   try {
     const { palabra, categoria } = req.query;
@@ -1435,12 +1513,22 @@ app.get('/VerificarPalabra', async function (req, res) {
       return res.status(400).send({ error: "Faltan parámetros 'palabra' o 'categoria'" });
     }
 
+    // Normalizar: Primera letra mayúscula, resto minúsculas
+    const palabraNormalizada = palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase();
+    const categoriaNormalizada = categoria.charAt(0).toUpperCase() + categoria.slice(1).toLowerCase();
+
+    console.log(`Verificando: "${palabraNormalizada}" en categoría "${categoriaNormalizada}"`);
+
+    // Usar COLLATE para comparación case-insensitive
     const query = `
       SELECT * FROM Palabras 
-      WHERE palabra = ? AND categoria_nombre = ?
+      WHERE LOWER(palabra) = LOWER(?) 
+      AND LOWER(categoria_nombre) = LOWER(?)
     `;
 
-    const resultado = await realizarQuery(query, [palabra, categoria]);
+    const resultado = await realizarQuery(query, [palabraNormalizada, categoriaNormalizada]);
+
+    console.log(`Resultado:`, resultado);
 
     if (resultado.length > 0) {
       res.send({ existe: true, palabra: resultado[0] });
@@ -1448,7 +1536,7 @@ app.get('/VerificarPalabra', async function (req, res) {
       res.send({ existe: false });
     }
   } catch (e) {
-    console.error(e);
+    console.error("Error en /VerificarPalabra:", e);
     res.status(500).send({ error: "Hubo un error en el servidor" });
   }
 });

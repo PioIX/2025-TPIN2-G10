@@ -12,7 +12,7 @@ export default function TuttiFrutti() {
   const [palabras, setPalabras] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [respuestas, setRespuestas] = useState({});
-  const [tiempoRestante, setTiempoRestante] = useState(8);
+  const [tiempoRestante, setTiempoRestante] = useState(120);
   const [juegoActivo, setJuegoActivo] = useState(false);
   const [puntos, setPuntos] = useState(0);
   const [puntosRonda, setPuntosRonda] = useState(0);
@@ -269,6 +269,51 @@ export default function TuttiFrutti() {
     };
   }, [juegoActivo, tiempoRestante]);
 
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+
+    socket.on('resultadosRonda', (data) => {
+      console.log("Resultados de la ronda:", data);
+
+      const { misPuntos, misRespuestas, respuestasOponente, puntosOponente } = data;
+
+      // Actualizar puntos
+      setPuntos(prev => prev + misPuntos);
+      setPuntosRonda(misPuntos);
+
+      // Guardar respuestas del oponente
+      setRespuestasOponente(respuestasOponente);
+
+      // Guardar en historial
+      guardarRondaEnHistorial(misPuntos);
+
+      // Mostrar modal con resultados detallados
+      mostrarResultadosDetallados(misRespuestas, respuestasOponente, misPuntos, puntosOponente);
+
+      setJuegoActivo(false);
+    });
+
+    return () => {
+      socket.off('resultadosRonda');
+    };
+  }, [socket, isConnected]);
+
+  function mostrarResultadosDetallados(misRespuestas, respuestasOponente, misPuntos, puntosOponente) {
+    let detalles = `Tus puntos: ${misPuntos}\nPuntos del oponente: ${puntosOponente}\n\n`;
+
+    categorias.forEach(cat => {
+      const nombreCat = cat.nombre || cat;
+      const miResp = misRespuestas[nombreCat];
+      const respOpo = respuestasOponente[nombreCat];
+
+      detalles += `${nombreCat}:\n`;
+      detalles += `  Tú: ${miResp?.palabra || "vacío"} ${miResp?.valida ? "✓" : "✗"}\n`;
+      detalles += `  Oponente: ${respOpo?.palabra || "vacío"} ${respOpo?.valida ? "✓" : "✗"}\n\n`;
+    });
+
+    showModal("¡Resultados de la ronda!", detalles);
+  }
+
 
 
   useEffect(() => {
@@ -338,6 +383,88 @@ export default function TuttiFrutti() {
     }
   }
 
+  // Agregar esta función en page.js
+
+  // En page.js - REEMPLAZA la función verificarPalabra
+
+  async function verificarPalabra(palabra, categoria) {
+    try {
+      // Normalizar antes de enviar
+      const palabraNormalizada = palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase();
+      const categoriaNormalizada = categoria.charAt(0).toUpperCase() + categoria.slice(1).toLowerCase();
+
+      console.log(`Verificando palabra: "${palabraNormalizada}" en categoría: "${categoriaNormalizada}"`);
+
+      const response = await fetch(
+        `http://localhost:4001/VerificarPalabra?palabra=${encodeURIComponent(palabraNormalizada)}&categoria=${encodeURIComponent(categoriaNormalizada)}`
+      );
+
+      if (!response.ok) {
+        console.error("Error en la respuesta:", response.status);
+        return false;
+      }
+
+      const data = await response.json();
+      console.log("Respuesta de verificación:", data);
+
+      return data.existe;
+    } catch (error) {
+      console.error("Error al verificar palabra:", error);
+      return false;
+    }
+  }
+
+  // Función para verificar todas las respuestas del jugador
+  // En page.js - REEMPLAZA verificarTodasLasRespuestas
+
+  async function verificarTodasLasRespuestas(respuestas) {
+    const resultados = {};
+
+    console.log("Respuestas a verificar:", respuestas);
+    console.log("Letra actual:", letra);
+    console.log("Categorías disponibles:", categorias);
+
+    for (const [categoria, palabra] of Object.entries(respuestas)) {
+      if (palabra && palabra.trim() !== "") {
+        const palabraLimpia = palabra.trim();
+        const primeraLetra = palabraLimpia[0].toUpperCase();
+
+        console.log(`Procesando: "${palabraLimpia}" para categoría "${categoria}"`);
+
+        // Verificar que empiece con la letra correcta
+        if (primeraLetra === letra.toUpperCase()) {
+          // Verificar que exista en la base de datos
+          const existe = await verificarPalabra(palabraLimpia, categoria);
+
+          resultados[categoria] = {
+            palabra: palabraLimpia,
+            valida: existe,
+            mensaje: existe ? "Válida" : "No existe en la base de datos"
+          };
+
+          console.log(`"${palabraLimpia}" en "${categoria}": ${existe ? "✓ VÁLIDA" : "✗ NO VÁLIDA"}`);
+        } else {
+          resultados[categoria] = {
+            palabra: palabraLimpia,
+            valida: false,
+            mensaje: `No empieza con ${letra}`
+          };
+
+          console.log(`"${palabraLimpia}" NO empieza con ${letra}`);
+        }
+      } else {
+        resultados[categoria] = {
+          palabra: "",
+          valida: false,
+          mensaje: "Campo vacío"
+        };
+      }
+    }
+
+    console.log("Resultados finales de verificación:", resultados);
+    return resultados;
+  }
+
   function handleInputChange(categoria, valor) {
     let valorMayus = valor.toUpperCase()
     setRespuestas((prev) => ({
@@ -357,15 +484,25 @@ export default function TuttiFrutti() {
     }
   }
 
-  function finalizarRonda() {
+  async function finalizarRonda() {
     setJuegoActivo(false);
+
+    // Verificar todas las respuestas
+    const resultadosVerificacion = await verificarTodasLasRespuestas(respuestas);
 
     if (socket && room && isConnected) {
       const idLogged = localStorage.getItem("idLogged");
-      socket.emit('basta', { room, userId: idLogged, respuestas: respuestas });
+
+      // Enviar respuestas validadas al servidor
+      socket.emit('enviarRespuestasValidadas', {
+        room,
+        userId: parseInt(idLogged),
+        respuestasValidadas: resultadosVerificacion
+      });
+
+      // Mostrar mensaje de espera
+      showModal("Procesando...", "Verificando palabras y calculando puntos...");
     }
-
-
   }
 
 
@@ -476,22 +613,16 @@ export default function TuttiFrutti() {
   }
 
   async function chequeo() {
-    const camposVacios = [];
-    const palabrasInvalidas = [];
+    // Primero verificamos todas las palabras
+    const resultadosVerificacion = await verificarTodasLasRespuestas(respuestas);
 
-    categorias.forEach((categoria) => {
-      const nombreCategoria = categoria.nombre || categoria;
-      const respuesta = respuestas[nombreCategoria];
+    // Contar palabras inválidas
+    const palabrasInvalidas = Object.entries(resultadosVerificacion)
+      .filter(([_, resultado]) => !resultado.valida && resultado.palabra !== "");
 
-      if (!respuesta || respuesta.trim() === "") {
-        camposVacios.push(nombreCategoria);
-      } else {
-        const primeraLetra = respuesta.trim()[0].toUpperCase();
-        if (primeraLetra !== letra) {
-          palabrasInvalidas.push(nombreCategoria);
-        }
-      }
-    });
+    // Contar campos vacíos
+    const camposVacios = Object.entries(resultadosVerificacion)
+      .filter(([_, resultado]) => resultado.palabra === "");
 
     if (camposVacios.length > 0) {
       showModal(
@@ -502,15 +633,19 @@ export default function TuttiFrutti() {
     }
 
     if (palabrasInvalidas.length > 0) {
+      const mensajesError = palabrasInvalidas
+        .map(([cat, res]) => `${cat}: ${res.mensaje}`)
+        .join("\n");
+
       showModal(
-        "¡Error!",
-        `Alguna/s de tus palabras no empiezan con la letra ${letra}`
+        "¡Palabras inválidas!",
+        `Las siguientes respuestas no son válidas:\n${mensajesError}`
       );
       return;
     }
 
-    finalizarRonda();
-    nuevaRonda(true);
+    // Si todas las validaciones pasan, enviamos las respuestas validadas
+    finalizarRonda(resultadosVerificacion);
   }
 
   const formatTime = (seconds) => {
