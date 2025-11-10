@@ -108,8 +108,6 @@ export default function TuttiFrutti() {
       setJuegoActivo(false);
       if (data.respuestas) {
         setRespuestasOponente(data.respuestas);
-        //const puntosRonda = calcularPuntosSinModal(data.respuestas);
-        //guardarRondaEnHistorial(puntosRonda);
         showModal("¡BASTA!", data.message || "Un jugador dijo BASTA. Obtuviste " + puntosRonda + " puntos.");
       } else {
 
@@ -121,9 +119,6 @@ export default function TuttiFrutti() {
       setRespuestasOponente(data.respuestas);
       if (data.id != idLogged) {//si el id de la data es desigual a mi id se pone como respuestaoponente la data del iddesigual al mio
         setRespuestasOponente(data.respuestas);
-
-        //const puntosRonda = calcularPuntosSinModal(data.respuestas);
-        //guardarRondaEnHistorial(puntosRonda);
         console.log("¡Ronda Finalizada!", `Obtuviste ${puntosRonda} puntos.`)
         showModal("¡Ronda Finalizada!", `Obtuviste ${puntosRonda} puntos.`);
       }
@@ -400,6 +395,9 @@ export default function TuttiFrutti() {
       );
 
       if (!response.ok) {
+
+
+        
         console.error("Error en la respuesta:", response.status);
         return false;
       }
