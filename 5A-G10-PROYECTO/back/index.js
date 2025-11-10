@@ -1513,20 +1513,16 @@ app.get('/VerificarPalabra', async function (req, res) {
       return res.status(400).send({ error: "Faltan parámetros 'palabra' o 'categoria'" });
     }
 
-    // Normalizar: Primera letra mayúscula, resto minúsculas
-    const palabraNormalizada = palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase();
-    const categoriaNormalizada = categoria.charAt(0).toUpperCase() + categoria.slice(1).toLowerCase();
-
-    console.log(`Verificando: "${palabraNormalizada}" en categoría "${categoriaNormalizada}"`);
+    console.log(`Verificando: "${palabra}" en categoría "${categoria}"`);
 
     // Usar COLLATE para comparación case-insensitive
     const query = `
       SELECT * FROM Palabras 
-      WHERE LOWER(palabra) = LOWER(?) 
-      AND LOWER(categoria_nombre) = LOWER(?)
+      WHERE LOWER(palabra) = LOWER("${palabra}") 
+      AND LOWER(categoria_nombre) = LOWER("${categoria}")
     `;
-
-    const resultado = await realizarQuery(query, [palabraNormalizada, categoriaNormalizada]);
+    console.log(query)
+    const resultado = await realizarQuery(query);
 
     console.log(`Resultado:`, resultado);
 

@@ -12,7 +12,7 @@ export default function TuttiFrutti() {
   const [palabras, setPalabras] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [respuestas, setRespuestas] = useState({});
-  const [tiempoRestante, setTiempoRestante] = useState(120);
+  const [tiempoRestante, setTiempoRestante] = useState(60);
   const [juegoActivo, setJuegoActivo] = useState(false);
   const [puntos, setPuntos] = useState(0);
   const [puntosRonda, setPuntosRonda] = useState(0);
@@ -396,7 +396,7 @@ export default function TuttiFrutti() {
       console.log(`Verificando palabra: "${palabraNormalizada}" en categoría: "${categoriaNormalizada}"`);
 
       const response = await fetch(
-        `http://localhost:4001/VerificarPalabra?palabra=${encodeURIComponent(palabraNormalizada)}&categoria=${encodeURIComponent(categoriaNormalizada)}`
+        `http://localhost:4001/VerificarPalabra?palabra=${palabraNormalizada}&categoria=${categoriaNormalizada}`
       );
 
       if (!response.ok) {
