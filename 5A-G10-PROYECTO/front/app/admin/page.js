@@ -15,6 +15,8 @@ export default function AdminPage() {
   const [nuevaPalabra, setNuevaPalabra] = useState("");
   const [categoriaParaPalabra, setCategoriaParaPalabra] = useState("");
   const [palabraEliminar, setPalabraEliminar] = useState("");
+  const [categoriaEliminarPalabra, setCategoriaEliminarPalabra] = useState("");
+
 
   const showModal = (title, message) => {
     setModal({ open: true, title, message });
@@ -78,7 +80,6 @@ export default function AdminPage() {
     }
   };
 
-  // Función para agregar palabra
   const agregarPalabra = async () => {
     if (!nuevaPalabra || !categoriaParaPalabra) {
       showModal("Error", "Por favor completa todos los campos");
@@ -97,12 +98,12 @@ export default function AdminPage() {
 
       const result = await response.json();
 
-      if (result.success) {
-        showModal("Éxito", "Palabra agregada correctamente");
+      if (result.publicada) {
+        showModal("Éxito", result.res);
         setNuevaPalabra("");
         setCategoriaParaPalabra("");
       } else {
-        showModal("Error", result.message || "No se pudo agregar la palabra");
+        showModal("Error", result.res);
       }
     } catch (error) {
       console.error(error);
@@ -110,10 +111,11 @@ export default function AdminPage() {
     }
   };
 
+
   // Función para eliminar palabra
   const eliminarPalabra = async () => {
-    if (!palabraEliminar) {
-      showModal("Error", "Por favor ingresa la palabra a eliminar");
+    if (!palabraEliminar || !categoriaEliminarPalabra) {
+      showModal("Error", "Por favor ingresa la palabra y la categoría a eliminar");
       return;
     }
 
@@ -121,14 +123,15 @@ export default function AdminPage() {
       const response = await fetch("http://localhost:4001/BorrarPalabra", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ palabra: palabraEliminar }),
+        body: JSON.stringify({ palabra: palabraEliminar, categoria: categoriaEliminarPalabra }),
       });
 
       const result = await response.json();
 
       if (result.success) {
-        showModal("Éxito", "Palabra eliminada de todas las categorías");
+        showModal("Éxito", result.message);
         setPalabraEliminar("");
+        setCategoriaEliminarPalabra("");
       } else {
         showModal("Error", result.message || "No se pudo eliminar la palabra");
       }
@@ -185,6 +188,12 @@ export default function AdminPage() {
           placeholder="Palabra a eliminar"
           value={palabraEliminar}
           onChange={(e) => setPalabraEliminar(e.target.value)}
+          className={styles.input}
+        />
+        <Input
+          placeholder="Categoría para la palabra a eliminar "
+          value={categoriaEliminarPalabra}
+          onChange={(e) => setCategoriaEliminarPalabra(e.target.value)}
           className={styles.input}
         />
         <Button onClick={eliminarPalabra} className={styles.button}>

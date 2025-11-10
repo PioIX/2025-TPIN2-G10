@@ -577,28 +577,59 @@ app.put('/ActualizarEstadisticas', async function (req, res) {
     }
 });
 
-//esta bien, deberia andar 
-app.delete('/BorrarPalabra', async function (req, res) {
-    let palabra = req.body.palabra;
+app.delete('/BorrarPalabra', async (req, res) => {
+  const { palabra, categoria } = req.body;
 
-    if (!palabra) {
-        return res.send({ res: "Falta ingresar una palabra", borrada: false });
+  if (!palabra || !categoria) {
+    return res.status(400).json({ success: false, message: "Falta palabra o categoría" });
+  }
+
+  try {
+    
+    const palabraResult = await realizarQuery(
+      'SELECT idpalabra FROM Palabras WHERE palabra = ?',
+      [palabra]
+    );
+    if (palabraResult.length === 0) {
+      return res.json({ success: false, message: "La palabra no existe" });
+    }
+    const idpalabra = palabraResult[0].idpalabra;
+
+    // 2. Obtener idcategoria
+    const categoriaResult = await realizarQuery(
+      'SELECT idcategoria FROM Categorias WHERE nombre = ?',
+      [categoria]
+    );
+    if (categoriaResult.length === 0) {
+      return res.json({ success: false, message: "La categoría no existe" });
+    }
+    const idcategoria = categoriaResult[0].idcategoria;
+
+    // 3. Borrar de la tabla de relación
+    await realizarQuery(
+      'DELETE FROM PalabrasCategorias WHERE idpalabra = ? AND idcategoria = ?',
+      [idpalabra, idcategoria]
+    );
+
+    // 4. Verificar si la palabra tiene otras relaciones
+    const relaciones = await realizarQuery(
+      'SELECT * FROM PalabrasCategorias WHERE idpalabra = ?',
+      [idpalabra]
+    );
+
+    // Si no tiene más relaciones, borrar la palabra
+    if (relaciones.length === 0) {
+      await realizarQuery('DELETE FROM Palabras WHERE idpalabra = ?', [idpalabra]);
     }
 
-    try {
-        let respuesta = await realizarQuery(`SELECT * FROM Palabras WHERE palabra="${req.body.palabra}"`);
+    res.json({ success: true, message: `Palabra "${palabra}" eliminada de la categoría "${categoria}"` });
 
-        if (respuesta.length > 0) {
-            await realizarQuery(`DELETE FROM Palabras WHERE palabra ="${req.body.palabra}"`);
-            res.send({ res: "Palabra eliminada", borrada: true });
-        } else {
-            res.send({ res: "La palabra no existe", borrada: false });
-        }
-    } catch (error) {
-        console.error("Error al borrar palabra:", error);
-        res.status(500).send({ res: "Error interno", borrada: false });
-    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Error interno del servidor" });
+  }
 });
+
 
 
 //para administradores, borrar jugador, deberia funcionar
@@ -663,70 +694,53 @@ app.delete('/EliminarCategoria', async function (req, res) {
 //agregar palabra, para administradores
 
 app.post('/AgregarPalabra', async function (req, res) {
-    console.log("/AgregarPalabra req.body:", req.body);
-    try {
-        const { palabra, categoria } = req.body;
+  console.log("/AgregarPalabra req.body:", req.body);
 
+  try {
+    const { palabra, categoria } = req.body;
 
-        if (!palabra) {
-            return res.json({ res: "Falta palabra", publicada: false });
-        }
-        if (!categoria) {
-            return res.json({ res: "Falta categoría", publicada: false });
-        }
-
-
-        let categoriaExiste = await realizarQuery(`SELECT idcategoria FROM Categorias WHERE nombre="${categoria}"`);
-
-        if (categoriaExiste.length === 0) {
-            return res.json({ res: "Esa categoría no existe", publicada: false });
-        }
-
-        const idcategoria = categoriaExiste[0].idcategoria;
-
-        let palabraExiste = await realizarQuery(`SELECT idpalabra FROM Palabras WHERE palabra="${palabra}"`);
-
-        let idpalabra;
-
-        if (palabraExiste.length === 0) {
-
-            await realizarQuery(`INSERT INTO Palabras (palabra) VALUES ("${palabra}")`);
-
-
-            let palabraInsertada = await realizarQuery(`SELECT idpalabra FROM Palabras WHERE palabra="${palabra}"`);
-            idpalabra = palabraInsertada[0].idpalabra;
-        } else {
-
-            idpalabra = palabraExiste[0].idpalabra;
-        }
-
-
-        let relacionExiste = await realizarQuery(`
-      SELECT * FROM PalabrasCategorias 
-      WHERE idpalabra=${idpalabra} AND idcategoria=${idcategoria}
-    `);
-
-        if (relacionExiste.length !== 0) {
-            return res.json({ res: `"${palabra}" ya está en la categoría "${categoria}"`, publicada: false });
-        }
-
-
-        await realizarQuery(`
-      INSERT INTO PalabrasCategorias (idpalabra, idcategoria) 
-      VALUES (${idpalabra}, ${idcategoria})
-    `);
-
-        res.json({
-            res: `"${palabra}" agregada en la categoría "${categoria}"`,
-            publicada: true
-        });
-
-    } catch (e) {
-        console.error("Error en /AgregarPalabra:", e);
-        res.status(500).json({ res: "Error interno", publicada: false });
+    if (!palabra) {
+      return res.json({ res: "Falta palabra", publicada: false });
     }
-});
 
+    if (!categoria) {
+      return res.json({ res: "Falta categoría", publicada: false });
+    }
+
+    
+    const categoriaExiste = await realizarQuery(
+      `SELECT idcategoria FROM Categorias WHERE nombre = ?`,
+      [categoria]
+    );
+    if (categoriaExiste.length === 0) {
+      return res.json({ res: "Esa categoría no existe", publicada: false });
+    }
+
+    
+    const palabraExiste = await realizarQuery(
+      `SELECT idpalabra FROM Palabras WHERE palabra = ? AND categoria_nombre = ?`,
+      [palabra, categoria]
+    );
+
+    if (palabraExiste.length > 0) {
+      return res.json({ res: "Esa palabra ya existe en esa categoría", publicada: false });
+    }
+
+    await realizarQuery(
+      `INSERT INTO Palabras (palabra, categoria_nombre) VALUES (?, ?)`,
+      [palabra, categoria]
+    );
+
+    return res.json({
+      res: `"${palabra}" agregada en la categoría "${categoria}"`,
+      publicada: true
+    });
+
+  } catch (e) {
+    console.error("Error en /AgregarPalabra:", e);
+    res.status(500).json({ res: "Error interno", publicada: false });
+  }
+});
 
 
 
@@ -1506,33 +1520,52 @@ app.get('/LlevoPalabras', async function (req, res) {
 // En index.js - REEMPLAZA el endpoint /VerificarPalabra
 
 app.get('/VerificarPalabra', async function (req, res) {
-  try {
-    const { palabra, categoria } = req.query;
+    try {
+        const { palabra, categoria } = req.query;
 
-    if (!palabra || !categoria) {
-      return res.status(400).send({ error: "Faltan parámetros 'palabra' o 'categoria'" });
-    }
+        if (!palabra || !categoria) {
+            return res.status(400).send({ error: "Faltan parámetros 'palabra' o 'categoria'" });
+        }
 
-    console.log(`Verificando: "${palabra}" en categoría "${categoria}"`);
+        console.log(`Verificando: "${palabra}" en categoría "${categoria}"`);
 
-    // Usar COLLATE para comparación case-insensitive
-    const query = `
+        const query = `
       SELECT * FROM Palabras 
       WHERE LOWER(palabra) = LOWER("${palabra}") 
       AND LOWER(categoria_nombre) = LOWER("${categoria}")
     `;
-    console.log(query)
-    const resultado = await realizarQuery(query);
+        console.log(query);
+        const resultado = await realizarQuery(query);
 
-    console.log(`Resultado:`, resultado);
 
-    if (resultado.length > 0) {
-      res.send({ existe: true, palabra: resultado[0] });
-    } else {
-      res.send({ existe: false });
+        if (resultado.length > 0) {
+            return res.send({ existe: true, palabra: resultado[0], origen: 'BDD' });
+        }
+
+
+        const response = await fetch(`https://dle.rae.es/data/search?q=${palabra}`, {
+            headers: { 'Accept': 'application/json' }
+        });
+
+        const data = await response.json();
+        const existeEnRAE = data && data.res && data.res.length > 0;
+
+        // esto es para q si existe se suba a la bdd 
+        if (existeEnRAE) {
+            await realizarQuery(`
+        INSERT INTO Palabras (palabra, categoria_nombre)
+        VALUES ("${palabra}", "${categoria}")
+      `);
+        }
+
+        return res.send({
+            existe: existeEnRAE,
+            palabra: existeEnRAE ? palabra : null,
+            origen: existeEnRAE ? 'RAE' : 'NINGUNO'
+        });
+
+    } catch (e) {
+        console.error("Error en /VerificarPalabra:", e);
+        res.status(500).send({ error: "Hubo un error en el servidor" });
     }
-  } catch (e) {
-    console.error("Error en /VerificarPalabra:", e);
-    res.status(500).send({ error: "Hubo un error en el servidor" });
-  }
 });
