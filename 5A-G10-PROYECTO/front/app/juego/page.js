@@ -214,6 +214,35 @@ export default function TuttiFrutti() {
     };
   }, [socket, room, isConnected, nombreUsuario]);
 
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+
+    socket.on('resultadosRonda', (data) => {
+      console.log("📊 Resultados de la ronda:", data);
+
+      const { misPuntos, misRespuestas, respuestasOponente, puntosOponente, detallesPuntos } = data;
+
+      // Actualizar puntos
+      setPuntos(prev => prev + misPuntos);
+      setPuntosRonda(misPuntos);
+
+      // Guardar respuestas del oponente
+      setRespuestasOponente(respuestasOponente);
+
+      // Guardar en historial
+      guardarRondaEnHistorial(misPuntos, detallesPuntos);
+
+      // Mostrar modal con resultados detallados
+      mostrarResultadosDetallados(misRespuestas, respuestasOponente, misPuntos, puntosOponente, detallesPuntos);
+
+      setJuegoActivo(false);
+    });
+
+    return () => {
+      socket.off('resultadosRonda');
+    };
+  }, [socket, isConnected, categorias, rondaActual, letra, respuestas]);
+
 
   function guardarRondaEnHistorial(puntosRonda) {
     setHistorialRondas(prev => {
@@ -312,19 +341,19 @@ export default function TuttiFrutti() {
 
 
   useEffect(() => {
-    if (respuestas != {} && respuestasOponente != null) {
+    if (respuestasValidadas != {} && respuestasOponente != null) {
 
       let puntosRonda = 0;
       //const idLogged = localStorage.getItem("idLogged");
 
-      console.log("mis respuestas", respuestas, "respuestaoponente", respuestasOponente)// funciona hasta acá
-      Object.entries(respuestas).forEach(([categoria, respuesta]) => {
+      console.log("mis respuestas", respuestasValidadas, "respuestaoponente", respuestasOponente)// funciona hasta acá
+      Object.entries(respuestasValidadas).forEach(([categoria, respuesta]) => {
 
-        if (!respuestasOponente || !respuestas) {
+        if (!respuestasOponente || !respuestasValidadas) {
           console.log("no hay respuestas")
         }
 
-        if (respuestas != undefined && respuesta.length != 0 && respuestasOponente != undefined && respuestasOponente.length != 0) {
+        if (respuestasValidadas != undefined && respuesta.length != 0 && respuestasOponente != undefined && respuestasOponente.length != 0) {
           const respuestaOponente = respuestasOponente?.[categoria];
           console.log("RESPUESTA ES:_ ", respuestas)
           const primeraLetraMiRespuesta = respuestas.respuesta
@@ -349,7 +378,7 @@ export default function TuttiFrutti() {
       setPuntos((prev) => prev + puntosRonda);
     }
 
-  }, [respuestasOponente, respuestas])
+  }, [respuestasOponente, respuestas, resultadosVerificacion])
 
   async function cargarNombreUsuario() {
     const idLogged = localStorage.getItem("idLogged");
@@ -384,33 +413,30 @@ export default function TuttiFrutti() {
 
   async function verificarPalabra(palabra, categoria) {
     try {
-      // Normalizar antes de enviar
-      const palabraNormalizada = palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase();
-      const categoriaNormalizada = categoria.charAt(0).toUpperCase() + categoria.slice(1).toLowerCase();
+      const palabraNormalizada = palabra.trim();
+      const categoriaNormalizada = categoria.trim();
 
       console.log(`Verificando palabra: "${palabraNormalizada}" en categoría: "${categoriaNormalizada}"`);
 
       const response = await fetch(
-        `http://localhost:4001/VerificarPalabra?palabra=${palabraNormalizada}&categoria=${categoriaNormalizada}`
+        `http://localhost:4001/VerificarPalabra?palabra=${encodeURIComponent(palabraNormalizada)}&categoria=${encodeURIComponent(categoriaNormalizada)}`
       );
 
       if (!response.ok) {
-
-
-        
         console.error("Error en la respuesta:", response.status);
-        return false;
+        return { existe: false, mensaje: "Error al verificar" };
       }
 
       const data = await response.json();
       console.log("Respuesta de verificación:", data);
 
-      return data.existe;
+      return data;
     } catch (error) {
       console.error("Error al verificar palabra:", error);
-      return false;
+      return { existe: false, mensaje: "Error de conexión" };
     }
   }
+
 
   // Función para verificar todas las respuestas del jugador
   // En page.js - REEMPLAZA verificarTodasLasRespuestas
@@ -420,7 +446,6 @@ export default function TuttiFrutti() {
 
     console.log("Respuestas a verificar:", respuestas);
     console.log("Letra actual:", letra);
-    console.log("Categorías disponibles:", categorias);
 
     for (const [categoria, palabra] of Object.entries(respuestas)) {
       if (palabra && palabra.trim() !== "") {
@@ -429,26 +454,22 @@ export default function TuttiFrutti() {
 
         console.log(`Procesando: "${palabraLimpia}" para categoría "${categoria}"`);
 
-        // Verificar que empiece con la letra correcta
         if (primeraLetra === letra.toUpperCase()) {
-          // Verificar que exista en la base de datos
-          const existe = await verificarPalabra(palabraLimpia, categoria);
+          const verificacion = await verificarPalabra(palabraLimpia, categoria);
 
           resultados[categoria] = {
             palabra: palabraLimpia,
-            valida: existe,
-            mensaje: existe ? "Válida" : "No existe en la base de datos"
+            valida: verificacion.existe,
+            mensaje: verificacion.mensaje || (verificacion.existe ? "Válida" : "No existe")
           };
 
-          console.log(`"${palabraLimpia}" en "${categoria}": ${existe ? "✓ VÁLIDA" : "✗ NO VÁLIDA"}`);
+          console.log(`"${palabraLimpia}" en "${categoria}": ${verificacion.existe ? "✓ VÁLIDA" : "✗ NO VÁLIDA"} - ${verificacion.mensaje}`);
         } else {
           resultados[categoria] = {
             palabra: palabraLimpia,
             valida: false,
-            mensaje: `No empieza con ${letra}`
+            mensaje: `No empieza con ${letra.toUpperCase()}`
           };
-
-          console.log(`"${palabraLimpia}" NO empieza con ${letra}`);
         }
       } else {
         resultados[categoria] = {
@@ -459,9 +480,10 @@ export default function TuttiFrutti() {
       }
     }
 
-    console.log("Resultados finales de verificación:", resultados);
+    console.log("Resultados finales de verificación:", resultados);//acallega 
     return resultados;
   }
+
 
   function handleInputChange(categoria, valor) {
     let valorMayus = valor.toUpperCase()
@@ -491,14 +513,13 @@ export default function TuttiFrutti() {
     if (socket && room && isConnected) {
       const idLogged = localStorage.getItem("idLogged");
 
-      // Enviar respuestas validadas al servidor
+      // Enviar respuestas VALIDADAS al servidor
       socket.emit('enviarRespuestasValidadas', {
         room,
         userId: parseInt(idLogged),
         respuestasValidadas: resultadosVerificacion
       });
 
-      // Mostrar mensaje de espera
       showModal("Procesando...", "Verificando palabras y calculando puntos...");
     }
   }
@@ -507,31 +528,34 @@ export default function TuttiFrutti() {
 
 
 
-  function finalizarRondaPorTiempo() {
+  async function finalizarRondaPorTiempo() {
     if (!juegoActivo) return;
 
-    setJuegoActivo(false)
-    guardarRondaEnHistorial();
+    console.log("⏰ Tiempo terminado - Finalizando ronda...");
+    setJuegoActivo(false);
 
+    // IMPORTANTE: Primero verificar todas las respuestas
+    const resultadosVerificacion = await verificarTodasLasRespuestas(respuestas);
 
+    console.log("✅ Respuestas verificadas:", resultadosVerificacion);
 
     if (socket && room && isConnected) {
       const idLogged = localStorage.getItem("idLogged");
 
-      socket.emit('enviarRespuestasFinales', {
+      // Enviar respuestas VALIDADAS (no las normales)
+      socket.emit('enviarRespuestasValidadas', {
         room,
-        userId: idLogged,
-        respuestas: respuestas
+        userId: parseInt(idLogged),
+        respuestasValidadas: resultadosVerificacion
       });
-      console.log("MIS RESPUESTAS SON: ", respuestas)//esto llega 
+
+      console.log("📤 Respuestas validadas enviadas al servidor");
+
       showModal(
-        "¡TIEMPO TERMINADO!",
-        `Se acabó el tiempo. Esperando que tu oponente envíe sus respuestas para calcular puntos.`
+        "⏰ ¡TIEMPO TERMINADO!",
+        "Verificando palabras y calculando puntos..."
       );
-      //calcularPuntosSinModal()
     }
-
-
   }
   //hay que hacer esto y la verificacion de puntos y letra
   function ListaPalabras() {
@@ -608,6 +632,27 @@ export default function TuttiFrutti() {
     } catch (error) {
       console.error("Error al guardar:", error);
     }
+  }
+  function guardarRondaEnHistorial(puntosRonda, detallesPuntos) {
+    console.log("💾 Guardando ronda en historial:", { rondaActual, puntosRonda });
+
+    setHistorialRondas(prev => {
+      const yaExiste = prev.some(r => r.numero === rondaActual);
+      if (yaExiste) {
+        console.log("⚠️ Ronda ya existe en historial");
+        return prev;
+      }
+
+      const nuevaRonda = {
+        numero: rondaActual,
+        letra: letra,
+        respuestas: { ...respuestas },
+        puntos: puntosRonda
+      };
+
+      console.log("✅ Nueva ronda guardada:", nuevaRonda);
+      return [...prev, nuevaRonda];
+    });
   }
 
   async function chequeo() {
@@ -814,7 +859,7 @@ export default function TuttiFrutti() {
         <div className={styles.modalOverlay} onClick={closeModal}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <h2 className={styles.modalTitle}>{modal.title}</h2>
-            <p className={styles.modalMessage}>{modal.message}</p>
+            <p className={styles.modalMessage} style={{whiteSpace: 'pre-line'}}>{modal.message}</p>
             <Button
               texto="CERRAR"
               onClick={closeModal}

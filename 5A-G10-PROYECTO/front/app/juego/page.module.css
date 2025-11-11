@@ -17,7 +17,7 @@
 
 .buttonNaranja,
 .buttonBlue,
-.buttonRed,  
+.buttonRed,
 .buttonVioleta {
   font-family: 'Fredoka', sans-serif;
   font-weight: 600;
@@ -39,10 +39,12 @@
   background: #4ade80;
   color: white;
 }
+
 .buttonVioleta {
   background: #c93dc5;
   color: white;
 }
+
 .buttonRed {
   background: #ef4444;
   color: white;
@@ -89,12 +91,17 @@
 }
 
 @keyframes rotate {
-  0%, 45% {
+
+  0%,
+  45% {
     transform: rotate(0deg);
   }
-  50%, 95% {
+
+  50%,
+  95% {
     transform: rotate(180deg);
   }
+
   100% {
     transform: rotate(180deg);
   }
@@ -335,6 +342,7 @@
   color: #fff;
   font-size: 14px;
 }
+
 .solicitudContent {
   padding: 20px;
   text-align: center;
@@ -394,4 +402,152 @@
 .modalHeader h3 {
   margin: 0;
   font-size: 20px;
+}
+
+@keyframes pulseWarning {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+.timerWarning {
+  animation: pulseWarning 0.8s infinite;
+}
+
+/* Estilos para la fila actual del juego */
+.currentRow {
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 2px solid #4CAF50;
+}
+
+/* Estilos para el input de respuestas */
+.inputCell {
+  padding: 12px;
+  border-right: 1px solid #e0e0e0;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+/* Spinner de carga (por si lo necesitas) */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  margin: 0 auto;
+  border: 5px solid #f3f3f3;
+  border-top: 5px solid #4ca7c9;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.solicitudContent {
+  padding: 20px;
+  text-align: center;
+}
+
+.solicitudTexto {
+  font-size: 18px;
+  margin-bottom: 30px;
+  color: #333;
+  font-family: 'Open Sans', sans-serif;
+}
+
+.solicitudBotones {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+}
+
+.btnAceptar,
+.btnRechazar {
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 600;
+  padding: 12px 30px;
+  font-size: 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btnAceptar {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.btnAceptar:hover {
+  background-color: #45a049;
+  transform: scale(1.05);
+}
+
+.btnRechazar {
+  background-color: #f44336;
+  color: white;
+}
+
+.btnRechazar:hover {
+  background-color: #da190b;
+  transform: scale(1.05);
+}
+
+.modalHeader {
+  background-color: #2196F3;
+  color: white;
+  padding: 15px;
+  margin: -40px -40px 20px -40px;
+  border-radius: 20px 20px 0 0;
+}
+
+.modalHeader h3 {
+  margin: 0;
+  font-size: 20px;
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 600;
+}
+
+.waitingOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(5px);
+}
+
+.waitingBox {
+  background: white;
+  padding: 40px 60px;
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.waitingBox h2 {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 24px;
+  color: #333;
+  margin: 0 0 30px 0;
+  font-weight: 600;
 }
