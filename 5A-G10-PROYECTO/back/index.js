@@ -369,50 +369,124 @@ io.on("connection", (socket) => {
                 respuestasOponente: respuestas
             });*/
     });
-    // Agregar después del evento 'basta' en index.js
+
+    function calcularPuntosMejorado(misRespuestas, respuestasOponente) {
+        let puntos = 0;
+        let detalles = [];
+
+        console.log("mis respuestas"  ,misRespuestas, "respuestas del otro" ,respuestasOponente );
+
+        for (const [categoria, miRespuesta] of Object.entries(misRespuestas)) {
+            console.log(`\n📝 Categoría: ${categoria}`);
+            console.log(`   Mi respuesta: ${miRespuesta.palabra} (válida: ${miRespuesta.valida})`);
+
+            if (!miRespuesta.valida || !miRespuesta.palabra) {
+                detalles.push({
+                    categoria,
+                    puntos: 0,
+                    razon: "Palabra inválida o vacía"
+                });
+                console.log(`   ❌ 0 puntos - Inválida o vacía`);
+                continue;
+            }
+
+            const respuestaOpo = respuestasOponente[categoria];
+            console.log(`   Respuesta oponente: ${respuestaOpo?.palabra} (válida: ${respuestaOpo?.valida})`);
+
+            // Caso 1: Solo yo tengo respuesta válida (20 puntos)
+            if (!respuestaOpo || !respuestaOpo.valida || !respuestaOpo.palabra) {
+                puntos += 20;
+                detalles.push({
+                    categoria,
+                    puntos: 20,
+                    razon: "Solo tú respondiste correctamente"
+                });
+                console.log(`   ✅ +20 puntos - Solo tú respondiste`);
+            }
+            // Caso 2: Ambos tenemos la misma respuesta válida (5 puntos)
+            else if (miRespuesta.palabra.toLowerCase() === respuestaOpo.palabra.toLowerCase()) {
+                puntos += 5;
+                detalles.push({
+                    categoria,
+                    puntos: 5,
+                    razon: "Respuesta coincidente con oponente"
+                });
+                console.log(`   ✅ +5 puntos - Respuestas iguales`);
+            }
+            // Caso 3: Ambos tenemos respuestas válidas pero diferentes (10 puntos)
+            else {
+                puntos += 10;
+                detalles.push({
+                    categoria,
+                    puntos: 10,
+                    razon: "Respuesta diferente al oponente"
+                });
+                console.log(`   ✅ +10 puntos - Respuestas diferentes`);
+            }
+        }
+
+        console.log(`\n💰 TOTAL: ${puntos} puntos`);
+        return { puntos, detalles };
+    }
 
     socket.on('enviarRespuestasValidadas', async (data) => {
         const { room, userId, respuestasValidadas } = data;
         const partida = partidasActivas.get(room);
 
-        if (!partida) return;
+        if (!partida) {
+            console.log("❌ Partida no encontrada");
+            return;
+        }
 
         // Guardar respuestas validadas del jugador
         partida.respuestasValidadas = partida.respuestasValidadas || {};
         partida.respuestasValidadas[userId] = respuestasValidadas;
 
+        console.log(`✅ Respuestas validadas guardadas para jugador ${userId}`);
+
         // Verificar si ambos jugadores ya enviaron sus respuestas
         const jugadoresConRespuestas = Object.keys(partida.respuestasValidadas).length;
 
+        console.log(`📊 Jugadores con respuestas: ${jugadoresConRespuestas}/2`);
+
         if (jugadoresConRespuestas === 2) {
-            // Calcular puntos para ambos jugadores
+            console.log("🎯 Ambos jugadores enviaron respuestas - Calculando puntos...");
+
             const [jugador1Id, jugador2Id] = partida.jugadores;
             const respuestas1 = partida.respuestasValidadas[jugador1Id];
             const respuestas2 = partida.respuestasValidadas[jugador2Id];
 
-            const puntosJugador1 = calcularPuntos(respuestas1, respuestas2);
-            const puntosJugador2 = calcularPuntos(respuestas2, respuestas1);
+            // Calcular puntos con el sistema mejorado
+            const resultado1 = calcularPuntosMejorado(respuestas1, respuestas2);
+            const resultado2 = calcularPuntosMejorado(respuestas2, respuestas1);
 
-            // Enviar resultados a ambos jugadores
+            console.log(`💰 Puntos Jugador 1: ${resultado1.puntos}`);
+            console.log(`💰 Puntos Jugador 2: ${resultado2.puntos}`);
+
+            // Enviar resultados detallados a ambos jugadores
             const socket1 = io.sockets.sockets.get(usuariosConectados.get(jugador1Id.toString()));
             const socket2 = io.sockets.sockets.get(usuariosConectados.get(jugador2Id.toString()));
 
             if (socket1) {
                 socket1.emit('resultadosRonda', {
-                    misPuntos: puntosJugador1,
+                    misPuntos: resultado1.puntos,
                     misRespuestas: respuestas1,
                     respuestasOponente: respuestas2,
-                    puntosOponente: puntosJugador2
+                    puntosOponente: resultado2.puntos,
+                    detallesPuntos: resultado1.detalles
                 });
+                console.log("📤 Resultados enviados a Jugador 1");
             }
 
             if (socket2) {
                 socket2.emit('resultadosRonda', {
-                    misPuntos: puntosJugador2,
+                    misPuntos: resultado2.puntos,
                     misRespuestas: respuestas2,
                     respuestasOponente: respuestas1,
-                    puntosOponente: puntosJugador1
+                    puntosOponente: resultado1.puntos,
+                    detallesPuntos: resultado2.detalles
                 });
+                console.log("📤 Resultados enviados a Jugador 2");
             }
 
             // Limpiar para la próxima ronda
@@ -420,47 +494,6 @@ io.on("connection", (socket) => {
         }
     });
 
-    // Función para calcular puntos
-    function calcularPuntos(misRespuestas, respuestasOponente) {
-        let puntos = 0;
-
-        for (const [categoria, miRespuesta] of Object.entries(misRespuestas)) {
-            if (!miRespuesta.valida) continue; // Si mi respuesta no es válida, 0 puntos
-
-            const respuestaOpo = respuestasOponente[categoria];
-
-            // Caso 1: Solo yo tengo respuesta válida
-            if (!respuestaOpo || !respuestaOpo.valida) {
-                puntos += 20;
-            }
-            // Caso 2: Ambos tenemos la misma respuesta válida
-            else if (miRespuesta.palabra.toLowerCase() === respuestaOpo.palabra.toLowerCase()) {
-                puntos += 5;
-            }
-            // Caso 3: Ambos tenemos respuestas válidas pero diferentes
-            else {
-                puntos += 10;
-            }
-        }
-
-        return puntos;
-    }
-    /*
-    socket.on('enviarRespuestasFinales', (data) => {
-        const { room, userId, respuestas } = data;
-        console.log(`Usuario ${userId} envía respuestas finales en sala ${room}`);
-        
-        const partida = partidasActivas.get(room);
-        if (partida) {
-            partida.respuestas[userId] = respuestas;
-        }
-        
-        // Enviar las respuestas al otro jugador
-        socket.to(room).emit('respuestasFinalesOponente', {
-            userId,
-            respuestas
-        });
-    });*/
     socket.on('enviarRespuestasFinales', (data) => {
         const { room, userId, respuestas } = data;
         const partida = partidasActivas.get(room);
@@ -578,56 +611,56 @@ app.put('/ActualizarEstadisticas', async function (req, res) {
 });
 
 app.delete('/BorrarPalabra', async (req, res) => {
-  const { palabra, categoria } = req.body;
+    const { palabra, categoria } = req.body;
 
-  if (!palabra || !categoria) {
-    return res.status(400).json({ success: false, message: "Falta palabra o categoría" });
-  }
-
-  try {
-    
-    const palabraResult = await realizarQuery(
-      'SELECT idpalabra FROM Palabras WHERE palabra = ?',
-      [palabra]
-    );
-    if (palabraResult.length === 0) {
-      return res.json({ success: false, message: "La palabra no existe" });
-    }
-    const idpalabra = palabraResult[0].idpalabra;
-
-    // 2. Obtener idcategoria
-    const categoriaResult = await realizarQuery(
-      'SELECT idcategoria FROM Categorias WHERE nombre = ?',
-      [categoria]
-    );
-    if (categoriaResult.length === 0) {
-      return res.json({ success: false, message: "La categoría no existe" });
-    }
-    const idcategoria = categoriaResult[0].idcategoria;
-
-    // 3. Borrar de la tabla de relación
-    await realizarQuery(
-      'DELETE FROM PalabrasCategorias WHERE idpalabra = ? AND idcategoria = ?',
-      [idpalabra, idcategoria]
-    );
-
-    // 4. Verificar si la palabra tiene otras relaciones
-    const relaciones = await realizarQuery(
-      'SELECT * FROM PalabrasCategorias WHERE idpalabra = ?',
-      [idpalabra]
-    );
-
-    // Si no tiene más relaciones, borrar la palabra
-    if (relaciones.length === 0) {
-      await realizarQuery('DELETE FROM Palabras WHERE idpalabra = ?', [idpalabra]);
+    if (!palabra || !categoria) {
+        return res.status(400).json({ success: false, message: "Falta palabra o categoría" });
     }
 
-    res.json({ success: true, message: `Palabra "${palabra}" eliminada de la categoría "${categoria}"` });
+    try {
 
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: "Error interno del servidor" });
-  }
+        const palabraResult = await realizarQuery(
+            'SELECT idpalabra FROM Palabras WHERE palabra = ?',
+            [palabra]
+        );
+        if (palabraResult.length === 0) {
+            return res.json({ success: false, message: "La palabra no existe" });
+        }
+        const idpalabra = palabraResult[0].idpalabra;
+
+        // 2. Obtener idcategoria
+        const categoriaResult = await realizarQuery(
+            'SELECT idcategoria FROM Categorias WHERE nombre = ?',
+            [categoria]
+        );
+        if (categoriaResult.length === 0) {
+            return res.json({ success: false, message: "La categoría no existe" });
+        }
+        const idcategoria = categoriaResult[0].idcategoria;
+
+        // 3. Borrar de la tabla de relación
+        await realizarQuery(
+            'DELETE FROM PalabrasCategorias WHERE idpalabra = ? AND idcategoria = ?',
+            [idpalabra, idcategoria]
+        );
+
+        // 4. Verificar si la palabra tiene otras relaciones
+        const relaciones = await realizarQuery(
+            'SELECT * FROM PalabrasCategorias WHERE idpalabra = ?',
+            [idpalabra]
+        );
+
+        // Si no tiene más relaciones, borrar la palabra
+        if (relaciones.length === 0) {
+            await realizarQuery('DELETE FROM Palabras WHERE idpalabra = ?', [idpalabra]);
+        }
+
+        res.json({ success: true, message: `Palabra "${palabra}" eliminada de la categoría "${categoria}"` });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: "Error interno del servidor" });
+    }
 });
 
 
@@ -694,52 +727,52 @@ app.delete('/EliminarCategoria', async function (req, res) {
 //agregar palabra, para administradores
 
 app.post('/AgregarPalabra', async function (req, res) {
-  console.log("/AgregarPalabra req.body:", req.body);
+    console.log("/AgregarPalabra req.body:", req.body);
 
-  try {
-    const { palabra, categoria } = req.body;
+    try {
+        const { palabra, categoria } = req.body;
 
-    if (!palabra) {
-      return res.json({ res: "Falta palabra", publicada: false });
+        if (!palabra) {
+            return res.json({ res: "Falta palabra", publicada: false });
+        }
+
+        if (!categoria) {
+            return res.json({ res: "Falta categoría", publicada: false });
+        }
+
+
+        const categoriaExiste = await realizarQuery(
+            `SELECT idcategoria FROM Categorias WHERE nombre = ?`,
+            [categoria]
+        );
+        if (categoriaExiste.length === 0) {
+            return res.json({ res: "Esa categoría no existe", publicada: false });
+        }
+
+
+        const palabraExiste = await realizarQuery(
+            `SELECT idpalabra FROM Palabras WHERE palabra = ? AND categoria_nombre = ?`,
+            [palabra, categoria]
+        );
+
+        if (palabraExiste.length > 0) {
+            return res.json({ res: "Esa palabra ya existe en esa categoría", publicada: false });
+        }
+
+        await realizarQuery(
+            `INSERT INTO Palabras (palabra, categoria_nombre) VALUES (?, ?)`,
+            [palabra, categoria]
+        );
+
+        return res.json({
+            res: `"${palabra}" agregada en la categoría "${categoria}"`,
+            publicada: true
+        });
+
+    } catch (e) {
+        console.error("Error en /AgregarPalabra:", e);
+        res.status(500).json({ res: "Error interno", publicada: false });
     }
-
-    if (!categoria) {
-      return res.json({ res: "Falta categoría", publicada: false });
-    }
-
-    
-    const categoriaExiste = await realizarQuery(
-      `SELECT idcategoria FROM Categorias WHERE nombre = ?`,
-      [categoria]
-    );
-    if (categoriaExiste.length === 0) {
-      return res.json({ res: "Esa categoría no existe", publicada: false });
-    }
-
-    
-    const palabraExiste = await realizarQuery(
-      `SELECT idpalabra FROM Palabras WHERE palabra = ? AND categoria_nombre = ?`,
-      [palabra, categoria]
-    );
-
-    if (palabraExiste.length > 0) {
-      return res.json({ res: "Esa palabra ya existe en esa categoría", publicada: false });
-    }
-
-    await realizarQuery(
-      `INSERT INTO Palabras (palabra, categoria_nombre) VALUES (?, ?)`,
-      [palabra, categoria]
-    );
-
-    return res.json({
-      res: `"${palabra}" agregada en la categoría "${categoria}"`,
-      publicada: true
-    });
-
-  } catch (e) {
-    console.error("Error en /AgregarPalabra:", e);
-    res.status(500).json({ res: "Error interno", publicada: false });
-  }
 });
 
 
@@ -1529,39 +1562,46 @@ app.get('/VerificarPalabra', async function (req, res) {
 
         console.log(`Verificando: "${palabra}" en categoría "${categoria}"`);
 
-        const query = `
+        const palabraNormalizada = palabra.trim();
+        const categoriaNormalizada = categoria.trim();
+
+        // 1. Primero buscar en la categoría específica
+        const queryEspecifica = `
       SELECT * FROM Palabras 
-      WHERE LOWER(palabra) = LOWER("${palabra}") 
-      AND LOWER(categoria_nombre) = LOWER("${categoria}")
+      WHERE LOWER(palabra) = LOWER("${palabraNormalizada}") 
+      AND LOWER(categoria_nombre) = LOWER("${categoriaNormalizada}")
     `;
-        console.log(query);
-        const resultado = await realizarQuery(query);
 
+        const resultadoEspecifico = await realizarQuery(queryEspecifica);
 
-        if (resultado.length > 0) {
-            return res.send({ existe: true, palabra: resultado[0], origen: 'BDD' });
+        if (resultadoEspecifico.length > 0) {
+            return res.send({
+                existe: true,
+                palabra: resultadoEspecifico[0],
+                mensaje: "Palabra válida en la categoría"
+            });
         }
 
+        // 2. Si no existe, buscar en CUALQUIER categoría
+        const queryCualquiera = `
+      SELECT * FROM Palabras 
+      WHERE LOWER(palabra) = LOWER("${palabraNormalizada}")
+    `;
 
-        const response = await fetch(`https://dle.rae.es/data/search?q=${palabra}`, {
-            headers: { 'Accept': 'application/json' }
-        });
+        const resultadoCualquiera = await realizarQuery(queryCualquiera);
 
-        const data = await response.json();
-        const existeEnRAE = data && data.res && data.res.length > 0;
-
-        // esto es para q si existe se suba a la bdd 
-        if (existeEnRAE) {
-            await realizarQuery(`
-        INSERT INTO Palabras (palabra, categoria_nombre)
-        VALUES ("${palabra}", "${categoria}")
-      `);
+        if (resultadoCualquiera.length > 0) {
+            return res.send({
+                existe: true,
+                palabra: resultadoCualquiera[0],
+                mensaje: "Palabra válida (encontrada en otra categoría)"
+            });
         }
 
-        return res.send({
-            existe: existeEnRAE,
-            palabra: existeEnRAE ? palabra : null,
-            origen: existeEnRAE ? 'RAE' : 'NINGUNO'
+        // 3. No existe en ninguna categoría
+        res.send({
+            existe: false,
+            mensaje: "Palabra no encontrada en la base de datos"
         });
 
     } catch (e) {
