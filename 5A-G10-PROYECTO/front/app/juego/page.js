@@ -12,7 +12,7 @@ export default function TuttiFrutti() {
   const [palabras, setPalabras] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [respuestas, setRespuestas] = useState({});
-  const [tiempoRestante, setTiempoRestante] = useState(60);
+  const [tiempoRestante, setTiempoRestante] = useState(10);
   const [juegoActivo, setJuegoActivo] = useState(false);
   const [puntos, setPuntos] = useState(0);
   const [puntosRonda, setPuntosRonda] = useState(0);
@@ -29,6 +29,7 @@ export default function TuttiFrutti() {
   const [esperandoNuevaRonda, setEsperandoNuevaRonda] = useState(false);
   const [respuestasOponente, setRespuestasOponente] = useState([]);
   const [solicitudPendiente, setSolicitudPendiente] = useState(null);
+  const [respuestasValidadas, setRespuestasValidadas] = useState({});
   const router = useRouter();
   const searchParams = useSearchParams();
   const { socket, isConnected } = useSocket();
@@ -293,34 +294,7 @@ export default function TuttiFrutti() {
     };
   }, [juegoActivo, tiempoRestante]);
 
-  useEffect(() => {
-    if (!socket || !isConnected) return;
-
-    socket.on('resultadosRonda', (data) => {
-      console.log("Resultados de la ronda:", data);
-
-      const { misPuntos, misRespuestas, respuestasOponente, puntosOponente } = data;
-
-      // Actualizar puntos
-      setPuntos(prev => prev + misPuntos);
-      setPuntosRonda(misPuntos);
-
-      // Guardar respuestas del oponente
-      setRespuestasOponente(respuestasOponente);
-
-      // Guardar en historial
-      guardarRondaEnHistorial(misPuntos);
-
-      // Mostrar modal con resultados detallados
-      mostrarResultadosDetallados(misRespuestas, respuestasOponente, misPuntos, puntosOponente);
-
-      setJuegoActivo(false);
-    });
-
-    return () => {
-      socket.off('resultadosRonda');
-    };
-  }, [socket, isConnected]);
+ 
 
   function mostrarResultadosDetallados(misRespuestas, respuestasOponente, misPuntos, puntosOponente) {
     let detalles = `Tus puntos: ${misPuntos}\nPuntos del oponente: ${puntosOponente}\n\n`;
@@ -341,44 +315,58 @@ export default function TuttiFrutti() {
 
 
   useEffect(() => {
-    if (respuestasValidadas != {} && respuestasOponente != null) {
+    // Validar que tenemos datos válidos
+    console.log("respuestasValidadas:", respuestasValidadas);
 
-      let puntosRonda = 0;
-      //const idLogged = localStorage.getItem("idLogged");
-
-      console.log("mis respuestas", respuestasValidadas, "respuestaoponente", respuestasOponente)// funciona hasta acá
-      Object.entries(respuestasValidadas).forEach(([categoria, respuesta]) => {
-
-        if (!respuestasOponente || !respuestasValidadas) {
-          console.log("no hay respuestas")
-        }
-
-        if (respuestasValidadas != undefined && respuesta.length != 0 && respuestasOponente != undefined && respuestasOponente.length != 0) {
-          const respuestaOponente = respuestasOponente?.[categoria];
-          console.log("RESPUESTA ES:_ ", respuestas)
-          const primeraLetraMiRespuesta = respuestas.respuesta
-          if (primeraLetraMiRespuesta === letra.toUpperCase() || primeraLetraMiRespuesta === letra.toLowerCase()) {
-            if (!respuestaOponente || respuestaOponente === "") {
-              puntosRonda += 20;
-            } if (respuesta === respuestaOponente) {
-              puntosRonda += 5;
-
-
-            } if (respuesta !== respuestaOponente) {
-              puntosRonda += 10;
-            } else {
-              puntosRonda += 0;
-            }
-          }
-
-        }
-      });
-
-      setPuntosRonda(puntosRonda)
-      setPuntos((prev) => prev + puntosRonda);
+    if (!respuestasValidadas || Object.keys(respuestasValidadas).length === 0) {
+      console.log("⏳ Esperando mis respuestas validadas...");
+      return;
     }
 
-  }, [respuestasOponente, respuestas, resultadosVerificacion])
+    console.log("respuestasOponente:", respuestasOponente);//esto esta vacio. llega 0. hay q ir para atras. el tema es que se calculan los putos en el back tambien. hay que revisar esas dos calculaciones 
+    
+// ME PARECE QUE HAY QUE COMENTAR TODO ESTO Y HACERLO SOLO EN BACK PORQUE TIRA LOS PUNTOS!!!!!!!!!!!!!!!!!!!!!!!!!!
+    console.log("🎯 ¡CALCULANDO PUNTOS!");
+    console.log("Mis respuestas validadas:", respuestasValidadas);
+    console.log("Respuestas oponente:", respuestasOponente);
+
+    let puntosCalculados = 0;
+
+    Object.entries(respuestasValidadas).forEach(([categoria, miRespuesta]) => {
+      // Solo contar si MI respuesta es válida
+      if (!miRespuesta.valida || !miRespuesta.palabra) {
+        console.log(`❌ ${categoria}: Mi respuesta no es válida`);
+        return;
+      }
+
+      const miPalabra = miRespuesta.palabra.toUpperCase();
+      const respuestaOpo = respuestasOponente[categoria];
+      const palabraOponente = respuestaOpo?.palabra?.toUpperCase() || "";
+
+      // LÓGICA DE PUNTOS
+      if (!palabraOponente) {
+        puntosCalculados += 20;
+        console.log(`✅ ${categoria}: "${miPalabra}" = 20 pts (oponente vacío)`);
+
+      } else if (miPalabra === palabraOponente) {
+        puntosCalculados += 5;
+        console.log(`✅ ${categoria}: "${miPalabra}" = 5 pts (iguales)`);
+
+      } else {
+        puntosCalculados += 10;
+        console.log(`✅ ${categoria}: "${miPalabra}" = 10 pts (diferentes)`);
+      }
+    });
+
+    console.log(`🎉 TOTAL PUNTOS: ${puntosCalculados}`);
+
+    setPuntosRonda(puntosCalculados);
+    setPuntos(prev => prev + puntosCalculados);
+
+    // Guardar en historial
+    guardarRondaEnHistorial(puntosCalculados);
+
+  }, [respuestasOponente, respuestasValidadas]); // ✅ Dependencias correctas
 
   async function cargarNombreUsuario() {
     const idLogged = localStorage.getItem("idLogged");
@@ -487,6 +475,7 @@ export default function TuttiFrutti() {
 
   function handleInputChange(categoria, valor) {
     let valorMayus = valor.toUpperCase()
+    console.log(`Input cambiado - Categoría: ${categoria}, Valor: ${valorMayus}`);
     setRespuestas((prev) => ({
       ...prev,
       [categoria]: valorMayus,
@@ -508,7 +497,10 @@ export default function TuttiFrutti() {
     setJuegoActivo(false);
 
     // Verificar todas las respuestas
+    console.log("respuestas TODAS LAS RESPUESTAS: ", respuestas);
     const resultadosVerificacion = await verificarTodasLasRespuestas(respuestas);
+    console.log("✅ Respuestas verificadas:", resultadosVerificacion);
+    setRespuestasValidadas(resultadosVerificacion);
 
     if (socket && room && isConnected) {
       const idLogged = localStorage.getItem("idLogged");
@@ -539,6 +531,7 @@ export default function TuttiFrutti() {
 
     console.log("✅ Respuestas verificadas:", resultadosVerificacion);
 
+    setRespuestasValidadas(resultadosVerificacion);
     if (socket && room && isConnected) {
       const idLogged = localStorage.getItem("idLogged");
 
@@ -859,7 +852,7 @@ export default function TuttiFrutti() {
         <div className={styles.modalOverlay} onClick={closeModal}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <h2 className={styles.modalTitle}>{modal.title}</h2>
-            <p className={styles.modalMessage} style={{whiteSpace: 'pre-line'}}>{modal.message}</p>
+            <p className={styles.modalMessage} style={{ whiteSpace: 'pre-line' }}>{modal.message}</p>
             <Button
               texto="CERRAR"
               onClick={closeModal}

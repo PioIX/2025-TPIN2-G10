@@ -362,12 +362,12 @@ io.on("connection", (socket) => {
             });
         }
 
-        /*
+        
             io.to(room).emit('gameEnded', {
                 userId,
                 message: 'Un jugador dijo BASTA',
                 respuestasOponente: respuestas
-            });*/
+            });
     });
 
     function calcularPuntosMejorado(misRespuestas, respuestasOponente) {
@@ -512,10 +512,8 @@ io.on("connection", (socket) => {
             // Enviar al jugador actual las del oponente
             io.to(socket.id).emit('respuestasFinalesOponente', { respuestas: respuestasOponente, id: idOponente });
 
-            // Enviar al oponente las del jugador actual (si no lo hicimos antes)
-            if (oponenteSocketId) {
-                io.to(oponenteSocketId).emit('respuestasFinalesOponente', { respuestas: respuestas, id: userId });
-            }
+
+           
         } else {
             // Si no hay respuestas del oponente, debe esperar a que el oponente las envíe.
             // Esto puede pasar si un jugador dijo basta y el otro aun no reaccionó.
