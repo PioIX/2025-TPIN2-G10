@@ -362,19 +362,19 @@ io.on("connection", (socket) => {
             });
         }
 
-        
-            io.to(room).emit('gameEnded', {
-                userId,
-                message: 'Un jugador dijo BASTA',
-                respuestasOponente: respuestas
-            });
+
+        io.to(room).emit('gameEnded', {
+            userId,
+            message: 'Un jugador dijo BASTA',
+            respuestasOponente: respuestas
+        });
     });
 
-   function calcularPuntosMejorado(misRespuestas, respuestasOponente) {
+    function calcularPuntosMejorado(misRespuestas, respuestasOponente) {
         let puntos = 0;
         let detalles = [];
 
-        console.log("mis respuestas"  ,misRespuestas, "respuestas del otro" ,respuestasOponente );
+        console.log("mis respuestas", misRespuestas, "respuestas del otro", respuestasOponente);
 
         for (const [categoria, miRespuesta] of Object.entries(misRespuestas)) {
             console.log(`\n📝 Categoría: ${categoria}`);
@@ -468,7 +468,7 @@ io.on("connection", (socket) => {
             const socket1 = io.sockets.sockets.get(usuariosConectados.get(jugador1Id.toString()));
             const socket2 = io.sockets.sockets.get(usuariosConectados.get(jugador2Id.toString()));
 
-            
+
             io.to(room).emit('resultadosRonda', {
                 misPuntos: resultado1.puntos,
                 misRespuestas: respuestas1,
@@ -478,7 +478,7 @@ io.on("connection", (socket) => {
                 userId: userId
             });
             console.log("📤 Resultados enviados a Jugador 1");
-            
+
 
             /*if (socket2) {
                 socket2.emit('resultadosRonda', {
@@ -515,7 +515,7 @@ io.on("connection", (socket) => {
             io.to(socket.id).emit('respuestasFinalesOponente', { respuestas: respuestasOponente, id: idOponente });
 
 
-           
+
         } else {
             // Si no hay respuestas del oponente, debe esperar a que el oponente las envíe.
             // Esto puede pasar si un jugador dijo basta y el otro aun no reaccionó.
@@ -549,10 +549,6 @@ io.on("connection", (socket) => {
     });
 });
 
-
-
-
-//pedidos del ahorcado!!!!!!!!!!!!!!!!!!!!!!!!!
 
 //get palabras aleatorias
 app.get('/CategoriaAleatoria', async function (req, res) {
@@ -665,7 +661,7 @@ app.delete('/BorrarPalabra', async (req, res) => {
 
 
 
-//para administradores, borrar jugador, deberia funcionar
+//para administradores, borrar jugador, NO ANDA
 app.delete('/BorrarJugador', async function (req, res) {
     let mail = req.body.mail;
 
@@ -878,229 +874,6 @@ app.get('/Amigos', async function (req, res) {
 })
 
 
-
-
-
-
-//get mensajes del chat
-
-app.get('/MensajesChat', async function (req, res) {
-    const { id_chat, id_usuario } = req.query;
-    if (!id_chat || !id_usuario) {
-        return res.status(400).json({ error: "Faltan parámetros" });
-    }
-    console.log("id_chat:", id_chat, "id_usuario:", id_usuario);
-    try {
-        //Me traigo los id_chats donde este uno u otro usuario 
-        /*
-        let respuesta = await realizarQuery(`SELECT * FROM UsuariosPorChat WHERE id_usuario = ${idLogged} OR id_usuario = ${id_usuario}`);
-        if (respuesta.length === 0) {
-            return res.status(404).json({ error: "No se encontraron chats para los usuarios proporcionados" });
-        }
-        // Verifica que el usuario esté en el chat
-        console.log("respuesta:", respuesta);
-        let id_chat_logged = [];
-        let id_chat = -1;
-        for (let i = 0; i < respuesta.length; i++) {
-            const element = respuesta[i];
-            if (element.id_usuario == idLogged) {
-                id_chat_logged.push(element.id_chat);
-            }
-        }
-        for (let i = 0; i < respuesta.length; i++) {
-            const element = respuesta[i];
-            for (let l = 0; l < id_chat_logged.length; l++) {
-                if (element.id_chat == id_chat_logged[l]) {
-                    id_chat = element.id_chat;
-                }     
-            }
-            
-        }
-        */
-        if (id_chat === -1) {
-            return res.status(403).json({ error: "El usuario no pertenece a este chat" });
-        }
-        console.log("id_chat encontrado:", id_chat);
-        // Trae los mensajes del chat
-        /*const mensajes = await realizarQuery(`
-            SELECT Mensajes.id_mensaje, Mensajes.mensaje, Mensajes.hora_de_envio, Usuarios.nombre, Usuarios.id_usuario, Chats.id_chat FROM Mensajes INNER JOIN Chats ON Mensajes.id_chat = Chats.id_chat 
-            INNER JOIN UsuariosPorChat ON Chats.id_chat = UsuariosPorChat.id_chat INNER JOIN Usuarios ON UsuariosPorChat.id_usuario = Usuarios.id_usuario
-            WHERE Mensajes.id_chat = "${id_chat}" ORDER BY Mensajes.hora_de_envio ASC
-        `);*/
-
-        const mensajes = await realizarQuery(`
-                SELECT Mensajes.id_mensaje, Mensajes.mensaje, Mensajes.hora_de_envio, Usuarios.nombre, Usuarios.id_usuario
-                FROM Mensajes
-                INNER JOIN Usuarios ON Mensajes.id_usuario = Usuarios.id_usuario
-                WHERE Mensajes.id_chat = "${id_chat}"
-                ORDER BY Mensajes.hora_de_envio ASC
-            `);
-
-        res.send({ mensajes: mensajes });
-    } catch (error) {
-        console.error("Error en /MensajesChat:", error);
-        res.status(500).json({ error: "Error interno al obtener mensajes" });
-    }
-});
-
-
-
-
-//get chats
-app.get('/Chats', async function (req, res) {
-    try {
-        let respuesta;
-        if (req.query.id_chat != undefined) {
-            respuesta = await realizarQuery(`SELECT * FROM Chats WHERE id_chat=${req.query.id_chat}`)
-        } else {
-            respuesta = await realizarQuery("SELECT * FROM Chats");
-        }
-        res.status(200).send({
-            message: 'Aca estan los chats',
-            chats: respuesta
-        });
-    } catch (e) {
-        console.log(e);
-        res.send("Hubo un error, " + e)
-
-    }
-});
-
-
-
-//get mensajes
-app.get('/Mensajes', async function (req, res) {
-    try {
-        let respuesta;
-        if (req.query.id_mensaje != undefined) {
-            respuesta = await realizarQuery(`SELECT * FROM Mensajes WHERE id_mensaje=${req.query.id_mensaje}`)
-        } else {
-            respuesta = await realizarQuery("SELECT * FROM Mensajes");
-        }
-        res.status(200).send({
-            message: 'Aca estan los mensajes',
-            mensajes: respuesta
-        });
-    } catch (e) {
-        console.log(e);
-        res.send("Hubo un error, " + e)
-
-    }
-});
-
-//PEDIR AYUDA A RIVAS PARA HACER EL PEDIDO
-app.get('/MensajesChats', async function (req, res) {
-    console.log(req.query)
-    const mensajes = await realizarQuery(` SELECT DISTINCT id_chat FROM UsuariosPorChat WHERE id_usuario =  ${req.body.idLogged};`)
-    let contactos = []
-    for (let i = 0; i < chats.length; i++) {
-        const auxiliar = await realizarQuery(` SELECT DISTINCT Usuarios.nombre, Usuarios.id_usuario, Chats.es_grupo, Chats.nombre_grupo FROM Usuarios
-        INNER JOIN UsuariosPorChat ON Usuarios.id_usuario = UsuariosPorChat.id_usuario
-        INNER JOIN Chats ON Chats.id_chat = UsuariosPorChat.id_chat
-         WHERE UsuariosPorChat.id_chat = ${chats[i].id_chat};`)
-        contactos.push(auxiliar)
-    }
-    console.log(contactos)
-    if (chats.length > 0) {
-        res.send({ contactos })
-    } else {
-        res.send({ res: "no tiene contactos" })
-    }
-
-})
-
-
-
-
-//get user_chat
-app.get('/User_chat', async function (req, res) {
-    try {
-        let respuesta;
-        if (req.query.id_userchat != undefined) {
-            respuesta = await realizarQuery(`SELECT * FROM User_chat WHERE id_userchat=${req.query.id_userchat}`)
-        } else {
-            respuesta = await realizarQuery("SELECT * FROM User_chat");
-        }
-        res.status(200).send({
-            message: 'Aca estan los userChat',
-            user_chat: respuesta
-        });
-    } catch (e) {
-        console.log(e);
-        res.send("Hubo un error, " + e)
-
-    }
-});
-
-//delete usuarios
-app.delete('/BorrarUsuarios', async function (req, res) {
-    let num_telefono = req.body.num_telefono;
-
-    if (!num_telefono) {
-        return res.json({ res: "Falta ingresar un numero de telefono", borrada: false });
-    }
-
-    try {
-        let respuesta = await realizarQuery(`SELECT * FROM Usuarios WHERE num_telefono="${req.body.num_telefono}"`);
-
-        if (respuesta.length > 0) {
-            await realizarQuery(`DELETE FROM Usuarios WHERE num_telefono="${req.body.num_telefono}"`);
-            res.json({ res: "Usuario eliminado", borrada: true });
-        } else {
-            res.json({ res: "El usuario no existe", borrada: false });
-        }
-    } catch (error) {
-        console.error("Error al borrar usuario:", error);
-        res.status(500).json({ res: "Error interno", borrada: false });
-    }
-});
-
-//delete chats
-app.delete('/BorrarChat', async function (req, res) {
-    let id_chat = req.body.id_chat;
-
-    if (!id_chat) {
-        return res.json({ res: "Falta ingresar un id de chat", borrada: false });
-    }
-
-    try {
-        let respuesta = await realizarQuery(`SELECT * FROM Chats WHERE id_chat="${req.body.id_chat}"`);
-
-        if (respuesta.length > 0) {
-            await realizarQuery(`DELETE FROM Chats WHERE id_chat="${req.body.id_chat}"`);
-            res.json({ res: "Chat eliminado", borrada: true });
-        } else {
-            res.json({ res: "El chat no existe", borrada: false });
-        }
-    } catch (error) {
-        console.error("Error al borrar chat:", error);
-        res.status(500).json({ res: "Error interno", borrada: false });
-    }
-});
-
-//delete mensaje trabajo anterior no creo q sirva pero lodejo
-app.delete('/BorrarMensaje', async function (req, res) {
-    let id_mensaje = req.body.id_mensaje;
-
-    if (!id_mensaje) {
-        return res.json({ res: "Falta ingresar un id de mensaje", borrada: false });
-    }
-
-    try {
-        let respuesta = await realizarQuery(`SELECT * FROM Mensajes WHERE id_mensaje=${req.body.id_mensaje}`);
-
-        if (respuesta.length > 0) {
-            await realizarQuery(`DELETE FROM Mensajes WHERE id_mensaje=${req.body.id_mensaje}`);
-            res.json({ res: "Mensajes eliminado", borrada: true });
-        } else {
-            res.json({ res: "El mensaje no existe", borrada: false });
-        }
-    } catch (error) {
-        console.error("Error al borrar mensaje:", error);
-        res.status(500).json({ res: "Error interno", borrada: false });
-    }
-});
-
 //registro
 app.post('/RegistroJugadores', async function (req, res) {
     console.log("/RegistroJugadores req.body:", req.body);
@@ -1116,16 +889,6 @@ app.post('/RegistroJugadores', async function (req, res) {
         if (respuesta.length !== 0) {
             return res.json({ res: "Ese mail ya existe", registro: false });
         }
-
-        /*let usuarios = await realizarQuery(`SELECT id_usuario FROM Usuarios `);
-        let id = -1
-        for (let i = 0; i < usuarios.length; i++) {
-            if(id < usuarios[i].id_usuario){
-                id = usuarios[i].id_usuario
-            }
-            
-        }
-        id++;*/
         await realizarQuery(`
       INSERT INTO Jugadores (  contraseña, nombre, mail)
       VALUES ("${contraseña}", "${nombre}", "${mail}")
@@ -1135,125 +898,6 @@ app.post('/RegistroJugadores', async function (req, res) {
     } catch (e) {
         console.error("Error en /RegistroUsuarios:", e);
         res.status(500).json({ res: "Error interno", registro: false });
-    }
-});
-
-
-
-//post para obtener los chats de un usuario
-app.post('/Chats', async function (req, res) {
-    console.log(req.body)
-    const chats = await realizarQuery(` SELECT DISTINCT id_chat FROM UsuariosPorChat WHERE id_usuario =  ${req.body.idLogged};`)
-    let contactos = []
-    for (let i = 0; i < chats.length; i++) {
-        const auxiliar = await realizarQuery(` SELECT DISTINCT Usuarios.nombre, Usuarios.id_usuario, Chats.es_grupo, Chats.nombre_grupo, Chats.id_chat FROM Usuarios
-        INNER JOIN UsuariosPorChat ON Usuarios.id_usuario = UsuariosPorChat.id_usuario
-        INNER JOIN Chats ON Chats.id_chat = UsuariosPorChat.id_chat
-         WHERE UsuariosPorChat.id_chat = ${chats[i].id_chat};`)
-        contactos.push(auxiliar)
-    }
-    console.log(contactos)
-    if (chats.length > 0) {
-        res.send({ contactos })
-    } else {
-        res.send({ res: "no tiene contactos" })
-    }
-
-})
-
-
-//insertar mensajes
-app.post('/insertarMensaje', async (req, res) => {
-    console.log(req.body);
-    const fechaActual = new Date();
-    const fechaString = `${fechaActual.getFullYear()}-${("0" + (fechaActual.getMonth() + 1)).slice(-2)}-${("0" + fechaActual.getDate()).slice(-2)} ${("0" + fechaActual.getHours()).slice(-2)}:${("0" + fechaActual.getMinutes()).slice(-2)}:${("0" + fechaActual.getSeconds()).slice(-2)}`;
-    const chatActivo = req.body.id_chat;
-    try {
-        await realizarQuery(`
-            INSERT INTO Mensajes (id_chat, id_usuario, mensaje, hora_de_envio)
-            VALUES (${chatActivo},"${req.body.id_usuario}",  "${req.body.mensaje}", "${fechaString}");
-        `);
-        res.send({ res: "Mensaje agregado correctamente", validar: true });
-    } catch (error) {
-        console.error("Error al insertar mensaje", error);
-        res.status(500).send({ res: "Error en el servidor", validar: false });
-    }
-});
-
-
-
-
-
-// trabajo anterior de chats
-app.post('/CrearChat', async function (req, res) {
-    const { id_usuario1, id_usuario2 } = req.body;
-    console.log("id_usuario1", id_usuario1)
-    console.log("id_usuario2", id_usuario2)
-    if (!id_usuario1 || !id_usuario2) {
-        return res.status(400).json({ error: "Faltan parámetros", creado: false });
-    }
-
-    try {
-        // Verificar si ya existe un chat entre estos dos usuarios
-        const chatsUsuario1 = await realizarQuery(`
-            SELECT id_chat FROM UsuariosPorChat WHERE id_usuario = ${id_usuario1}
-        `);
-
-        const chatsUsuario2 = await realizarQuery(`
-            SELECT id_chat FROM UsuariosPorChat WHERE id_usuario = ${id_usuario2}
-        `);
-
-        // Buscar chat en común (solo chats privados, no grupos)
-        for (let chat1 of chatsUsuario1) {
-            for (let chat2 of chatsUsuario2) {
-                if (chat1.id_chat === chat2.id_chat) {
-                    // Verificar que no sea un grupo
-                    const chatInfo = await realizarQuery(`
-                        SELECT es_grupo FROM Chats WHERE id_chat = ${chat1.id_chat}
-                    `);
-
-                    if (chatInfo[0].es_grupo === 0) {
-                        return res.json({
-                            message: "El chat ya existe",
-                            creado: false,
-                            id_chat: chat1.id_chat
-                        });
-                    }
-                }
-            }
-        }
-
-        // Crear nuevo chat
-        const chatsExistentes = await realizarQuery(`SELECT id_chat FROM Chats`);
-        let nuevoIdChat = 1;
-        if (chatsExistentes.length > 0) {
-            nuevoIdChat = Math.max(...chatsExistentes.map(c => c.id_chat)) + 1;
-        }
-
-        await realizarQuery(`
-            INSERT INTO Chats (id_chat, es_grupo, nombre_grupo)
-            VALUES (${nuevoIdChat}, 0, NULL)
-        `);
-
-        // Agregar ambos usuarios al chat
-        await realizarQuery(`
-            INSERT INTO UsuariosPorChat (id_chat, id_usuario)
-            VALUES (${nuevoIdChat}, ${id_usuario1})
-        `);
-        await realizarQuery(`
-            INSERT INTO UsuariosPorChat (id_chat, id_usuario)
-            VALUES (${nuevoIdChat}, ${id_usuario2})
-        `);
-
-        res.json({
-            message: "Chat creado exitosamente",
-            creado: true,
-            id_chat: nuevoIdChat
-        });
-
-    } catch (error) {
-        console.error("Error al crear chat:", error);
-        res.status(500).json({ error: "Error interno al crear chat", creado: false });
     }
 });
 
@@ -1377,7 +1021,7 @@ app.delete('/EliminarAmigo', async function (req, res) {
 app.get('/Ranking', async function (req, res) {
     try {
         const respuesta = await realizarQuery(`
-       SELECT idusuario, nombre, partidas_jugadas, partidas_ganadas, partidas_perdidas, puntos 
+       SELECT idusuario, nombre, partidasjugadas, partidasganadas, partidasperdidas, puntos 
        FROM Jugadores 
        ORDER BY puntos DESC
      `);
@@ -1498,7 +1142,7 @@ app.get('/HistorialPartidas', async function (req, res) {
 
 // Ruta para guardar una nueva partida (llamar cuando termine el juego)
 app.post('/GuardarPartida', async function (req, res) {
-    const { idusuario, puntosobtenidos, resultado } = req.body;
+    const { idusuario, puntos, resultado } = req.body;
 
     if (!idusuario || resultado === undefined) {
         return res.status(400).json({
@@ -1512,7 +1156,7 @@ app.post('/GuardarPartida', async function (req, res) {
 
         await realizarQuery(`
             INSERT INTO Partidas (idusuario, fecha, puntosobtenidos, resultado)
-            VALUES (${idusuario}, "${fechaActual}", ${puntosobtenidos || 0}, "${resultado}")
+            VALUES (${idusuario}, "${fechaActual}", ${puntos || 0}, "${resultado}")
         `);
 
         res.json({
@@ -1567,10 +1211,10 @@ app.get('/VerificarPalabra', async function (req, res) {
 
         // 1. Primero buscar en la categoría específica
         const queryEspecifica = `
-      SELECT * FROM Palabras 
-      WHERE LOWER(palabra) = LOWER("${palabraNormalizada}") 
-      AND LOWER(categoria_nombre) = LOWER("${categoriaNormalizada}")
-    `;
+            SELECT * FROM Palabras 
+            WHERE LOWER(palabra) = LOWER("${palabraNormalizada}") 
+            AND LOWER(categoria_nombre) = LOWER("${categoriaNormalizada}")
+        `;
 
         const resultadoEspecifico = await realizarQuery(queryEspecifica);
 
@@ -1578,15 +1222,16 @@ app.get('/VerificarPalabra', async function (req, res) {
             return res.send({
                 existe: true,
                 palabra: resultadoEspecifico[0],
+                fuente: 'base_datos',
                 mensaje: "Palabra válida en la categoría"
             });
         }
 
-        // 2. Si no existe, buscar en CUALQUIER categoría
+        // 2. Si no existe, buscar en CUALQUIER categoría de la BDD
         const queryCualquiera = `
-      SELECT * FROM Palabras 
-      WHERE LOWER(palabra) = LOWER("${palabraNormalizada}")
-    `;
+            SELECT * FROM Palabras 
+            WHERE LOWER(palabra) = LOWER("${palabraNormalizada}")
+        `;
 
         const resultadoCualquiera = await realizarQuery(queryCualquiera);
 
@@ -1594,14 +1239,29 @@ app.get('/VerificarPalabra', async function (req, res) {
             return res.send({
                 existe: true,
                 palabra: resultadoCualquiera[0],
+                fuente: 'base_datos',
                 mensaje: "Palabra válida (encontrada en otra categoría)"
             });
         }
 
-        // 3. No existe en ninguna categoría
+        // 3. Si no existe en la BDD, consultar la RAE
+        console.log('Palabra no encontrada en BDD, consultando RAE...');
+        const resultadoRAE = await verificarEnRAE(palabraNormalizada);
+
+        if (resultadoRAE.existe) {
+            return res.send({
+                existe: true,
+                fuente: 'rae',
+                mensaje: "Palabra válida según RAE (no en nuestra base de datos)",
+                definicion: resultadoRAE.definicion
+            });
+        }
+
+        // 4. No existe en ningún lado
         res.send({
             existe: false,
-            mensaje: "Palabra no encontrada en la base de datos"
+            fuente: 'ninguna',
+            mensaje: "Palabra no encontrada ni en la base de datos ni en RAE"
         });
 
     } catch (e) {
@@ -1609,3 +1269,38 @@ app.get('/VerificarPalabra', async function (req, res) {
         res.status(500).send({ error: "Hubo un error en el servidor" });
     }
 });
+
+async function verificarEnRAE(palabra) {
+    try {
+        const palabraLimpia = palabra.trim().toLowerCase();
+
+        // La RAE tiene una API no oficial pero funcional
+        const url = `https://dle.rae.es/data/search?w=${encodeURIComponent(palabraLimpia)}`;
+
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0'
+            }
+        });
+
+        if (!response.ok) {
+            console.log('Error en respuesta de RAE:', response.status);
+            return { existe: false, fuente: 'rae', error: true };
+        }
+
+        const data = await response.json();
+
+        // Si la RAE devuelve resultados, la palabra existe
+        const existe = data && data.res && data.res.length > 0;
+
+        return {
+            existe: existe,
+            fuente: 'rae',
+            definicion: existe ? 'Palabra encontrada en el diccionario de la RAE' : null
+        };
+
+    } catch (error) {
+        console.error('Error al consultar RAE:', error);
+        return { existe: false, fuente: 'rae', error: true };
+    }
+}
