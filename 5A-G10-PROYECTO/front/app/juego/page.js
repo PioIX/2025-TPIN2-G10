@@ -221,28 +221,45 @@ export default function TuttiFrutti() {
     socket.on('resultadosRonda', (data) => {
       console.log("📊 Resultados de la ronda:", data);
 
-      const { misPuntos, misRespuestas, respuestasOponente, puntosOponente, detallesPuntos } = data;
-
+      const { misPuntos, misRespuestas, respuestasOponente, puntosOponente, detallesPuntos, userId } = data;
+      const idLogged = localStorage.getItem("idLogged");
       // Solo actualizar los puntos (sin recalcularlos aquí)
-      setPuntos(prev => prev + misPuntos);
-      setPuntosRonda(misPuntos);
-      console.log("puntos: ", misPuntos); // Esto ahora solo muestra los puntos del backend, sin hacer cálculos adicionales
+      if (userId == idLogged) {
+        
+        setPuntos(prev => prev + misPuntos);
+        setPuntosRonda(misPuntos);
+        console.log("puntos: ", misPuntos); // Esto ahora solo muestra los puntos del backend, sin hacer cálculos adicionales
+        
+        // Guardar respuestas del oponente
+        setRespuestasOponente(respuestasOponente);
+        
+        // Guardar en historial
+        guardarRondaEnHistorial(misPuntos, detallesPuntos);
+        
+        // Mostrar modal con resultados detallados
+        mostrarResultadosDetallados(misRespuestas, respuestasOponente, misPuntos, puntosOponente, detallesPuntos);
+        
+        setJuegoActivo(false);
+      }
+      else{
+        setPuntos(prev => prev + puntosOponente);
+        setPuntosRonda(puntosOponente);
+        console.log("puntos: ", puntosOponente); // Esto ahora solo muestra los puntos del backend, sin hacer cálculos adicionales
 
-      // Guardar respuestas del oponente
-      setRespuestasOponente(respuestasOponente);
+        // Guardar respuestas del oponente
+        setRespuestasOponente(misRespuestas);
 
-      // Guardar en historial
-      guardarRondaEnHistorial(misPuntos, detallesPuntos);
+          // Guardar en historial
+        guardarRondaEnHistorial(puntosOponente, detallesPuntos);
 
-      // Mostrar modal con resultados detallados
-      mostrarResultadosDetallados(misRespuestas, respuestasOponente, misPuntos, puntosOponente, detallesPuntos);
-
-      setJuegoActivo(false);
+        // Mostrar modal con resultados detallados
+        mostrarResultadosDetallados( respuestasOponente,misRespuestas, puntosOponente, misPuntos, detallesPuntos);
+        
+        setJuegoActivo(false);
+      }
     });
 
-    return () => {
-      socket.off('resultadosRonda');
-    };
+
   }, [socket, isConnected]);
 
 

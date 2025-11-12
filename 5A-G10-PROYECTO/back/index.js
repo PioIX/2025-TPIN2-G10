@@ -468,18 +468,19 @@ io.on("connection", (socket) => {
             const socket1 = io.sockets.sockets.get(usuariosConectados.get(jugador1Id.toString()));
             const socket2 = io.sockets.sockets.get(usuariosConectados.get(jugador2Id.toString()));
 
-            if (socket1) {
-                socket1.emit('resultadosRonda', {
-                    misPuntos: resultado1.puntos,
-                    misRespuestas: respuestas1,
-                    respuestasOponente: respuestas2,
-                    puntosOponente: resultado2.puntos,
-                    detallesPuntos: resultado1.detalles
-                });
-                console.log("📤 Resultados enviados a Jugador 1");
-            }
+            
+            io.to(room).emit('resultadosRonda', {
+                misPuntos: resultado1.puntos,
+                misRespuestas: respuestas1,
+                respuestasOponente: respuestas2,
+                puntosOponente: resultado2.puntos,
+                detallesPuntos: resultado1.detalles,
+                userId: userId
+            });
+            console.log("📤 Resultados enviados a Jugador 1");
+            
 
-            if (socket2) {
+            /*if (socket2) {
                 socket2.emit('resultadosRonda', {
                     misPuntos: resultado2.puntos,
                     misRespuestas: respuestas2,
@@ -488,7 +489,7 @@ io.on("connection", (socket) => {
                     detallesPuntos: resultado2.detalles
                 });
                 console.log("📤 Resultados enviados a Jugador 2");
-            }
+            }*/
 
             // Limpiar para la próxima ronda
             partida.respuestasValidadas = {};
