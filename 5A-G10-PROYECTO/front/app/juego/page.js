@@ -12,7 +12,7 @@ export default function TuttiFrutti() {
   const [palabras, setPalabras] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [respuestas, setRespuestas] = useState({});
-  const [tiempoRestante, setTiempoRestante] = useState(20);
+  const [tiempoRestante, setTiempoRestante] = useState(40);
   const [juegoActivo, setJuegoActivo] = useState(false);
   const [puntos, setPuntos] = useState(0);
   const [puntosRonda, setPuntosRonda] = useState(0);
@@ -223,10 +223,10 @@ export default function TuttiFrutti() {
 
       const { misPuntos, misRespuestas, respuestasOponente, puntosOponente, detallesPuntos } = data;
 
-      // Actualizar puntos
+      // Solo actualizar los puntos (sin recalcularlos aquí)
       setPuntos(prev => prev + misPuntos);
       setPuntosRonda(misPuntos);
-      console.log("puntos: ", misPuntos)//esto no lo imrpime
+      console.log("puntos: ", misPuntos); // Esto ahora solo muestra los puntos del backend, sin hacer cálculos adicionales
 
       // Guardar respuestas del oponente
       setRespuestasOponente(respuestasOponente);
@@ -238,13 +238,12 @@ export default function TuttiFrutti() {
       mostrarResultadosDetallados(misRespuestas, respuestasOponente, misPuntos, puntosOponente, detallesPuntos);
 
       setJuegoActivo(false);
-
     });
 
     return () => {
       socket.off('resultadosRonda');
     };
-  }, [socket, isConnected, categorias, rondaActual, letra, respuestas]);
+  }, [socket, isConnected]);
 
 
   function guardarRondaEnHistorial(puntosRonda) {
@@ -296,7 +295,7 @@ export default function TuttiFrutti() {
     };
   }, [juegoActivo, tiempoRestante]);
 
- 
+
 
   function mostrarResultadosDetallados(misRespuestas, respuestasOponente, misPuntos, puntosOponente) {
     let detalles = `Tus puntos: ${misPuntos}\nPuntos del oponente: ${puntosOponente}\n\n`;
@@ -316,7 +315,7 @@ export default function TuttiFrutti() {
 
 
 
-  useEffect(() => {
+  /*useEffect(() => {
     // Validar que tenemos datos válidos
     console.log("respuestasValidadas:", respuestasValidadas);
 
@@ -326,12 +325,12 @@ export default function TuttiFrutti() {
     }
 
     console.log("respuestasOponente:", respuestasOponente);//esto esta vacio. llega 0. hay q ir para atras. el tema es que se calculan los putos en el back tambien. hay que revisar esas dos calculaciones 
-    
-// ME PARECE QUE HAY QUE COMENTAR TODO ESTO Y HACERLO SOLO EN BACK PORQUE TIRA LOS PUNTOS!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    // ME PARECE QUE HAY QUE COMENTAR TODO ESTO Y HACERLO SOLO EN BACK PORQUE TIRA LOS PUNTOS!!!!!!!!!!!!!!!!!!!!!!!!!!
     console.log("🎯 ¡CALCULANDO PUNTOS!");
     console.log("Mis respuestas validadas:", respuestasValidadas);
     console.log("Respuestas oponente:", respuestasOponente);
-    
+
     let puntosCalculados = 0;
 
     Object.entries(respuestasValidadas).forEach(([categoria, miRespuesta]) => {
@@ -359,7 +358,7 @@ export default function TuttiFrutti() {
         console.log(`✅ ${categoria}: "${miPalabra}" = 10 pts (diferentes)`);
       }
     });
-    
+
     console.log(`🎉 TOTAL PUNTOS: ${puntosCalculados}`);
 
     setPuntosRonda(puntosCalculados);
@@ -368,8 +367,8 @@ export default function TuttiFrutti() {
     // Guardar en historial
     guardarRondaEnHistorial(puntosCalculados);
 
-  }, [respuestasOponente, respuestasValidadas]); // ✅ Dependencias correctas*/
-  
+  }, [respuestasOponente, respuestasValidadas]);*/
+
   async function cargarNombreUsuario() {
     const idLogged = localStorage.getItem("idLogged");
     if (!idLogged) {
@@ -411,7 +410,7 @@ export default function TuttiFrutti() {
       const response = await fetch(
         `http://localhost:4001/VerificarPalabra?palabra=${encodeURIComponent(palabraNormalizada)}&categoria=${encodeURIComponent(categoriaNormalizada)}`
       );
-//eso no se saca?
+      //eso no se saca?
       if (!response.ok) {
         console.error("Error en la respuesta:", response.status);
         return { existe: false, mensaje: "Error al verificar" };
