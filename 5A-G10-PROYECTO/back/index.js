@@ -370,7 +370,7 @@ io.on("connection", (socket) => {
             });
     });
 
-    function calcularPuntosMejorado(misRespuestas, respuestasOponente) {
+   function calcularPuntosMejorado(misRespuestas, respuestasOponente) {
         let puntos = 0;
         let detalles = [];
 
@@ -423,10 +423,11 @@ io.on("connection", (socket) => {
                 });
                 console.log(`   ✅ +10 puntos - Respuestas diferentes`);
             }
-        }
+        }//esto del back en la consola lo tira perfecto, osea hace bien las cosas. asi que habria que ver como mandarlo al front y agarrarlo y q lo imprima y borrar ese useffect 
 
         console.log(`\n💰 TOTAL: ${puntos} puntos`);
         return { puntos, detalles };
+        //aca hay q poner que actualice estadisticas y guarde partida 
     }
 
     socket.on('enviarRespuestasValidadas', async (data) => {

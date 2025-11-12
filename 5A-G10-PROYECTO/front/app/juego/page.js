@@ -12,7 +12,7 @@ export default function TuttiFrutti() {
   const [palabras, setPalabras] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [respuestas, setRespuestas] = useState({});
-  const [tiempoRestante, setTiempoRestante] = useState(10);
+  const [tiempoRestante, setTiempoRestante] = useState(20);
   const [juegoActivo, setJuegoActivo] = useState(false);
   const [puntos, setPuntos] = useState(0);
   const [puntosRonda, setPuntosRonda] = useState(0);
@@ -226,6 +226,7 @@ export default function TuttiFrutti() {
       // Actualizar puntos
       setPuntos(prev => prev + misPuntos);
       setPuntosRonda(misPuntos);
+      console.log("puntos: ", misPuntos)//esto no lo imrpime
 
       // Guardar respuestas del oponente
       setRespuestasOponente(respuestasOponente);
@@ -237,6 +238,7 @@ export default function TuttiFrutti() {
       mostrarResultadosDetallados(misRespuestas, respuestasOponente, misPuntos, puntosOponente, detallesPuntos);
 
       setJuegoActivo(false);
+
     });
 
     return () => {
@@ -329,7 +331,7 @@ export default function TuttiFrutti() {
     console.log("🎯 ¡CALCULANDO PUNTOS!");
     console.log("Mis respuestas validadas:", respuestasValidadas);
     console.log("Respuestas oponente:", respuestasOponente);
-
+    
     let puntosCalculados = 0;
 
     Object.entries(respuestasValidadas).forEach(([categoria, miRespuesta]) => {
@@ -357,7 +359,7 @@ export default function TuttiFrutti() {
         console.log(`✅ ${categoria}: "${miPalabra}" = 10 pts (diferentes)`);
       }
     });
-
+    
     console.log(`🎉 TOTAL PUNTOS: ${puntosCalculados}`);
 
     setPuntosRonda(puntosCalculados);
@@ -366,8 +368,8 @@ export default function TuttiFrutti() {
     // Guardar en historial
     guardarRondaEnHistorial(puntosCalculados);
 
-  }, [respuestasOponente, respuestasValidadas]); // ✅ Dependencias correctas
-
+  }, [respuestasOponente, respuestasValidadas]); // ✅ Dependencias correctas*/
+  
   async function cargarNombreUsuario() {
     const idLogged = localStorage.getItem("idLogged");
     if (!idLogged) {
@@ -409,7 +411,7 @@ export default function TuttiFrutti() {
       const response = await fetch(
         `http://localhost:4001/VerificarPalabra?palabra=${encodeURIComponent(palabraNormalizada)}&categoria=${encodeURIComponent(categoriaNormalizada)}`
       );
-
+//eso no se saca?
       if (!response.ok) {
         console.error("Error en la respuesta:", response.status);
         return { existe: false, mensaje: "Error al verificar" };
