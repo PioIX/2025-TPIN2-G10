@@ -25,7 +25,6 @@ export default function TuttiFrutti() {
   const [nuevaRonda, setNuevaRonda] = useState(false);
   const [historialRondas, setHistorialRondas] = useState([]);
   const [rondaActual, setRondaActual] = useState(1);
-  const [letraActual, setLetraActual] = useState("");
   const [esperandoNuevaRonda, setEsperandoNuevaRonda] = useState(false);
   const [respuestasOponente, setRespuestasOponente] = useState([]);
   const [solicitudPendiente, setSolicitudPendiente] = useState(null);
@@ -42,7 +41,6 @@ export default function TuttiFrutti() {
     setModal((prev) => ({ ...prev, open: false }));
   };
 
-  // Cargar datos iniciales
   useEffect(() => {
     cargarNombreUsuario();
 
@@ -71,7 +69,6 @@ export default function TuttiFrutti() {
     }
   }, [searchParams]);
 
-  // USE EFFECT DE EVENTOS DEL SOCKET
   useEffect(() => {
     if (!socket || !room || !isConnected) {
       console.log("Esperando conexión...", { socket: !!socket, room, isConnected });
@@ -87,7 +84,6 @@ export default function TuttiFrutti() {
       username: nombreUsuario
     });
 
-    //esto es lo que no anda para uno de los jugadores(el que manda la solicitud)
     socket.on('timerStarted', (data) => {
       console.log("Timer iniciado:", data);
       setJuegoActivo(true);
@@ -123,12 +119,8 @@ export default function TuttiFrutti() {
         console.log("¡Ronda Finalizada!", `Obtuviste ${puntosRonda} puntos.`)
         showModal("¡Ronda Finalizada!", `Obtuviste ${puntosRonda} puntos.`);
       }
-      console.log("RESPUESTASSSSSSSSSSSSS", data);
-      console.log("HHSKGHDHGIDGDGDGKJDGJND:", respuestasOponente);
 
     });
-
-
 
     socket.on('solicitudNuevaRonda', (data) => {
       console.log(data.idSolicitante)
@@ -219,42 +211,28 @@ export default function TuttiFrutti() {
     if (!socket || !isConnected) return;
 
     socket.on('resultadosRonda', (data) => {
-      console.log("📊 Resultados de la ronda:", data);
-
+      console.log("Resultados de la ronda:", data);
       const { misPuntos, misRespuestas, respuestasOponente, puntosOponente, detallesPuntos, userId } = data;
       const idLogged = localStorage.getItem("idLogged");
-      // Solo actualizar los puntos (sin recalcularlos aquí)
       if (userId == idLogged) {
-        
+
         setPuntos(prev => prev + misPuntos);
         setPuntosRonda(misPuntos);
-        console.log("puntos: ", misPuntos); // Esto ahora solo muestra los puntos del backend, sin hacer cálculos adicionales
-        
-        // Guardar respuestas del oponente
+        console.log("puntos: ", misPuntos);
         setRespuestasOponente(respuestasOponente);
-        
-        // Guardar en historial
         guardarRondaEnHistorial(misPuntos, detallesPuntos);
-        
-        // Mostrar modal con resultados detallados
         mostrarResultadosDetallados(misRespuestas, respuestasOponente, misPuntos, puntosOponente, detallesPuntos);
-        
+
         setJuegoActivo(false);
       }
-      else{
+      else {
         setPuntos(prev => prev + puntosOponente);
         setPuntosRonda(puntosOponente);
-        console.log("puntos: ", puntosOponente); // Esto ahora solo muestra los puntos del backend, sin hacer cálculos adicionales
-
-        // Guardar respuestas del oponente
+        console.log("puntos: ", puntosOponente);
         setRespuestasOponente(misRespuestas);
-
-          // Guardar en historial
         guardarRondaEnHistorial(puntosOponente, detallesPuntos);
+        mostrarResultadosDetallados(respuestasOponente, misRespuestas, puntosOponente, misPuntos, detallesPuntos);
 
-        // Mostrar modal con resultados detallados
-        mostrarResultadosDetallados( respuestasOponente,misRespuestas, puntosOponente, misPuntos, detallesPuntos);
-        
         setJuegoActivo(false);
       }
     });
@@ -280,7 +258,6 @@ export default function TuttiFrutti() {
     });
   }
 
-  // Iniciar el timer cuando estén todos los datos listos
   useEffect(() => {
     if (categorias.length > 0 && letra && socket && room && isConnected && juegoIniciado && rondaActual === 1) {
       console.log("Solicitando inicio de juego");
@@ -291,7 +268,6 @@ export default function TuttiFrutti() {
     }
   }, [categorias, letra, socket, room, isConnected, juegoIniciado, rondaActual]);
 
-  // Temporizador local (backup)
   useEffect(() => {
     let intervalo;
     if (juegoActivo && tiempoRestante > 0) {
@@ -323,68 +299,32 @@ export default function TuttiFrutti() {
       const respOpo = respuestasOponente[nombreCat];
 
       detalles += `${nombreCat}:\n`;
-      detalles += `  Tú: ${miResp?.palabra || "vacío"} ${miResp?.valida ? "✓" : "✗"}\n`;
-      detalles += `  Oponente: ${respOpo?.palabra || "vacío"} ${respOpo?.valida ? "✓" : "✗"}\n\n`;
+      detalles += `  Tú: ${miResp?.palabra || "vacío"} ${miResp?.valida ? "✓" : "✗"}`;
+
+      // Mostrar si fue validada por RAE
+      if (miResp?.fuente === 'rae') {
+        detalles += ` (RAE)`;
+      }
+
+      detalles += `\n`;
+      detalles += `  Oponente: ${respOpo?.palabra || "vacío"} ${respOpo?.valida ? "✓" : "✗"}`;
+
+      if (respOpo?.fuente === 'rae') {
+        detalles += ` (RAE)`;
+      }
+
+      detalles += `\n\n`;
     });
 
-    showModal("¡Resultados de la ronda!", detalles);
+    // Opcional: mostrar mensaje si se usó RAE
+    const usaronRAE = Object.values(misRespuestas).some(r => r?.fuente === 'rae') ||
+      Object.values(respuestasOponente).some(r => r?.fuente === 'rae');
+
+    if (usaronRAE) {
+      detalles += `\n(RAE) = Validada por el Diccionario de la RAE`;
+    }
   }
 
-
-
-  /*useEffect(() => {
-    // Validar que tenemos datos válidos
-    console.log("respuestasValidadas:", respuestasValidadas);
-
-    if (!respuestasValidadas || Object.keys(respuestasValidadas).length === 0) {
-      console.log("⏳ Esperando mis respuestas validadas...");
-      return;
-    }
-
-    console.log("respuestasOponente:", respuestasOponente);//esto esta vacio. llega 0. hay q ir para atras. el tema es que se calculan los putos en el back tambien. hay que revisar esas dos calculaciones 
-
-    // ME PARECE QUE HAY QUE COMENTAR TODO ESTO Y HACERLO SOLO EN BACK PORQUE TIRA LOS PUNTOS!!!!!!!!!!!!!!!!!!!!!!!!!!
-    console.log("🎯 ¡CALCULANDO PUNTOS!");
-    console.log("Mis respuestas validadas:", respuestasValidadas);
-    console.log("Respuestas oponente:", respuestasOponente);
-
-    let puntosCalculados = 0;
-
-    Object.entries(respuestasValidadas).forEach(([categoria, miRespuesta]) => {
-      // Solo contar si MI respuesta es válida
-      if (!miRespuesta.valida || !miRespuesta.palabra) {
-        console.log(`❌ ${categoria}: Mi respuesta no es válida`);
-        return;
-      }
-
-      const miPalabra = miRespuesta.palabra.toUpperCase();
-      const respuestaOpo = respuestasOponente[categoria];
-      const palabraOponente = respuestaOpo?.palabra?.toUpperCase() || "";
-
-      // LÓGICA DE PUNTOS
-      if (!palabraOponente) {
-        puntosCalculados += 20;
-        console.log(`✅ ${categoria}: "${miPalabra}" = 20 pts (oponente vacío)`);
-
-      } else if (miPalabra === palabraOponente) {
-        puntosCalculados += 5;
-        console.log(`✅ ${categoria}: "${miPalabra}" = 5 pts (iguales)`);
-
-      } else {
-        puntosCalculados += 10;
-        console.log(`✅ ${categoria}: "${miPalabra}" = 10 pts (diferentes)`);
-      }
-    });
-
-    console.log(`🎉 TOTAL PUNTOS: ${puntosCalculados}`);
-
-    setPuntosRonda(puntosCalculados);
-    setPuntos(prev => prev + puntosCalculados);
-
-    // Guardar en historial
-    guardarRondaEnHistorial(puntosCalculados);
-
-  }, [respuestasOponente, respuestasValidadas]);*/
 
   async function cargarNombreUsuario() {
     const idLogged = localStorage.getItem("idLogged");
@@ -427,7 +367,7 @@ export default function TuttiFrutti() {
       const response = await fetch(
         `http://localhost:4001/VerificarPalabra?palabra=${encodeURIComponent(palabraNormalizada)}&categoria=${encodeURIComponent(categoriaNormalizada)}`
       );
-      //eso no se saca?
+
       if (!response.ok) {
         console.error("Error en la respuesta:", response.status);
         return { existe: false, mensaje: "Error al verificar" };
@@ -436,7 +376,12 @@ export default function TuttiFrutti() {
       const data = await response.json();
       console.log("Respuesta de verificación:", data);
 
-      return data;
+      // Agregar la fuente al resultado
+      return {
+        existe: data.existe,
+        mensaje: data.mensaje,
+        fuente: data.fuente // 'base_datos', 'rae', o 'ninguna'
+      };
     } catch (error) {
       console.error("Error al verificar palabra:", error);
       return { existe: false, mensaje: "Error de conexión" };
