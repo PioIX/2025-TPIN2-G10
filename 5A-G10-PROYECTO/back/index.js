@@ -579,31 +579,30 @@ app.get('/CategoriaAleatoria', async function (req, res) {
 
 //funcion para ranking
 app.put('/ActualizarEstadisticas', async function (req, res) {
-    const { mail, empate, puntos, idGanador } = req.body;
-    console.log("Me llego: ")
-    console.log(req.body)
+    const { idGanador } = req.body;
+
     if (!nombre_usuario || !resultado) {
         return res.status(400).send({ res: "Faltan datos" });
     }
     try {
         let query = ""
-        if (idGanador.length > 1 ) {
-            for (let i = 0; i < idGanador.length; i++) {
-                let datos = await realizarQuery(`SELECT partidasjugadas, puntos FROM Jugadores WHERE idusuario = "${idGanador[i]}"`)
-                let { partidasjugadas } = datos[0]
-                console.log({ partidasjugadas })
-                query = `UPDATE Jugadores SET partidasjugadas = ${partidasjugadas + 1}, puntos = ${puntos} WHERE idusuario = "${idGanador[i]}"`;
+        if (idGanador.length > 0){
+            for (let i = 0; i < idGanador.length; i++){
+                const id = idGanador[i];
+                const datos = await realizarQuery(
+                    `SELECT partidasjugadas, puntos FROM Jugadores WHERE idusuario =?`,[id]
+                );
+                if (!datos || datos.length === 0)continue;
+                const {partidasjugadas, puntos} = datos[0]
+                const nuevasPartidas = partidasjugadas + 1;
+                const nuevosPuntos = puntos + puntosObtenidos;
+                console.log(`Actualizando jugador ${id}: partidas ${nuevasPartidas}, puntos ${nuevosPuntos}`);
+                await realizarQuery(
+                    `UPDATE Jugadores SET partidasjugadas = ?, puntos = ? WHERE idusuario = ?`, [nuevasPartidas, nuevosPuntos, id]
+                )
             }
-        } else if(idGanador[0] = idLogged) {
-            let datos = await realizarQuery(`SELECT partidasperdidas, partidasjugadas, puntos FROM Jugadores WHERE mail= "${mail}"`)
-            let { partidasjugadas, partidasperdidas } = datos[0]
-            console.log({ partidasjugadas, partidasperdidas })
-            query = `UPDATE Jugadores SET partidasjugadas = ${partidasjugadas + 1}, partidasperdidas = ${partidasperdidas + 1} WHERE mail = "${mail}"`;
-        } else if (idGanador[0] = idOponente){
-            
         }
-        await realizarQuery(query);
-        res.send({ res: "Estadísticas actualizadas correctamente" });
+       
     } catch (e) {
         console.error("Error al actualizar estadísticas:", e);
         res.status(500).send({ res: "Error interno" });
@@ -1270,7 +1269,6 @@ async function verificarEnRAE(palabra) {
                 'User-Agent': 'Mozilla/5.0'
             }
         });
-
         if (!response.ok) {
             console.log('Error en respuesta de RAE:', response.status);
             return { existe: false, fuente: 'rae', error: true };
