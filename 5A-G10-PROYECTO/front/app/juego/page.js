@@ -129,8 +129,8 @@ export default function TuttiFrutti() {
       if (data.idSolicitante != idLogged) {
         console.log("Solicitud de nueva ronda recibida:", data);
         setSolicitudPendiente({
-          idSolicitante: data.idSolicitante,
-          nombreSolicitante: data.nombreSolicitante,
+          idSolicitante: parseInt(idLogged),
+          nombreSolicitante: nombreUsuario,
           room: data.room
         });
       }
@@ -155,9 +155,9 @@ export default function TuttiFrutti() {
       setRondaActual(data.ronda);
       setRespuestas({});
       setRespuestasOponente(null);
-      setTiempoRestante(15);
+      setTiempoRestante(40);
       setEsperandoNuevaRonda(false);
-      setJuegoActivo(false);
+      setJuegoActivo(true);
 
 
       setTimeout(() => {
@@ -572,9 +572,9 @@ export default function TuttiFrutti() {
   }
 
 
-  async function guardarEstadisticas() {//hacer que ande o ponerla directamente 
-
+  async function guardarEstadisticas() {
     const idLogged = localStorage.getItem("idLogged");
+    const mail = localStorage.getItem("mail");
     if (!idLogged) return;
     let puntosGanador = 0;
     let empate = false;
@@ -613,7 +613,7 @@ export default function TuttiFrutti() {
       console.error("Error al guardar:", error);
     }
   }
-  function guardarRondaEnHistorial(puntosRonda, detallesPuntos) {
+  /*function guardarRondaEnHistorial(puntosRonda, detallesPuntos) {
     console.log("💾 Guardando ronda en historial:", { rondaActual, puntosRonda });
 
     setHistorialRondas(prev => {
@@ -635,7 +635,7 @@ export default function TuttiFrutti() {
 
     });
   }
-
+*/
   async function chequeo() {
     const resultadosVerificacion = await verificarTodasLasRespuestas(respuestas);
     const palabrasInvalidas = Object.entries(resultadosVerificacion)
@@ -746,8 +746,6 @@ export default function TuttiFrutti() {
             ))}
 
             {!solicitudPendiente && !esperandoNuevaRonda && juegoActivo && (
-
-
               <tr className={styles.currentRow}>
                 <td className={styles.letraCell}>{letra || "-"}</td>
                 {categorias.map((categoria, index) => {
@@ -784,7 +782,7 @@ export default function TuttiFrutti() {
       {solicitudPendiente && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
+            <div className={styles.modalTitle}>
               <h3>Solicitud de Nueva ronda</h3>
             </div>
 
