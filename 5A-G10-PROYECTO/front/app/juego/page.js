@@ -605,8 +605,7 @@ export default function TuttiFrutti() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-
-          mail: nombreUsuario,
+          mail: nombreUsuario, 
           idGanador,
           empate,
           puntos: puntosGanador,

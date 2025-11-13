@@ -579,7 +579,7 @@ app.get('/CategoriaAleatoria', async function (req, res) {
 
 //funcion para ranking
 app.put('/ActualizarEstadisticas', async function (req, res) {
-    const { mail, resultado, puntos } = req.body;
+    const { mail, empate, puntos, idGanador } = req.body;
     console.log("Me llego: ")
     console.log(req.body)
     if (!nombre_usuario || !resultado) {
@@ -587,18 +587,21 @@ app.put('/ActualizarEstadisticas', async function (req, res) {
     }
     try {
         let query = ""
-        if (resultado == "ganada") {
-            let datos = await realizarQuery(`SELECT partidasganadas, partidasjugadas, puntos FROM Jugadores WHERE mail = "${mail}"`)
-            let { partidasganadas, partidasjugadas } = datos[0]
-            console.log({ partidasganadas, partidasjugadas })
-            query = `UPDATE Jugadores SET partidasjugadas = ${partidasjugadas + 1}, partidasganadas = ${partidasganadas + 1}, puntos = ${puntos + datos[0].puntosRonda} WHERE mail= "${mail}"`;
-        } else {
+        if (idGanador.length > 1 ) {
+            for (let i = 0; i < idGanador.length; i++) {
+                let datos = await realizarQuery(`SELECT partidasjugadas, puntos FROM Jugadores WHERE idusuario = "${idGanador[i]}"`)
+                let { partidasjugadas } = datos[0]
+                console.log({ partidasjugadas })
+                query = `UPDATE Jugadores SET partidasjugadas = ${partidasjugadas + 1}, puntos = ${puntos} WHERE idusuario = "${idGanador[i]}"`;
+            }
+        } else if(idGanador[0] = idLogged) {
             let datos = await realizarQuery(`SELECT partidasperdidas, partidasjugadas, puntos FROM Jugadores WHERE mail= "${mail}"`)
             let { partidasjugadas, partidasperdidas } = datos[0]
             console.log({ partidasjugadas, partidasperdidas })
             query = `UPDATE Jugadores SET partidasjugadas = ${partidasjugadas + 1}, partidasperdidas = ${partidasperdidas + 1} WHERE mail = "${mail}"`;
+        } else if (idGanador[0] = idOponente){
+            
         }
-
         await realizarQuery(query);
         res.send({ res: "Estadísticas actualizadas correctamente" });
     } catch (e) {
@@ -1260,7 +1263,7 @@ async function verificarEnRAE(palabra) {
         const palabraLimpia = palabra.trim().toLowerCase();
 
         // La RAE tiene una API no oficial pero funcional
-        const url = `https://dle.rae.es/data/search?w=${encodeURIComponent(palabraLimpia)}`;
+        const url = `https://dle.rae.es/data/search?w=${(palabraLimpia)}`;
 
         const response = await fetch(url, {
             headers: {
