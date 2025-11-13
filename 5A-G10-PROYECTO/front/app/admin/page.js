@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./page.module.css";
 
@@ -13,6 +13,7 @@ export default function AdminPage() {
   const [mailJugador, setMailJugador] = useState("");
   const [nombreCategoria, setNombreCategoria] = useState("");
   const [nuevaPalabra, setNuevaPalabra] = useState("");
+  const [listaCategorias, setListaCategorias] = useState([]);
   const [categoriaParaPalabra, setCategoriaParaPalabra] = useState("");
   const [palabraEliminar, setPalabraEliminar] = useState("");
   const [categoriaEliminarPalabra, setCategoriaEliminarPalabra] = useState("");
@@ -21,6 +22,21 @@ export default function AdminPage() {
   const showModal = (title, message) => {
     setModal({ open: true, title, message });
   };
+
+  useEffect(() => {
+    const cargarCategorias = async () => {
+      try {
+        const response = await fetch("http://localhost:4001/Categorias");
+        const data = await response.json();
+        setListaCategorias(data.categorias); // <-- tu backend ya lo manda así
+      } catch (error) {
+        console.error("Error cargando categorías:", error);
+        showModal("Error", "No se pudieron cargar las categorías");
+      }
+    };
+
+    cargarCategorias();
+  }, []);
 
   const closeModal = () => {
     setModal((prev) => ({ ...prev, open: false }));
@@ -52,7 +68,7 @@ export default function AdminPage() {
     }
   };
 
-  
+
 
   const agregarPalabra = async () => {
     if (!nuevaPalabra || !categoriaParaPalabra) {
@@ -137,12 +153,19 @@ export default function AdminPage() {
           onChange={(e) => setNuevaPalabra(e.target.value)}
           className={styles.input}
         />
-        <Input
-          placeholder="Categoría para la palabra"
+        <select
           value={categoriaParaPalabra}
           onChange={(e) => setCategoriaParaPalabra(e.target.value)}
           className={styles.input}
-        />
+        >
+          <option value="">Seleccionar categoría</option>
+
+          {listaCategorias.map((cat) => (
+            <option key={cat.idcategoria} value={cat.nombre}>
+              {cat.nombre}
+            </option>
+          ))}
+        </select>
         <Button onClick={agregarPalabra} className={styles.button}>
           AGREGAR PALABRA
         </Button>
@@ -153,12 +176,20 @@ export default function AdminPage() {
           onChange={(e) => setPalabraEliminar(e.target.value)}
           className={styles.input}
         />
-        <Input
-          placeholder="Categoría para la palabra a eliminar "
+        <select
+          className={styles.input}
           value={categoriaEliminarPalabra}
           onChange={(e) => setCategoriaEliminarPalabra(e.target.value)}
-          className={styles.input}
-        />
+        >
+          <option value="">Seleccionar categoría...</option>
+
+          {listaCategorias.map((cat) => (
+            <option key={cat.idcategoria} value={cat.nombre}>
+              {cat.nombre}
+            </option>
+          ))}
+        </select>
+
         <Button onClick={eliminarPalabra} className={styles.button}>
           ELIMINAR PALABRA
         </Button>

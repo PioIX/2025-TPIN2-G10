@@ -431,7 +431,7 @@ io.on("connection", (socket) => {
     }
 
     socket.on('enviarRespuestasValidadas', async (data) => {
-        const { room, userId, respuestasValidadas, idOponente} = data;
+        const { room, userId, respuestasValidadas, idOponente } = data;
         const partida = partidasActivas.get(room);
 
         if (!partida) {
@@ -476,7 +476,7 @@ io.on("connection", (socket) => {
                 puntosOponente: resultado2.puntos,
                 detallesPuntos: resultado1.detalles,
                 userId: userId,
-                idOponente : idOponente,
+                idOponente: idOponente,
             });
             console.log("📤 Resultados enviados a Jugador 1");
 
@@ -586,14 +586,14 @@ app.put('/ActualizarEstadisticas', async function (req, res) {
     }
     try {
         let query = ""
-        if (idGanador.length > 0){
-            for (let i = 0; i < idGanador.length; i++){
+        if (idGanador.length > 0) {
+            for (let i = 0; i < idGanador.length; i++) {
                 const id = idGanador[i];
                 const datos = await realizarQuery(
-                    `SELECT partidasjugadas, puntos FROM Jugadores WHERE idusuario =?`,[id]
+                    `SELECT partidasjugadas, puntos FROM Jugadores WHERE idusuario =?`, [id]
                 );
-                if (!datos || datos.length === 0)continue;
-                const {partidasjugadas, puntos} = datos[0]
+                if (!datos || datos.length === 0) continue;
+                const { partidasjugadas, puntos } = datos[0]
                 const nuevasPartidas = partidasjugadas + 1;
                 const nuevosPuntos = puntos + puntosObtenidos;
                 console.log(`Actualizando jugador ${id}: partidas ${nuevasPartidas}, puntos ${nuevosPuntos}`);
@@ -602,7 +602,7 @@ app.put('/ActualizarEstadisticas', async function (req, res) {
                 )
             }
         }
-       
+
     } catch (e) {
         console.error("Error al actualizar estadísticas:", e);
         res.status(500).send({ res: "Error interno" });
@@ -612,34 +612,50 @@ app.put('/ActualizarEstadisticas', async function (req, res) {
 
 //para administradores, borrar jugador, NO ANDA
 app.delete('/BorrarJugador', async function (req, res) {
-    let mail = req.body.mail;
+    const mail = req.body.mail;
 
     if (!mail) {
         return res.send({ res: "Falta ingresar el mail del jugador", borrada: false });
     }
 
     try {
-        // Primero buscar el idusuario basado en el mail
-        let respuesta = await realizarQuery(`SELECT idusuario FROM Jugadores WHERE mail="${mail}"`);
+        // Buscar idusuario
+        const respuesta = await realizarQuery(`SELECT idusuario FROM Jugadores WHERE mail="${mail}"`);
 
         if (respuesta.length === 0) {
             return res.send({ res: "El jugador no existe", borrada: false });
         }
 
-        let idusuario = respuesta[0].id; // Obtener el idusuario del jugador
+        const idusuario = respuesta[0].idusuario;
 
-        // Eliminar las partidas asociadas al jugador usando el idusuario
+        // 1) Eliminar relaciones en Amigos
+        await realizarQuery(`DELETE FROM Amigos WHERE idamigo="${idusuario}" OR idjugador="${idusuario}"`);
+
+        // 2) Buscar todas las partidas del jugador
+        const partidas = await realizarQuery(`SELECT idpartida FROM Partidas WHERE idusuario="${idusuario}"`);
+
+        // 3) Eliminar PartidaJugador vinculado a esas partidas
+        for (let p of partidas) {
+            await realizarQuery(`DELETE FROM PartidaJugador WHERE idpartida="${p.idpartida}"`);
+        }
+
+        // 4) Eliminar partidas del jugador
         await realizarQuery(`DELETE FROM Partidas WHERE idusuario="${idusuario}"`);
 
-        // Eliminar al jugador
+        // 5) Eliminar partidaJugador donde el jugador esté asociado
+        await realizarQuery(`DELETE FROM PartidaJugador WHERE idusuario="${idusuario}"`);
+
+        // 6) Eliminar jugador
         await realizarQuery(`DELETE FROM Jugadores WHERE idusuario="${idusuario}"`);
 
-        res.send({ res: "Jugador y partidas eliminados", borrada: true });
+        res.send({ res: "Jugador y datos relacionados eliminados", borrada: true });
+
     } catch (error) {
-        console.error("Error al borrar jugador y partidas:", error);
+        console.error("Error al borrar jugador:", error);
         res.status(500).send({ res: "Error interno", borrada: false });
     }
 });
+
 
 
 //para administradores, borrrar categoria, deberia funcionar
@@ -1112,7 +1128,7 @@ app.get('/HistorialPartidas', async function (req, res) {
                 idOponente: oponente.idusuario,
                 resultado: gano ? 'ganada' : 'perdida',
                 puntos: partida.puntosobtenidos || 0,
-                
+
             };
         });
 
