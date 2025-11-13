@@ -25,7 +25,7 @@ export default function TuttiFrutti() {
   const [nuevaRonda, setNuevaRonda] = useState(false);
   const [puntosOponente, setPuntosOponente] = useState(0);
   const [historialRondas, setHistorialRondas] = useState([]);
-  const [rondaActual, setRondaActual] = useState(1);
+  const [rondaActual, setRondaActual] = useState(40);
   const [esperandoNuevaRonda, setEsperandoNuevaRonda] = useState(false);
   const [respuestasOponente, setRespuestasOponente] = useState([]);
   const [solicitudPendiente, setSolicitudPendiente] = useState(null);
@@ -220,7 +220,6 @@ export default function TuttiFrutti() {
 
         setPuntos(prev => prev + misPuntos);
         setPuntosOponente(prev => prev + puntosOponente)
-        idOponente(idOponente)
         setPuntosRonda(misPuntos);
         setRespuestasOponente(respuestasOponente);
         guardarRondaEnHistorial(misPuntos, detallesPuntos);
@@ -232,7 +231,6 @@ export default function TuttiFrutti() {
         setPuntos(prev => prev + puntosOponente);
         setPuntosRonda(puntosOponente);
         setPuntosOponente(prev => prev + misPuntos)
-        idOponente(userId)
         console.log("puntos: ", puntosOponente);
         setRespuestasOponente(misRespuestas);
         guardarRondaEnHistorial(puntosOponente, detallesPuntos);
@@ -598,8 +596,6 @@ export default function TuttiFrutti() {
       idGanador.push(idOponente)
 
     }
-
-
     try {
       await fetch("http://localhost:4001/ActualizarEstadisticas", {
         method: "PUT",
@@ -641,14 +637,9 @@ export default function TuttiFrutti() {
   }
 
   async function chequeo() {
-    // Primero verificamos todas las palabras
     const resultadosVerificacion = await verificarTodasLasRespuestas(respuestas);
-
-    // Contar palabras inválidas
     const palabrasInvalidas = Object.entries(resultadosVerificacion)
       .filter(([_, resultado]) => !resultado.valida && resultado.palabra !== "");
-
-    // Contar campos vacíos
     const camposVacios = Object.entries(resultadosVerificacion)
       .filter(([_, resultado]) => resultado.palabra === "");
 
@@ -671,8 +662,6 @@ export default function TuttiFrutti() {
       );
       return;
     }
-
-    // Si todas las validaciones pasan, enviamos las respuestas validadas
     finalizarRonda(resultadosVerificacion);
   }
 
@@ -681,8 +670,6 @@ export default function TuttiFrutti() {
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
-
-
 
   return (
     <div className={styles.gameContainer}>
@@ -718,7 +705,7 @@ export default function TuttiFrutti() {
           texto="TERMINAR PARTIDA"
           className={styles.buttonVioleta}
           onClick={() => {
-            guardarEstadisticas(); {/*fijarse si andaa*/ }
+            guardarEstadisticas(); 
           }}
         />
         <div className={styles.timerContainer}>
@@ -781,15 +768,11 @@ export default function TuttiFrutti() {
                 })}
                 <td className={styles.puntosCell}>{puntos}</td>
               </tr>
-
             )
             }
-
           </tbody>
         </table>
-
       </div>
-
       <div className={styles.bottomButton}>
         <Button
           texto="BASTA PARA MI, BASTA PARA TODOS"
@@ -797,7 +780,6 @@ export default function TuttiFrutti() {
           className={styles.buttonRed}
           disabled={!juegoActivo}
         />
-
       </div>
       {solicitudPendiente && (
         <div className={styles.modalOverlay}>
