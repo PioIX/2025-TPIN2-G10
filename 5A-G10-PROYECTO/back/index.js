@@ -579,13 +579,9 @@ app.get('/CategoriaAleatoria', async function (req, res) {
 
 //funcion para ranking
 app.put('/ActualizarEstadisticas', async function (req, res) {
-    const { idGanador } = req.body;
-
-    if (!nombre_usuario || !resultado) {
-        return res.status(400).send({ res: "Faltan datos" });
-    }
+    const { idGanador, mail, puntosGanador } = req.body;
     try {
-        let query = ""
+        //let query = ""
         if (idGanador.length > 0){
             for (let i = 0; i < idGanador.length; i++){
                 const id = idGanador[i];
@@ -593,12 +589,12 @@ app.put('/ActualizarEstadisticas', async function (req, res) {
                     `SELECT partidasjugadas, puntos FROM Jugadores WHERE idusuario =?`,[id]
                 );
                 if (!datos || datos.length === 0)continue;
-                const {partidasjugadas, puntos} = datos[0]
+                const {partidasjugadas, puntosGanador} = datos[0]
                 const nuevasPartidas = partidasjugadas + 1;
-                const nuevosPuntos = puntos + puntosObtenidos;
-                console.log(`Actualizando jugador ${id}: partidas ${nuevasPartidas}, puntos ${nuevosPuntos}`);
+                //const nuevosPuntos = puntos + puntosGanador;
+                console.log(`Actualizando jugador ${id}: partidas ${nuevasPartidas}, puntos ${puntosGanador}`);
                 await realizarQuery(
-                    `UPDATE Jugadores SET partidasjugadas = ?, puntos = ? WHERE idusuario = ?`, [nuevasPartidas, nuevosPuntos, id]
+                    `UPDATE Jugadores SET partidasjugadas = ?, puntos = ? WHERE idusuario = ?`, [nuevasPartidas, puntosGanador, id]
                 )
             }
         }

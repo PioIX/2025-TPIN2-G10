@@ -35,7 +35,7 @@
   color: white;
 }
 
-.buttonBlue {
+.buttonBlue, .btnAceptar {
   background: #4ade80;
   color: white;
 }
@@ -45,7 +45,7 @@
   color: white;
 }
 
-.buttonRed {
+.buttonRed, .btnRechazar {
   background: #ef4444;
   color: white;
   font-size: 18px;
@@ -351,6 +351,7 @@
 .solicitudTexto {
   font-size: 18px;
   margin-bottom: 30px;
+  font-family: 'Fredoka' , 'sans-serif';
   color: #333;
 }
 
@@ -391,7 +392,7 @@
   transform: scale(1.05);
 }
 
-.modalHeader {
+/*.modalHeader {
   background-color: #2196F3;
   color: white;
   padding: 15px;
@@ -402,7 +403,7 @@
 .modalHeader h3 {
   margin: 0;
   font-size: 20px;
-}
+}*/
 
 @keyframes pulseWarning {
 
@@ -465,7 +466,7 @@
   font-size: 18px;
   margin-bottom: 30px;
   color: #333;
-  font-family: 'Open Sans', sans-serif;
+ font-family: 'Fredoka', sans-serif;
 }
 
 .solicitudBotones {
