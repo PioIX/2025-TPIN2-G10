@@ -579,42 +579,46 @@ app.get('/CategoriaAleatoria', async function (req, res) {
 
 //funcion para ranking
 app.put('/ActualizarEstadisticas', async function (req, res) {
-    const { idGanador, mail, puntosGanador } = req.body;
+    const { idGanador, puntosGanador } = req.body;
+
     try {
 
-        let query = ""
-        if (idGanador.length > 0) {
-            for (let i = 0; i < idGanador.length; i++) {
-
-        //let query = ""
-        if (idGanador.length > 0){
-            for (let i = 0; i < idGanador.length; i++){
-
-                const id = idGanador[i];
-                const datos = await realizarQuery(
-                    `SELECT partidasjugadas, puntos FROM Jugadores WHERE idusuario =?`, [id]
-                );
-                if (!datos || datos.length === 0) continue;
-                const { partidasjugadas, puntos } = datos[0]
-=======
-                if (!datos || datos.length === 0)continue;
-                const {partidasjugadas, puntosGanador} = datos[0]
-
-                const nuevasPartidas = partidasjugadas + 1;
-                //const nuevosPuntos = puntos + puntosGanador;
-                console.log(`Actualizando jugador ${id}: partidas ${nuevasPartidas}, puntos ${puntosGanador}`);
-                await realizarQuery(
-                    `UPDATE Jugadores SET partidasjugadas = ?, puntos = ? WHERE idusuario = ?`, [nuevasPartidas, puntosGanador, id]
-                )
-            }
+        if (!idGanador || idGanador.length === 0) {
+            return res.json({ res: "No hay ganadores", ok: false });
         }
+
+        for (let i = 0; i < idGanador.length; i++) {
+
+            const id = idGanador[i];
+
+            // Traigo partidas y puntos actuales
+            const datos = await realizarQuery(
+                `SELECT partidasjugadas, puntos FROM Jugadores WHERE idusuario = ?`,
+                [id]
+            );
+
+            if (!datos || datos.length === 0) continue;
+
+            const { partidasjugadas, puntos } = datos[0];
+
+            const nuevasPartidas = partidasjugadas + 1;
+            const nuevosPuntos = puntos + puntosGanador; // suma puntos
+
+            console.log(`Actualizando jugador ${id}: partidas ${nuevasPartidas}, puntos ${nuevosPuntos}`);
+
+            await realizarQuery(
+                `UPDATE Jugadores SET partidasjugadas = ?, puntos = ? WHERE idusuario = ?`,
+                [nuevasPartidas, nuevosPuntos, id]
+            );
+        }
+
+        return res.json({ res: "Estadísticas actualizadas", ok: true });
 
     } catch (e) {
         console.error("Error al actualizar estadísticas:", e);
-        res.status(500).send({ res: "Error interno" });
+        res.status(500).json({ res: "Error interno", ok: false });
     }
 });
-
 
 //para administradores, borrar jugador, NO ANDA
 app.delete('/BorrarJugador', async function (req, res) {
