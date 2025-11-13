@@ -431,7 +431,7 @@ io.on("connection", (socket) => {
     }
 
     socket.on('enviarRespuestasValidadas', async (data) => {
-        const { room, userId, respuestasValidadas } = data;
+        const { room, userId, respuestasValidadas, idOponente} = data;
         const partida = partidasActivas.get(room);
 
         if (!partida) {
@@ -475,7 +475,8 @@ io.on("connection", (socket) => {
                 respuestasOponente: respuestas2,
                 puntosOponente: resultado2.puntos,
                 detallesPuntos: resultado1.detalles,
-                userId: userId
+                userId: userId,
+                idOponente : idOponente,
             });
             console.log("📤 Resultados enviados a Jugador 1");
 
@@ -588,14 +589,14 @@ app.put('/ActualizarEstadisticas', async function (req, res) {
         let query = ""
         if (resultado == "ganada") {
             let datos = await realizarQuery(`SELECT partidasganadas, partidasjugadas, puntos FROM Jugadores WHERE mail = "${mail}"`)
-            let { partidas_ganadas, partidas_jugadas } = datos[0]
+            let { partidasganadas, partidasjugadas } = datos[0]
             console.log({ partidasganadas, partidasjugadas })
             query = `UPDATE Jugadores SET partidasjugadas = ${partidasjugadas + 1}, partidasganadas = ${partidasganadas + 1}, puntos = ${puntos + datos[0].puntosRonda} WHERE mail= "${mail}"`;
         } else {
             let datos = await realizarQuery(`SELECT partidasperdidas, partidasjugadas, puntos FROM Jugadores WHERE mail= "${mail}"`)
             let { partidasjugadas, partidasperdidas } = datos[0]
             console.log({ partidasjugadas, partidasperdidas })
-            query = `UPDATE Jugadores SET partidasjugadas = ${partidasjugadas + 1}, partidasperdidas = ${partidasperdidas + 1}, puntos = ${puntos + datos[0].puntos} WHERE mail = "${mail}"`;
+            query = `UPDATE Jugadores SET partidasjugadas = ${partidasjugadas + 1}, partidasperdidas = ${partidasperdidas + 1} WHERE mail = "${mail}"`;
         }
 
         await realizarQuery(query);
@@ -1122,10 +1123,9 @@ app.get('/HistorialPartidas', async function (req, res) {
                 fecha: partida.fecha,
                 oponente: oponente.nombre,
                 idOponente: oponente.idusuario,
-                resultado: gano ? 'Victoria' : 'Derrota',
-                gano: gano,
+                resultado: gano ? 'ganada' : 'perdida',
                 puntos: partida.puntosobtenidos || 0,
-                ganador: gano ? partida.nombre_jugador : oponente.nombre
+                
             };
         });
 
