@@ -23,12 +23,14 @@ export default function TuttiFrutti() {
   const [esperandoOtroJugador, setEsperandoOtroJugador] = useState(true);
   const [estoyUnido, setEstoyUnido] = useState(false);
   const [nuevaRonda, setNuevaRonda] = useState(false);
+  const [puntosOponente, setPuntosOponente] = useState(0);
   const [historialRondas, setHistorialRondas] = useState([]);
   const [rondaActual, setRondaActual] = useState(1);
   const [esperandoNuevaRonda, setEsperandoNuevaRonda] = useState(false);
   const [respuestasOponente, setRespuestasOponente] = useState([]);
   const [solicitudPendiente, setSolicitudPendiente] = useState(null);
   const [respuestasValidadas, setRespuestasValidadas] = useState({});
+  const [idOponente, setIdOponente] = useState(null)
   const router = useRouter();
   const searchParams = useSearchParams();
   const { socket, isConnected } = useSocket();
@@ -217,8 +219,9 @@ export default function TuttiFrutti() {
       if (userId == idLogged) {
 
         setPuntos(prev => prev + misPuntos);
+        setPuntosOponente(prev => prev + puntosOponente)
+        idOponente(idOponente)
         setPuntosRonda(misPuntos);
-        console.log("puntos: ", misPuntos);
         setRespuestasOponente(respuestasOponente);
         guardarRondaEnHistorial(misPuntos, detallesPuntos);
         mostrarResultadosDetallados(misRespuestas, respuestasOponente, misPuntos, puntosOponente, detallesPuntos);
@@ -228,6 +231,8 @@ export default function TuttiFrutti() {
       else {
         setPuntos(prev => prev + puntosOponente);
         setPuntosRonda(puntosOponente);
+        setPuntosOponente(prev => prev + misPuntos)
+        idOponente(userId)
         console.log("puntos: ", puntosOponente);
         setRespuestasOponente(misRespuestas);
         guardarRondaEnHistorial(puntosOponente, detallesPuntos);
@@ -570,17 +575,41 @@ export default function TuttiFrutti() {
 
 
   async function guardarEstadisticas() {//hacer que ande o ponerla directamente 
+
     const idLogged = localStorage.getItem("idLogged");
     if (!idLogged) return;
+    let puntosGanador = 0;
+    let empate = false;
+    let idGanador = [];
+
+    // calculos de quien gano ya quien le sumo
+    if (puntos > puntosOponente) {
+      puntosGanador = puntos;
+      idGanador.push(idLogged)
+
+    } else if (puntos < puntosOponente) {
+      puntosGanador = puntosOponente;
+      idGanador.push(idOponente)
+
+    } else {
+      puntosGanador = puntos
+      empate = true//hay q cambiar esto en la tablita
+      idGanador.push(idLogged)
+      idGanador.push(idOponente)
+
+    }
+
 
     try {
       await fetch("http://localhost:4001/ActualizarEstadisticas", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+
           mail: nombreUsuario,
-          resultado: "ganada",//esto hay q hacerlo bien
-          puntos: puntos,
+          idGanador,
+          empate,
+          puntos: puntosGanador,
         }),
       });
       showModal("¡Éxito!", "Estadísticas guardadas correctamente");
@@ -608,6 +637,7 @@ export default function TuttiFrutti() {
 
       console.log("✅ Nueva ronda guardada:", nuevaRonda);
       return [...prev, nuevaRonda];
+
     });
   }
 
