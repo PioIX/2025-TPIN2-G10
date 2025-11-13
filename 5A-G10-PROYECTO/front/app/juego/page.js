@@ -153,7 +153,7 @@ export default function TuttiFrutti() {
       setRondaActual(data.ronda);
       setRespuestas({});
       setRespuestasOponente(null);
-      setTiempoRestante(2);
+      setTiempoRestante(15);
       setEsperandoNuevaRonda(false);
       setJuegoActivo(false);
 

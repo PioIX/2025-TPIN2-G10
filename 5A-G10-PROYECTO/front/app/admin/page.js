@@ -52,33 +52,7 @@ export default function AdminPage() {
     }
   };
 
-  // Función para eliminar categoría
-  const eliminarCategoria = async () => {
-    if (!nombreCategoria) {
-      showModal("Error", "Por favor ingresa el nombre de la categoría");
-      return;
-    }
-
-    try {
-      const response = await fetch("http://localhost:4001/EliminarCategoria", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombre: nombreCategoria }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        showModal("Éxito", "Categoría eliminada correctamente");
-        setNombreCategoria("");
-      } else {
-        showModal("Error", result.message || "No se pudo eliminar la categoría");
-      }
-    } catch (error) {
-      console.error(error);
-      showModal("Error", "Hubo un problema con la conexión al servidor");
-    }
-  };
+  
 
   const agregarPalabra = async () => {
     if (!nuevaPalabra || !categoriaParaPalabra) {
@@ -157,17 +131,6 @@ export default function AdminPage() {
         <Button onClick={borrarJugador} className={styles.button}>
           ELIMINAR JUGADOR
         </Button>
-
-        <Input
-          placeholder="Nombre de categoría a eliminar"
-          value={nombreCategoria}
-          onChange={(e) => setNombreCategoria(e.target.value)}
-          className={styles.input}
-        />
-        <Button onClick={eliminarCategoria} className={styles.button}>
-          ELIMINAR CATEGORÍA
-        </Button>
-
         <Input
           placeholder="Nueva palabra"
           value={nuevaPalabra}
