@@ -606,60 +606,6 @@ app.put('/ActualizarEstadisticas', async function (req, res) {
     }
 });
 
-app.delete('/BorrarPalabra', async (req, res) => {
-    const { palabra, categoria } = req.body;
-
-    if (!palabra || !categoria) {
-        return res.status(400).json({ success: false, message: "Falta palabra o categoría" });
-    }
-
-    try {
-
-        const palabraResult = await realizarQuery(
-            'SELECT idpalabra FROM Palabras WHERE palabra = ?',
-            [palabra]
-        );
-        if (palabraResult.length === 0) {
-            return res.json({ success: false, message: "La palabra no existe" });
-        }
-        const idpalabra = palabraResult[0].idpalabra;
-
-        // 2. Obtener idcategoria
-        const categoriaResult = await realizarQuery(
-            'SELECT idcategoria FROM Categorias WHERE nombre = ?',
-            [categoria]
-        );
-        if (categoriaResult.length === 0) {
-            return res.json({ success: false, message: "La categoría no existe" });
-        }
-        const idcategoria = categoriaResult[0].idcategoria;
-
-        // 3. Borrar de la tabla de relación
-        await realizarQuery(
-            'DELETE FROM PalabrasCategorias WHERE idpalabra = ? AND idcategoria = ?',
-            [idpalabra, idcategoria]
-        );
-
-        // 4. Verificar si la palabra tiene otras relaciones
-        const relaciones = await realizarQuery(
-            'SELECT * FROM PalabrasCategorias WHERE idpalabra = ?',
-            [idpalabra]
-        );
-
-        // Si no tiene más relaciones, borrar la palabra
-        if (relaciones.length === 0) {
-            await realizarQuery('DELETE FROM Palabras WHERE idpalabra = ?', [idpalabra]);
-        }
-
-        res.json({ success: true, message: `Palabra "${palabra}" eliminada de la categoría "${categoria}"` });
-
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ success: false, message: "Error interno del servidor" });
-    }
-});
-
-
 
 //para administradores, borrar jugador, NO ANDA
 app.delete('/BorrarJugador', async function (req, res) {
@@ -772,7 +718,46 @@ app.post('/AgregarPalabra', async function (req, res) {
 });
 
 
+app.delete('/BorrarPalabra', async function (req, res) {
+    console.log("/BorrarPalabra req.body:", req.body);
 
+    try {
+        const { palabra, categoria } = req.body;
+
+        if (!palabra) {
+            return res.json({ message: "Falta palabra", success: false });
+        }
+
+        if (!categoria) {
+            return res.json({ message: "Falta categoría", success: false });
+        }
+
+        // Verifica si la palabra existe en la categoría especificada
+        const palabraExiste = await realizarQuery(
+            `SELECT idpalabra FROM Palabras WHERE palabra = ? AND categoria_nombre = ?`,
+            [palabra, categoria]
+        );
+
+        if (palabraExiste.length === 0) {
+            return res.json({ message: "La palabra no existe en esa categoría", success: false });
+        }
+
+        // Elimina la palabra de la base de datos
+        await realizarQuery(
+            `DELETE FROM Palabras WHERE palabra = ? AND categoria_nombre = ?`,
+            [palabra, categoria]
+        );
+
+        return res.json({
+            message: `"${palabra}" eliminada de la categoría "${categoria}"`,
+            success: true
+        });
+
+    } catch (e) {
+        console.error("Error en /BorrarPalabra:", e);
+        res.status(500).json({ message: "Error interno", success: false });
+    }
+});
 
 
 //login jugadores
