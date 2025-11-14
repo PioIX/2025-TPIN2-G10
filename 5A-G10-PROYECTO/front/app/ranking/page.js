@@ -108,13 +108,13 @@ export default function Ranking() {
                   <span className={styles.jugadorNombre}>{jugador.nombre}</span>
                 </div>
                 <div className={styles.cell}>
-                  <div className={styles.statBadge}>{jugador.partidas_jugadas}</div>
+                  <div className={styles.statBadge}>{jugador.partidasjugadas}</div>
                 </div>
                 <div className={styles.cell}>
-                  <div className={styles.statBadge}>{jugador.partidas_ganadas}</div>
+                  <div className={styles.statBadge}>{jugador.partidasganadas}</div>
                 </div>
                 <div className={styles.cell}>
-                  <div className={styles.statBadge}>{jugador.partidas_perdidas}</div>
+                  <div className={styles.statBadge}>{jugador.partidasperdidas}</div>
                 </div>
                 <div className={styles.cell}>
                   <div className={styles.statBadge}>{jugador.puntos}</div>
