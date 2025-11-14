@@ -164,6 +164,28 @@
   margin-top: 40px;
 }
 
+.buttonGreen {
+  flex: 1;
+  padding: 16px 24px;
+  border-radius: 30px;
+  background-color: #0e9432;
+  color: white;
+  border: none;
+  font-weight: 700;
+  font-size: 15px;
+  font-family: 'Fredoka', sans-serif;
+  cursor: pointer;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.buttonGreen:hover {
+  background-color: #117c11;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+}
 .buttonYellow {
   flex: 1;
   padding: 16px 24px;
