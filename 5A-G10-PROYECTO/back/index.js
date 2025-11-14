@@ -100,6 +100,76 @@ io.on("connection", (socket) => {
         }
     });
 
+    // ACEPTAR SOLICITUD DE AMISTAD
+    socket.on('acceptFriendRequest', async (data) => {
+        const { idSolicitante, idReceptor } = data;
+
+        console.log(`${idReceptor} aceptó la solicitud de amistad de ${idSolicitante}`);
+
+        // Notificar al solicitante que su solicitud fue aceptada
+        const solicitanteSocketId = usuariosConectados.get(idSolicitante.toString());
+        
+        if (solicitanteSocketId) {
+            const solicitanteSocket = io.sockets.sockets.get(solicitanteSocketId);
+            
+            if (solicitanteSocket) {
+                solicitanteSocket.emit('friendAdded', {
+                    message: '¡Tu solicitud de amistad fue aceptada!',
+                    shouldReload: true
+                });
+            }
+        }
+
+        // Notificar al receptor también
+        const receptorSocketId = usuariosConectados.get(idReceptor.toString());
+        
+        if (receptorSocketId) {
+            const receptorSocket = io.sockets.sockets.get(receptorSocketId);
+            
+            if (receptorSocket) {
+                receptorSocket.emit('friendAdded', {
+                    message: 'Amigo agregado correctamente',
+                    shouldReload: true
+                });
+            }
+        }
+    });
+
+    // ELIMINAR AMIGO
+    socket.on('removeFriend', async (data) => {
+        const { idJugador, idAmigo } = data;
+
+        console.log(`${idJugador} eliminó a ${idAmigo} de sus amigos`);
+
+        // Notificar al amigo eliminado
+        const amigoSocketId = usuariosConectados.get(idAmigo.toString());
+        
+        if (amigoSocketId) {
+            const amigoSocket = io.sockets.sockets.get(amigoSocketId);
+            
+            if (amigoSocket) {
+                amigoSocket.emit('friendRemoved', {
+                    message: 'Un amigo te eliminó de su lista',
+                    shouldReload: true
+                });
+            }
+        }
+
+        // Notificar al jugador que eliminó
+        const jugadorSocketId = usuariosConectados.get(idJugador.toString());
+        
+        if (jugadorSocketId) {
+            const jugadorSocket = io.sockets.sockets.get(jugadorSocketId);
+            
+            if (jugadorSocket) {
+                jugadorSocket.emit('friendRemoved', {
+                    message: 'Amigo eliminado correctamente',
+                    shouldReload: true
+                });
+            }
+        }
+    });
+
     // SOLICITUD DE JUEGO
     socket.on('sendGameRequest', (data) => {
         const { idSolicitante, nombreSolicitante, idReceptor, nombreReceptor } = data;
@@ -331,47 +401,30 @@ io.on("connection", (socket) => {
         }
     });
 
-    // BASTA
+    // BASTA - Terminar el tiempo para ambos jugadores
     socket.on('basta', (data) => {
-        const { room, userId, respuestas } = data;
-        console.log(`Usuario ${userId} dijo BASTA en sala ${room}`);
+        const { room, userId } = data;
+        console.log(`\n🔴 ========== BASTA RECIBIDO ==========`);
+        console.log(`   Usuario: ${userId}`);
+        console.log(`   Sala: ${room}`);
 
-        /*const partida = partidasActivas.get(room);
-        if (partida) {
-            // Guardar las respuestas del jugador que dijo BASTA
-            partida.respuestas[userId] = respuestas;
-        }
-        */
-        if (!partida || partida.terminada) return;
-
-        partida.respuestas[userId] = respuestas;
-        partida.basta = userId; // Marcar quien dijo basta
-        partidasActivas.set(room, partida);
-
-
-        const idOponente = partida.jugadores.find(id => id.toString() !== userId.toString());
-        const oponenteSocketId = usuariosConectados.get(idOponente.toString());
-
-
-        if (oponenteSocketId) {
-            io.to(oponenteSocketId).emit('opponentBasta', {
-                message: '¡El otro jugador dijo BASTA!',
-                respuestasJugadorLocal: respuestas // Opcional: enviar al oponente las respuestas
-            });
+        const partida = partidasActivas.get(room);
+        
+        if (!partida || partida.terminada) {
+            console.log("❌ Partida no encontrada o ya terminada");
+            return;
         }
 
+        console.log(`✅ Terminando el tiempo para toda la sala`);
 
-        io.to(room).emit("gameEnded", {
-            letra: partida.letra,
-            categorias: partida.categorias,
-            jugadores: Object.keys(partida.respuestas).map(id => ({
-                id,
-                nombre: partida.jugadores[id]?.nombre, // si tenés nombres
-                respuestas: partida.respuestas[id],   // ⬅ LAS PALABRAS
-                puntos: partida.puntos[id]           // puntos por jugador
-            }))
+        // Emitir a TODA LA SALA que el tiempo se acabó
+        io.to(room).emit('tiempoTerminado', {
+            message: `${userId} dijo BASTA - Tiempo terminado`,
+            userId: userId
         });
 
+        console.log(`📤 Evento 'tiempoTerminado' enviado a toda la sala`);
+        console.log(`========================================\n`);
     });
 
     function calcularPuntosMejorado(misRespuestas, respuestasOponente) {
@@ -435,12 +488,19 @@ io.on("connection", (socket) => {
 
     socket.on('enviarRespuestasValidadas', async (data) => {
         const { room, userId, respuestasValidadas } = data;
+        console.log(`\n🔵 RECIBIENDO RESPUESTAS VALIDADAS`);
+        console.log(`   Room: ${room}`);
+        console.log(`   UserId: ${userId}`);
+        
         const partida = partidasActivas.get(room);
 
         if (!partida) {
-            console.log("❌ Partida no encontrada");
+            console.log("❌ Partida no encontrada para room:", room);
+            console.log("   Partidas activas:", Array.from(partidasActivas.keys()));
             return;
         }
+
+        console.log(`   Jugadores en partida:`, partida.jugadores);
 
         // IMPORTANTE: NO SUMAR SI YA ENVIÓ
         if (partida.respuestasValidadas && partida.respuestasValidadas[userId]) {
@@ -458,6 +518,7 @@ io.on("connection", (socket) => {
         // Verificar si ambos jugadores ya enviaron sus respuestas
         const jugadoresConRespuestas = Object.keys(partida.respuestasValidadas).length;
         console.log(`📊 Jugadores con respuestas: ${jugadoresConRespuestas}/2`);
+        console.log(`   IDs que enviaron:`, Object.keys(partida.respuestasValidadas));
 
         if (jugadoresConRespuestas === 2) {
             console.log("🎯 Ambos jugadores enviaron respuestas - Calculando puntos...");
@@ -1325,35 +1386,130 @@ app.get('/LlevoPalabras', async function (req, res) {
 //HACER
 // En index.js - REEMPLAZA el endpoint /VerificarPalabra
 
+// Función para normalizar palabras (quitar tildes)
+function normalizarPalabra(palabra) {
+    return palabra
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
+}
+
+// Función para agregar tildes comunes a palabras
+function generarVariantesConTildes(palabra) {
+    const variantes = [palabra];
+    const palabraLower = palabra.toLowerCase();
+    
+    // Mapeo de vocales sin tilde a con tilde
+    const tildes = {
+        'a': ['á'], 'e': ['é'], 'i': ['í'], 'o': ['ó'], 'u': ['ú', 'ü'],
+        'n': ['ñ']
+    };
+    
+    // Generar variantes comunes (solo las más probables)
+    // Por ejemplo: pizarron -> pizarrón
+    for (let i = 0; i < palabraLower.length; i++) {
+        const letra = palabraLower[i];
+        if (tildes[letra]) {
+            tildes[letra].forEach(tilde => {
+                const variante = palabraLower.substring(0, i) + tilde + palabraLower.substring(i + 1);
+                variantes.push(variante);
+            });
+        }
+    }
+    
+    return [...new Set(variantes)]; // Eliminar duplicados
+}
+
 async function verificarEnRAE(palabra) {
     try {
         const palabraLimpia = palabra.trim().toLowerCase();
+        const variantes = generarVariantesConTildes(palabraLimpia);
+        
+        console.log(`🔍 Buscando palabra "${palabraLimpia}" (${variantes.length} variantes)`);
+        
+        // Limitar a las 3 variantes más probables para ser más rápido
+        const variantesLimitadas = variantes.slice(0, 3);
+        
+        // Intentar con cada variante (máximo 3)
+        for (const variante of variantesLimitadas) {
+            // Intentar primero con rae-api.com (más rápida)
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 segundos
+                
+                const url = `https://rae-api.com/api/words/${encodeURIComponent(variante)}`;
+                
+                const response = await fetch(url, {
+                    headers: { 
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    },
+                    signal: controller.signal
+                });
 
-        const url = `https://rae-api.com/api/words/${encodeURIComponent(palabraLimpia)}`;
+                clearTimeout(timeoutId);
 
-        const response = await fetch(url, {
-            headers: { 'User-Agent': 'Mozilla/5.0' }
-        });
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data.ok && data.data && data.data.meanings && data.data.meanings.length > 0) {
+                        console.log(`✅ "${variante}" encontrada en rae-api.com`);
+                        return {
+                            existe: true,
+                            fuente: "rae",
+                            definicion: data.data.meanings,
+                            palabra: data.data.word,
+                            varianteEncontrada: variante !== palabraLimpia ? variante : null
+                        };
+                    }
+                }
+            } catch (apiError) {
+                if (apiError.name === 'AbortError') {
+                    console.log(`⏱️ Timeout en rae-api.com para "${variante}"`);
+                }
+                // Continuar con la siguiente variante
+            }
 
-        if (!response.ok) {
-            console.log("Error HTTP RAE API:", response.status);
-            return { existe: false, fuente: "rae", error: true };
+            // Fallback: Usar la API oficial de la RAE
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 segundos
+                
+                const urlOficial = `https://dle.rae.es/data/search?w=${encodeURIComponent(variante)}`;
+
+                const responseOficial = await fetch(urlOficial, {
+                    headers: { 
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    },
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+
+                if (responseOficial.ok) {
+                    const data = await responseOficial.json();
+                    const existe = data && data.res && data.res.length > 0;
+
+                    if (existe) {
+                        console.log(`✅ "${variante}" encontrada en API oficial RAE`);
+                        return {
+                            existe: true,
+                            fuente: "rae",
+                            definicion: "Palabra encontrada en el diccionario de la RAE",
+                            palabra: variante,
+                            varianteEncontrada: variante !== palabraLimpia ? variante : null
+                        };
+                    }
+                }
+            } catch (oficialError) {
+                if (oficialError.name === 'AbortError') {
+                    console.log(`⏱️ Timeout en API oficial RAE para "${variante}"`);
+                }
+                // Continuar con la siguiente variante
+            }
         }
 
-        const data = await response.json();
-
-        // Formato esperado:
-        // { ok: true/false, data: { word: "...", meanings: [...] } }
-
-        if (data.ok && data.data && data.data.meanings.length > 0) {
-            return {
-                existe: true,
-                fuente: "rae",
-                definicion: data.data.meanings,
-                palabra: data.data.word
-            };
-        }
-
+        console.log(`❌ "${palabraLimpia}" NO encontrada`);
         return {
             existe: false,
             fuente: "rae",
@@ -1361,7 +1517,7 @@ async function verificarEnRAE(palabra) {
         };
 
     } catch (error) {
-        console.error("Error al consultar RAE API:", error);
+        console.error("Error al consultar RAE:", error);
         return { existe: false, fuente: "rae", error: true };
     }
 }

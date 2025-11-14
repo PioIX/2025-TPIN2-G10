@@ -107,6 +107,17 @@ export default function TuttiFrutti() {
       setTiempoRestante(data.timeRemaining);
     });
 
+    socket.on("tiempoTerminado", async (data) => {
+      console.log("\n⏰ ========== TIEMPO TERMINADO (BASTA) ==========");
+      console.log("   Data recibida:", data);
+      
+      // Poner el tiempo en 0 para que se vea visualmente
+      setTiempoRestante(0);
+      
+      // Ejecutar la misma lógica que cuando se termina el tiempo naturalmente
+      finalizarRondaPorTiempo();
+    });
+
     socket.on("gameEnded", (data) => {
       console.log("Juego terminado:", data);
 
@@ -272,6 +283,7 @@ export default function TuttiFrutti() {
     return () => {
       socket.off("timerStarted");
       socket.off("timerUpdate");
+      socket.off("tiempoTerminado");
       socket.off("gameEnded");
       socket.off("playerJoined");
       socket.off("error");
@@ -288,6 +300,7 @@ export default function TuttiFrutti() {
     if (!socket || !isConnected) return;
 
     socket.on("resultadosRonda", (data) => {
+      console.log("\n🎉 ========== RESULTADOS DE LA RONDA ==========");
       console.log("📥 Resultados de la ronda recibidos:", data);
 
       const { jugador1, jugador2, ronda, letra: letraRonda } = data;
@@ -311,6 +324,9 @@ export default function TuttiFrutti() {
       console.log(`✅ Mis puntos de ESTA ronda: ${misDatos.puntos}`);
       console.log(`✅ Mis respuestas:`, misDatos.respuestas);
 
+      // Actualizar puntos de la ronda actual ANTES de guardar
+      setPuntosRonda(misDatos.puntos);
+      
       // Guardar en historial con las respuestas VALIDADAS
       guardarRondaEnHistorial({
         numero: ronda,
@@ -339,6 +355,11 @@ export default function TuttiFrutti() {
       );
 
       setJuegoActivo(false);
+      
+      // Cerrar el modal de "Verificando palabras..."
+      closeModal();
+      
+      console.log("✅ Ronda finalizada - Botón de nueva ronda debería aparecer");
     });
 
     return () => {
@@ -373,6 +394,8 @@ export default function TuttiFrutti() {
 
       console.log("✅ Guardando ronda en historial:", nueva);
       console.log("📝 Respuestas guardadas:", respuestasSnapshot);
+      console.log("📊 Historial anterior tenía:", prev.length, "rondas");
+      console.log("📊 Historial nuevo tendrá:", prev.length + 1, "rondas");
       return [...prev, nueva];
     });
   }
@@ -465,8 +488,16 @@ export default function TuttiFrutti() {
 
       console.log(`Verificando palabra: "${palabraNormalizada}" en categoría: "${categoriaNormalizada}"`);
 
-      const response = await fetch(`${url}/VerificarPalabra?palabra=${encodeURIComponent(palabraNormalizada)}&categoria=${encodeURIComponent(categoriaNormalizada)}`
+      // Timeout de 8 segundos para dar tiempo a la RAE
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+      const response = await fetch(
+        `${url}/VerificarPalabra?palabra=${encodeURIComponent(palabraNormalizada)}&categoria=${encodeURIComponent(categoriaNormalizada)}`,
+        { signal: controller.signal }
       );
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         console.error("Error en la respuesta:", response.status);
@@ -482,63 +513,74 @@ export default function TuttiFrutti() {
         fuente: data.fuente,
       };
     } catch (error) {
-      console.error("Error al verificar palabra:", error);
+      if (error.name === 'AbortError') {
+        console.log("⏱️ Timeout al verificar palabra:", palabra, "- Se considera inválida");
+        return { existe: false, mensaje: "Timeout - palabra no verificada" };
+      }
+      console.log("⚠️ Error al verificar palabra:", palabra, error.message);
       return { existe: false, mensaje: "Error de conexión" };
     }
   }
 
   async function verificarTodasLasRespuestas(respuestasObj) {
-    const resultados = {};
-
+    console.log("⏱️ Iniciando verificación rápida de respuestas...");
     console.log("Respuestas a verificar:", respuestasObj);
     console.log("Letra actual:", letra);
 
-    for (const [categoria, palabra] of Object.entries(respuestasObj || {})) {
-      if (palabra && palabra.trim() !== "") {
-        const palabraLimpia = palabra.trim();
-        const primeraLetra = palabraLimpia[0].toUpperCase();
-
-        console.log(`Procesando: "${palabraLimpia}" para categoría "${categoria}"`);
-
-        // Validar longitud mínima (3 letras)
-        if (palabraLimpia.length < 3) {
-          resultados[categoria] = {
-            palabra: palabraLimpia,
-            valida: false,
-            mensaje: "Debe tener al menos 3 letras",
-          };
-          console.log(`"${palabraLimpia}" en "${categoria}": ✗ MUY CORTA (menos de 3 letras)`);
-          continue;
-        }
-
-        if (primeraLetra === letra.toUpperCase()) {
-          const verificacion = await verificarPalabra(palabraLimpia, categoria);
-
-          resultados[categoria] = {
-            palabra: palabraLimpia,
-            valida: verificacion.existe,
-            mensaje: verificacion.mensaje || (verificacion.existe ? "Válida" : "No existe"),
-            fuente: verificacion.fuente,
-          };
-
-          console.log(`"${palabraLimpia}" en "${categoria}": ${verificacion.existe ? "✓ VÁLIDA" : "✗ NO VÁLIDA"} - ${verificacion.mensaje}`);
-        } else {
-          resultados[categoria] = {
-            palabra: palabraLimpia,
-            valida: false,
-            mensaje: `No empieza con ${letra.toUpperCase()}`,
-          };
-        }
-      } else {
-        resultados[categoria] = {
+    // Crear array de promesas para verificar todas en paralelo
+    const verificaciones = Object.entries(respuestasObj || {}).map(async ([categoria, palabra]) => {
+      if (!palabra || palabra.trim() === "") {
+        return [categoria, {
           palabra: "",
           valida: false,
           mensaje: "Campo vacío",
-        };
+        }];
       }
-    }
 
-    console.log("Resultados finales de verificación:", resultados);
+      const palabraLimpia = palabra.trim();
+      const primeraLetra = palabraLimpia[0].toUpperCase();
+
+      console.log(`Procesando: "${palabraLimpia}" para categoría "${categoria}"`);
+
+      // Validar longitud mínima (3 letras)
+      if (palabraLimpia.length < 3) {
+        console.log(`"${palabraLimpia}" en "${categoria}": ✗ MUY CORTA (menos de 3 letras)`);
+        return [categoria, {
+          palabra: palabraLimpia,
+          valida: false,
+          mensaje: "Debe tener al menos 3 letras",
+        }];
+      }
+
+      // Validar que empiece con la letra correcta
+      if (primeraLetra !== letra.toUpperCase()) {
+        return [categoria, {
+          palabra: palabraLimpia,
+          valida: false,
+          mensaje: `No empieza con ${letra.toUpperCase()}`,
+        }];
+      }
+
+      // Verificar la palabra (esto se hace en paralelo)
+      const verificacion = await verificarPalabra(palabraLimpia, categoria);
+
+      console.log(`"${palabraLimpia}" en "${categoria}": ${verificacion.existe ? "✓ VÁLIDA" : "✗ NO VÁLIDA"} - ${verificacion.mensaje}`);
+
+      return [categoria, {
+        palabra: palabraLimpia,
+        valida: verificacion.existe,
+        mensaje: verificacion.mensaje || (verificacion.existe ? "Válida" : "No existe"),
+        fuente: verificacion.fuente,
+      }];
+    });
+
+    // Esperar a que todas las verificaciones terminen en paralelo
+    const resultadosArray = await Promise.all(verificaciones);
+    
+    // Convertir array de resultados a objeto
+    const resultados = Object.fromEntries(resultadosArray);
+
+    console.log("✅ Verificación completada:", resultados);
     return resultados;
   }
 
@@ -566,22 +608,16 @@ export default function TuttiFrutti() {
 
 
   async function finalizarRonda() {
-    setJuegoActivo(false);
-
-    const resultadosVerificacion = await verificarTodasLasRespuestas(respuestas);
-    console.log("✅ Respuestas verificadas:", resultadosVerificacion);
-    setRespuestasValidadas(resultadosVerificacion);
-
     if (socket && room && isConnected) {
       const idLogged = parseInt(localStorage.getItem("idLogged"), 10);
 
-      socket.emit("enviarRespuestasValidadas", {
+      // Emitir evento BASTA para terminar el tiempo de ambos jugadores
+      socket.emit("basta", {
         room,
-        userId: idLogged,
-        respuestasValidadas: resultadosVerificacion,
+        userId: idLogged
       });
 
-      showModal("Procesando...", "Verificando palabras y calculando puntos...");
+      console.log("🔔 Evento BASTA enviado - El tiempo se terminará para ambos jugadores");
     }
   }
 

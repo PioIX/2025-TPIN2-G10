@@ -226,6 +226,12 @@ export default function Lobby() {
       const result = await response.json();
 
       if (result.agregado) {
+        // Emitir evento de socket para notificar a ambos usuarios
+        socket.emit('acceptFriendRequest', {
+          idSolicitante: parseInt(solicitudAmistadPendiente.idSolicitante),
+          idReceptor: parseInt(idLogged)
+        });
+        
         setModalMensaje({ tipo: 'success', mensaje: '¡Solicitud de amistad aceptada!' });
         cargarAmigos();
       } else {
@@ -295,6 +301,12 @@ export default function Lobby() {
       const result = await response.json();
 
       if (result.eliminado) {
+        // Emitir evento de socket para notificar a ambos usuarios
+        socket.emit('removeFriend', {
+          idJugador: parseInt(idLogged),
+          idAmigo: parseInt(idAmigo)
+        });
+        
         setModalMensaje({ tipo: 'success', mensaje: result.res });
         cargarAmigos();
       } else {
