@@ -509,9 +509,9 @@ useEffect(() => {
           className={styles.buttonYellow}
           onClick={() => router.push("/historial")}
         />
-      <div className={styles.bottomButtons}>
+     
  
- <div className={styles.bottomButtons}>
+ 
   {isAdmin && (
     <Button
       texto="ADMIN"
@@ -519,8 +519,7 @@ useEffect(() => {
       onClick={() => router.push("/admin")}
     />
   )}
-<div className={styles.bottomButtons}></div>
-</div>
+
 
         <Button
           texto="CERRAR SESIÓN"
@@ -532,6 +531,6 @@ useEffect(() => {
         />
       </div>
     </div>
-  </div>
+ 
   );
 }
