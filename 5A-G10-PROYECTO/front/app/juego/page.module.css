@@ -387,24 +387,18 @@
 }
 
 .btnAceptar {
-  background-color: #4CAF50;
+  background-color: #4ade80;
   color: white;
 }
 
-.btnAceptar:hover {
-  background-color: #45a049;
-  transform: scale(1.05);
-}
+
 
 .btnRechazar {
   background-color: #f44336;
   color: white;
 }
 
-.btnRechazar:hover {
-  background-color: #da190b;
-  transform: scale(1.05);
-}
+
 
 /*.modalHeader {
   background-color: #2196F3;
