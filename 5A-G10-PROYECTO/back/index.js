@@ -1183,7 +1183,7 @@ app.get('/HistorialPartidas', async function (req, res) {
                 p.idusuario,
                 p.fecha,
                 p.puntosobtenidos,
-                p.resultado,
+                p.empate,
                 j.nombre as nombre_jugador
             FROM Partidas p
             INNER JOIN Jugadores j ON p.idusuario = j.idusuario
@@ -1218,10 +1218,9 @@ app.get('/HistorialPartidas', async function (req, res) {
         const historialProcesado = partidas.map((partida, index) => {
             const oponente = posiblesOponentes.length > 0
                 ? posiblesOponentes[index % posiblesOponentes.length]
-                : { idusuario: 0, nombre: 'Oponente' };
+                : { idusuario: -1, nombre: 'Oponente' };
 
-            const gano = partida.resultado === 'ganada' || partida.resultado === 'victoria' || partida.resultado === 'Ganada' || partida.resultado === 'Victoria';
-
+            const empate = partida.empate === 'true' 
             return {
                 idhistorial: partida.idpartida,
                 fecha: partida.fecha,
@@ -1247,9 +1246,9 @@ app.get('/HistorialPartidas', async function (req, res) {
 app.post('/GuardarPartida', async function (req, res) {
     const { idGanador, puntosGanador, empate } = req.body;
 
-    if (!idGanador || empate === undefined) {
+    if (!idGanador || !Array.isArray(idGanador) || idGanador.length !== 2 || empate === undefined) {
         return res.status(400).json({
-            res: "Faltan parámetros (idusuario, resultado)",
+            res: "Faltan parámetros o formato incorrecto",
             guardado: false
         });
     }
@@ -1257,24 +1256,51 @@ app.post('/GuardarPartida', async function (req, res) {
     try {
         const fechaActual = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-        await realizarQuery(`
-            INSERT INTO Partidas (idusuario, fecha, puntosobtenidos, empate)
-            VALUES (${idGanador}, "${fechaActual}", ${puntosGanador || 0}, "${empate}")
-        `);
+        // Guardar partida para AMBOS jugadores
+        for (let i = 0; i < idGanador.length; i++) {
+            const jugadorId = idGanador[i];
+            
+            // Determinar resultado para este jugador
+            let resultado;
+            let puntos;
+            
+            if (empate === true) {
+                resultado = 'empate';
+                puntos = puntosGanador; // En empate ambos tienen los mismos puntos
+            } else {
+                // idGanador[0] es el ganador, idGanador[1] es el perdedor
+                if (i === 0) {
+                    resultado = 'ganada';
+                    puntos = puntosGanador;
+                } else {
+                    resultado = 'perdida';
+                    puntos = 0; // El perdedor no suma puntos
+                }
+            }
+
+            // Insertar registro en Partidas
+            await realizarQuery(
+                `INSERT INTO Partidas (idusuario, fecha, puntosobtenidos, resultado, empate) 
+                 VALUES (?, ?, ?, ?, ?)`,
+                [jugadorId, fechaActual, puntos, resultado, empate ? 1 : 0]
+            );
+
+            console.log(`✅ Partida guardada para jugador ${jugadorId}: ${resultado}, ${puntos} puntos`);
+        }
 
         res.json({
-            res: "Partida guardada correctamente",
+            res: "Partida guardada correctamente para ambos jugadores",
             guardado: true
         });
+
     } catch (error) {
         console.error("Error al guardar partida:", error);
         res.status(500).json({
-            res: "Error interno",
+            res: "Error interno: " + error.message,
             guardado: false
         });
     }
 });
-
 app.get('/LlevoPalabras', async function (req, res) {
     try {
         let respuesta;
