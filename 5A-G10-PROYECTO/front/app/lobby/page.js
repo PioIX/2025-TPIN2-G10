@@ -11,7 +11,7 @@ export default function Lobby() {
   const router = useRouter();
   const { socket, isConnected } = useSocket();
   const { url } = useConnection();
-  
+
   const [amigos, setAmigos] = useState([]);
   const [nombreUsuario, setNombreUsuario] = useState("");
   const [idLogged, setIdLogged] = useState("");
@@ -33,7 +33,7 @@ export default function Lobby() {
   };
 
   useEffect(() => {
-    
+
     const id = localStorage.getItem("idLogged");
     if (id) {
       setIdLogged(id);
@@ -514,16 +514,16 @@ export default function Lobby() {
           className={styles.buttonYellow}
           onClick={() => router.push("/historial")}
         />
-     
- 
- 
-  {isAdmin && (
-    <Button
-      texto="ADMIN"
-      className={styles.buttonBlue}
-      onClick={() => router.push("/admin")}
-    />
-  )}
+
+
+
+        {isAdmin && (
+          <Button
+            texto="ADMIN"
+            className={styles.buttonPurple}
+            onClick={() => router.push("/admin")}
+          />
+        )}
 
 
         <Button
@@ -543,12 +543,12 @@ export default function Lobby() {
             <Button
               texto="CERRAR"
               onClick={closeModal}
-              className={styles.buttonBlue}
+              className={styles.buttonGreen}
             />
           </div>
         </div>
       )}
     </div>
- 
+
   );
 }
