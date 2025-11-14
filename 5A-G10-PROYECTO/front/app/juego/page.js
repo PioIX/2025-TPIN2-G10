@@ -500,6 +500,17 @@ export default function TuttiFrutti() {
 
         console.log(`Procesando: "${palabraLimpia}" para categoría "${categoria}"`);
 
+        // Validar longitud mínima (3 letras)
+        if (palabraLimpia.length < 3) {
+          resultados[categoria] = {
+            palabra: palabraLimpia,
+            valida: false,
+            mensaje: "Debe tener al menos 3 letras",
+          };
+          console.log(`"${palabraLimpia}" en "${categoria}": ✗ MUY CORTA (menos de 3 letras)`);
+          continue;
+        }
+
         if (primeraLetra === letra.toUpperCase()) {
           const verificacion = await verificarPalabra(palabraLimpia, categoria);
 
