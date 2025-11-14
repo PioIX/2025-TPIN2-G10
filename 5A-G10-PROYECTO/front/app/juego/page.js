@@ -632,45 +632,65 @@ export default function TuttiFrutti() {
     }
   }
 
+  // ===== FRONTEND (page.js) =====
+
   async function guardarEstadisticas() {
     const idLogged = localStorage.getItem("idLogged");
     const mail = localStorage.getItem("mail");
+
     if (!idLogged) return;
+
     let puntosGanador = 0;
     let empate = false;
     let idGanador = [];
 
+    // Calculos de quien ganó
     if (puntos > puntosOponente) {
+      // YO GANÉ - Solo sumo MIS puntos
       puntosGanador = puntos;
-      idGanador.push(idLogged);
+      idGanador = [parseInt(idLogged), parseInt(idOponente)]; // [ganador, perdedor]
+      empate = false;
+
     } else if (puntos < puntosOponente) {
+      // YO PERDÍ - Solo suma el oponente SUS puntos
       puntosGanador = puntosOponente;
-      idGanador.push(idOponente);
+      idGanador = [parseInt(idOponente), parseInt(idLogged)]; // [ganador, perdedor]
+      empate = false;
+
     } else {
-      puntosGanador = puntos;
+      // EMPATE - Ambos suman sus puntos (son iguales)
+      puntosGanador = puntos; // Es lo mismo que puntosOponente
+      idGanador = [parseInt(idLogged), parseInt(idOponente)];
       empate = true;
-      idGanador.push(idLogged);
-      idGanador.push(idOponente);
     }
+
     try {
-      await fetch(`${url}/ActualizarEstadisticas`, {
+      const response = await fetch("http://localhost:4001/ActualizarEstadisticas", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          mail: nombreUsuario,
-          idGanador,
-          empate,
-          puntos: puntosGanador,
+          idGanador, // [idGanador, idPerdedor] o [id1, id2] si empate
+          puntosGanador, // Solo los puntos del ganador (o iguales si empate)
+          empate
         }),
       });
-      showModal("¡Éxito!", "Estadísticas guardadas correctamente");
-      router.push("/ranking");
+
+      const result = await response.json();
+
+      if (result.ok) {
+        showModal("¡Éxito!", "Estadísticas guardadas correctamente");
+        setTimeout(() => {
+          router.push("/ranking");
+        }, 1500);
+      } else {
+        showModal("Error", result.res || "No se pudieron guardar las estadísticas");
+      }
+
     } catch (error) {
       console.error("Error al actualizar estadísticas:", error);
       showModal("Error", "No se pudo conectar con el servidor");
     }
   }
-
   async function chequeo() {
     const resultadosVerificacion = await verificarTodasLasRespuestas(respuestas);
     const palabrasInvalidas = Object.entries(resultadosVerificacion).filter(([_, resultado]) => !resultado.valida && resultado.palabra !== "");
