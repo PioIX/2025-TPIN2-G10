@@ -160,14 +160,16 @@ io.on("connection", (socket) => {
                     const categorias = response || [];
                     const letra = generarLetraAleatoria();
 
-                    // Guardar información de la partida
+                    // Guardar información de la partida con historial
                     partidasActivas.set(room, {
                         categorias,
                         letra,
                         jugadores: [idSolicitante, idReceptor],
                         respuestas: {},
+                        respuestasValidadas: {}, // AGREGAR ESTO
                         iniciada: false,
-                        rondaActual: 1
+                        rondaActual: 1,
+                        historialRondas: [] // AGREGAR ESTO para guardar rondas anteriores
                     });
 
                     console.log(`Juego creado en sala: ${room}`);
@@ -186,7 +188,6 @@ io.on("connection", (socket) => {
             }
         }
     });
-
     socket.on('solicitarNuevaRonda', (data) => {
         const { room, userId } = data;
         console.log(`Usuario ${userId} solicita nueva ronda en sala ${room}`);
@@ -239,16 +240,31 @@ io.on("connection", (socket) => {
         }
 
         try {
-
             const nuevaLetra = generarLetraAleatoria();
+
+            // IMPORTANTE: Guardar el estado de la ronda anterior antes de limpiar
+            if (!partida.historialRondas) {
+                partida.historialRondas = [];
+            }
+
+            // Guardar la ronda anterior
+            partida.historialRondas.push({
+                ronda: partida.rondaActual || 1,
+                letra: partida.letra,
+                respuestasValidadas: { ...partida.respuestasValidadas },
+                categorias: partida.categorias
+            });
+
+            // Actualizar para nueva ronda
             partida.letra = nuevaLetra;
             partida.rondaActual = (partida.rondaActual || 1) + 1;
             partida.respuestas = {};
+            partida.respuestasValidadas = {}; // Limpiar las validadas también
             partida.iniciada = false;
 
             console.log(`Nueva ronda iniciada: ${partida.rondaActual}, letra: ${nuevaLetra}`);
 
-            // Notificar a AMBOS jugadores
+            // Notificar a AMBOS jugadores con el número de ronda correcto
             io.to(room).emit('nuevaRondaIniciada', {
                 letra: nuevaLetra,
                 ronda: partida.rondaActual,
@@ -260,23 +276,6 @@ io.on("connection", (socket) => {
             socket.emit('error', { message: 'Error al iniciar nueva ronda' });
         }
     });
-    socket.on('rechazarNuevaRonda', (data) => {
-        const { room, userId } = data;
-        console.log(`Nueva ronda rechazada en sala ${room}`);
-
-        const idOponente = usuariosConectados.get(idOponente.toString());
-
-        if (idOponente) {
-            //const solicitanteSocket = io.sockets.sockets.get(solicitanteSocketId);
-
-
-            io.to(room).emit('nuevaRondaRechazada', {
-                message: 'Tu oponente rechazó jugar otra ronda'
-            });
-
-        }
-    });
-
 
     socket.on('checkPlayers', (data => {
         const { room } = data;
@@ -363,11 +362,17 @@ io.on("connection", (socket) => {
         }
 
 
-        io.to(room).emit('gameEnded', {
-            userId,
-            message: 'Un jugador dijo BASTA',
-            respuestasOponente: respuestas
+        io.to(room).emit("gameEnded", {
+            letra: partida.letra,
+            categorias: partida.categorias,
+            jugadores: Object.keys(partida.respuestas).map(id => ({
+                id,
+                nombre: partida.jugadores[id]?.nombre, // si tenés nombres
+                respuestas: partida.respuestas[id],   // ⬅ LAS PALABRAS
+                puntos: partida.puntos[id]           // puntos por jugador
+            }))
         });
+
     });
 
     function calcularPuntosMejorado(misRespuestas, respuestasOponente) {
@@ -377,7 +382,7 @@ io.on("connection", (socket) => {
         console.log("mis respuestas", misRespuestas, "respuestas del otro", respuestasOponente);
 
         for (const [categoria, miRespuesta] of Object.entries(misRespuestas)) {
-            console.log(`\n📝 Categoría: ${categoria}`);
+            console.log(`\n🔍 Categoría: ${categoria}`);
             console.log(`   Mi respuesta: ${miRespuesta.palabra} (válida: ${miRespuesta.valida})`);
 
             if (!miRespuesta.valida || !miRespuesta.palabra) {
@@ -423,19 +428,24 @@ io.on("connection", (socket) => {
                 });
                 console.log(`   ✅ +10 puntos - Respuestas diferentes`);
             }
-        }//esto del back en la consola lo tira perfecto, osea hace bien las cosas. asi que habria que ver como mandarlo al front y agarrarlo y q lo imprima y borrar ese useffect 
+        }
 
         console.log(`\n💰 TOTAL: ${puntos} puntos`);
         return { puntos, detalles };
-        //aca hay q poner que actualice estadisticas y guarde partida 
     }
 
     socket.on('enviarRespuestasValidadas', async (data) => {
-        const { room, userId, respuestasValidadas, idOponente } = data;
+        const { room, userId, respuestasValidadas } = data;
         const partida = partidasActivas.get(room);
 
         if (!partida) {
             console.log("❌ Partida no encontrada");
+            return;
+        }
+
+        // IMPORTANTE: NO SUMAR SI YA ENVIÓ
+        if (partida.respuestasValidadas && partida.respuestasValidadas[userId]) {
+            console.log(`⚠️ El jugador ${userId} ya envió sus respuestas, ignorando duplicado`);
             return;
         }
 
@@ -444,10 +454,10 @@ io.on("connection", (socket) => {
         partida.respuestasValidadas[userId] = respuestasValidadas;
 
         console.log(`✅ Respuestas validadas guardadas para jugador ${userId}`);
+        console.log(`📝 Respuestas:`, respuestasValidadas);
 
         // Verificar si ambos jugadores ya enviaron sus respuestas
         const jugadoresConRespuestas = Object.keys(partida.respuestasValidadas).length;
-
         console.log(`📊 Jugadores con respuestas: ${jugadoresConRespuestas}/2`);
 
         if (jugadoresConRespuestas === 2) {
@@ -457,43 +467,41 @@ io.on("connection", (socket) => {
             const respuestas1 = partida.respuestasValidadas[jugador1Id];
             const respuestas2 = partida.respuestasValidadas[jugador2Id];
 
-            // Calcular puntos con el sistema mejorado
+            if (!respuestas1 || !respuestas2) {
+                console.error("❌ ERROR: Faltan respuestas");
+                return;
+            }
+
+            // Calcular puntos
             const resultado1 = calcularPuntosMejorado(respuestas1, respuestas2);
             const resultado2 = calcularPuntosMejorado(respuestas2, respuestas1);
 
-            console.log(`💰 Puntos Jugador 1: ${resultado1.puntos}`);
-            console.log(`💰 Puntos Jugador 2: ${resultado2.puntos}`);
+            console.log(`💰 Puntos Jugador 1 (${jugador1Id}): ${resultado1.puntos}`);
+            console.log(`💰 Puntos Jugador 2 (${jugador2Id}): ${resultado2.puntos}`);
 
-            // Enviar resultados detallados a ambos jugadores
-            const socket1 = io.sockets.sockets.get(usuariosConectados.get(jugador1Id.toString()));
-            const socket2 = io.sockets.sockets.get(usuariosConectados.get(jugador2Id.toString()));
-
-
+            // Enviar a TODA LA SALA
             io.to(room).emit('resultadosRonda', {
-                misPuntos: resultado1.puntos,
-                misRespuestas: respuestas1,
-                respuestasOponente: respuestas2,
-                puntosOponente: resultado2.puntos,
-                detallesPuntos: resultado1.detalles,
-                userId: userId,
-                idOponente: idOponente,
+                jugador1: {
+                    userId: jugador1Id,
+                    puntos: resultado1.puntos,
+                    respuestas: respuestas1,
+                    detalles: resultado1.detalles
+                },
+                jugador2: {
+                    userId: jugador2Id,
+                    puntos: resultado2.puntos,
+                    respuestas: respuestas2,
+                    detalles: resultado2.detalles
+                },
+                ronda: partida.rondaActual || 1,
+                letra: partida.letra
             });
-            console.log("📤 Resultados enviados a Jugador 1");
 
+            console.log("📤 Resultados enviados a toda la sala");
 
-            /*if (socket2) {
-                socket2.emit('resultadosRonda', {
-                    misPuntos: resultado2.puntos,
-                    misRespuestas: respuestas2,
-                    respuestasOponente: respuestas1,
-                    puntosOponente: resultado1.puntos,
-                    detallesPuntos: resultado2.detalles
-                });
-                console.log("📤 Resultados enviados a Jugador 2");
-            }*/
-
-            // Limpiar para la próxima ronda
+            // Limpiar SOLO respuestasValidadas
             partida.respuestasValidadas = {};
+            partidasActivas.set(room, partida);
         }
     });
 

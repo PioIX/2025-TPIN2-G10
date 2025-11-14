@@ -9,6 +9,8 @@ import { useSocket } from "../../hook/useSocket";
 import { useConnection } from "../../hook/useConnection";
 
 export default function TuttiFrutti() {
+  const [rondas, setRondas] = useState([]);
+  const [inputs, setInputs] = useState({});
   const [letra, setLetra] = useState("");
   const [palabras, setPalabras] = useState([]);
   const [categorias, setCategorias] = useState([]);
@@ -17,6 +19,7 @@ export default function TuttiFrutti() {
   const [juegoActivo, setJuegoActivo] = useState(false);
   const [puntos, setPuntos] = useState(0);
   const [puntosRonda, setPuntosRonda] = useState(0);
+  const [historialRondas, setHistorialRondas] = useState([]);
   const [nombreUsuario, setNombreUsuario] = useState("");
   const [modal, setModal] = useState({ open: false, title: "", message: "" });
   const [room, setRoom] = useState("");
@@ -25,13 +28,12 @@ export default function TuttiFrutti() {
   const [estoyUnido, setEstoyUnido] = useState(false);
   const [nuevaRonda, setNuevaRonda] = useState(false);
   const [puntosOponente, setPuntosOponente] = useState(0);
-  const [historialRondas, setHistorialRondas] = useState([]);
-  const [rondaActual, setRondaActual] = useState(40);
+  const [rondaActual, setRondaActual] = useState(1);
   const [esperandoNuevaRonda, setEsperandoNuevaRonda] = useState(false);
-  const [respuestasOponente, setRespuestasOponente] = useState([]);
+  const [respuestasOponente, setRespuestasOponente] = useState(null);
   const [solicitudPendiente, setSolicitudPendiente] = useState(null);
   const [respuestasValidadas, setRespuestasValidadas] = useState({});
-  const [idOponente, setIdOponente] = useState(null)
+  const [idOponente, setIdOponente] = useState(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { socket, isConnected } = useSocket();
@@ -41,6 +43,7 @@ export default function TuttiFrutti() {
     setModal({ open: true, title, message });
   };
 
+
   const closeModal = () => {
     setModal((prev) => ({ ...prev, open: false }));
   };
@@ -48,9 +51,9 @@ export default function TuttiFrutti() {
   useEffect(() => {
     cargarNombreUsuario();
 
-    const roomParam = searchParams.get('room');
-    const categoriasParam = searchParams.get('categorias');
-    const letraParam = searchParams.get('letra');
+    const roomParam = searchParams.get("room");
+    const categoriasParam = searchParams.get("categorias");
+    const letraParam = searchParams.get("letra");
 
     if (roomParam) {
       setRoom(roomParam);
@@ -82,13 +85,13 @@ export default function TuttiFrutti() {
     console.log("Uniéndose a la sala:", room);
     const idLogged = localStorage.getItem("idLogged");
 
-    socket.emit('joinRoom', {
+    socket.emit("joinRoom", {
       room,
       userId: idLogged,
-      username: nombreUsuario
+      username: nombreUsuario,
     });
 
-    socket.on('timerStarted', (data) => {
+    socket.on("timerStarted", (data) => {
       console.log("Timer iniciado:", data);
       setJuegoActivo(true);
       setJuegoIniciado(true);
@@ -99,79 +102,149 @@ export default function TuttiFrutti() {
       }
     });
 
-    socket.on('timerUpdate', (data) => {
+    socket.on("timerUpdate", (data) => {
       console.log("Timer actualizado:", data.timeRemaining);
       setTiempoRestante(data.timeRemaining);
     });
 
-    socket.on('gameEnded', (data) => {
+    socket.on("gameEnded", (data) => {
       console.log("Juego terminado:", data);
+
       setJuegoActivo(false);
+
+      // 🔥 GUARDAR RESPUESTAS DE ESTA RONDA ANTES DE QUE SE PIERDAN
+      function guardarRondaEnHistorial(snapshot) {
+        if (!snapshot) return;
+
+        const numero = snapshot.numero;
+        const letraSnapshot = snapshot.letra || "-";
+        const puntosSnapshot = snapshot.puntos || 0;
+
+        // Normalizar respuestas para que NUNCA falte una categoría
+        let respuestasFinales = {};
+
+        categorias.forEach(cat => {
+          const nombreCat = cat.nombre || cat;
+          const respuesta = snapshot.respuestas?.[nombreCat];
+
+          if (!respuesta) {
+            // Si no respondió nada → guion y valida=false
+            respuestasFinales[nombreCat] = {
+              palabra: "-",
+              valida: false
+            };
+          } else {
+            // Copiamos la existente
+            respuestasFinales[nombreCat] = {
+              palabra: respuesta.palabra || "-",
+              valida: !!respuesta.valida
+            };
+          }
+        });
+
+        setHistorialRondas(prev => {
+          // Evitar duplicados por número
+          const existe = prev.some(r => r.numero === numero);
+          if (existe) {
+            console.log("⛔ Ronda ya guardada, no la duplico:", numero);
+            return prev;
+          }
+
+          const nueva = {
+            id: `ronda-${numero}-${letraSnapshot}`,
+            numero,
+            letra: letraSnapshot,
+            respuestas: respuestasFinales,
+            puntos: puntosSnapshot
+          };
+
+          console.log("✅ Ronda guardada:", nueva);
+          return [...prev, nueva];
+        });
+      }
+
       if (data.respuestas) {
         setRespuestasOponente(data.respuestas);
-        showModal("¡BASTA!", data.message || "Un jugador dijo BASTA. Obtuviste " + puntosRonda + " puntos.");
-      } else {
-
-        showModal("¡BASTA!", data.message || "Un jugador dijo BASTA.");
       }
+
+      showModal("¡BASTA!", data.message || "Un jugador dijo BASTA.");
     });
-    socket.on('respuestasFinalesOponente', (data) => {
+
+    socket.on("respuestasFinalesOponente", (data) => {
       console.log("Respuestas finales del oponente:", data);
       setRespuestasOponente(data.respuestas);
-      if (data.id != idLogged) {//si el id de la data es desigual a mi id se pone como respuestaoponente la data del iddesigual al mio
-        setRespuestasOponente(data.respuestas);
-        console.log("¡Ronda Finalizada!", `Obtuviste ${puntosRonda} puntos.`)
+      const idLogged = localStorage.getItem("idLogged");
+      if (data.id != idLogged) {
+        console.log("¡Ronda Finalizada!", `Obtuviste ${puntosRonda} puntos.`);
         showModal("¡Ronda Finalizada!", `Obtuviste ${puntosRonda} puntos.`);
       }
-
     });
 
-    socket.on('solicitudNuevaRonda', (data) => {
-      console.log(data.idSolicitante)
+    socket.on("solicitudNuevaRonda", (data) => {
+      const idLogged = localStorage.getItem("idLogged");
       if (data.idSolicitante != idLogged) {
         console.log("Solicitud de nueva ronda recibida:", data);
         setSolicitudPendiente({
           idSolicitante: parseInt(idLogged),
           nombreSolicitante: nombreUsuario,
-          room: data.room
+          room: data.room,
         });
       }
     });
 
-    socket.on('solicitudEnviada', (data) => {
+    socket.on("solicitudEnviada", (data) => {
+      const idLogged = localStorage.getItem("idLogged");
       if (data.userId == idLogged) {
         showModal("Solicitud enviada", data.message);
       }
     });
 
-    socket.on('nuevaRondaRechazada', (data) => {
+    socket.on("nuevaRondaRechazada", (data) => {
       console.log("Nueva ronda rechazada:", data);
       setEsperandoNuevaRonda(false);
       showModal("Ronda rechazada", data.message);
     });
 
-    socket.on('nuevaRondaIniciada', (data) => {
+    socket.on("nuevaRondaIniciada", (data) => {
       console.log("Nueva ronda iniciada:", data);
+
       closeModal();
+
+      // NO GUARDAMOS LA RONDA ACÁ — ya se guarda en resultadosRonda
+
       setLetra(data.letra);
       setRondaActual(data.ronda);
-      setRespuestas({});
+
+      // 🔥 RESETEAMOS SOLO LOS INPUTS DE LA RONDA ACTUAL
+      // SIN borrar rondas anteriores del historial
+      const respuestasVacias = {};
+      categorias.forEach(cat => {
+        const nombre = cat.nombre || cat;
+        respuestasVacias[nombre] = "";
+      });
+      setRespuestas(respuestasVacias);
+
+      // 🔥 Limpiamos SOLO lo temporal, no el historial
       setRespuestasOponente(null);
+      setRespuestasValidadas({});
+      setPuntosRonda(0);
+
       setTiempoRestante(40);
       setEsperandoNuevaRonda(false);
       setJuegoActivo(true);
 
-
+      // 🔥 REINICIAMOS EL TIMER
       setTimeout(() => {
-        socket.emit('startGameTimer', { room });
+        socket.emit("startGameTimer", { room });
       }, 300);
     });
 
-    socket.on('esperandoOtroJugador', (data) => {
+    socket.on("esperandoOtroJugador", (data) => {
       console.log(data.mensaje);
       setEsperandoNuevaRonda(true);
     });
-    socket.on('playerJoined', (data) => {
+
+    socket.on("playerJoined", (data) => {
       console.log("Jugador unido:", data);
       if (data.playersCount >= 2) {
         setEsperandoOtroJugador(false);
@@ -179,87 +252,128 @@ export default function TuttiFrutti() {
       }
     });
 
-    socket.on('contarJugadores', (data) => {
-      console.log("Contar jugadores:", data)
+    socket.on("contarJugadores", (data) => {
+      console.log("Contar jugadores:", data);
+      const idLogged = localStorage.getItem("idLogged");
       if (data.userId !== idLogged) {
         setEsperandoOtroJugador(false);
         setEstoyUnido(true);
-        socket.emit('startGameTimer', { room });
+        socket.emit("startGameTimer", { room });
       }
-      ;
     });
 
-    socket.on('error', (error) => {
+    socket.on("error", (error) => {
       console.error("Error del socket:", error);
       showModal("Error", error.message || "Ocurrió un error en la conexión");
     });
 
-    socket.emit('checkPlayers', { room: room, userId: idLogged });
+    socket.emit("checkPlayers", { room: room, userId: idLogged });
 
     return () => {
-      socket.off('timerStarted');
-      socket.off('timerUpdate');
-      socket.off('gameEnded');
-      socket.off('playerJoined');
-      socket.off('error');
-      socket.off('solicitudNuevaRonda');
-      socket.off('solicitudEnviada');
-      socket.off('nuevaRondaRechazada');
-      socket.off('nuevaRondaIniciada');
-      socket.off('esperandoOtroJugador');
-      socket.off('respuestasFinalesOponente');
+      socket.off("timerStarted");
+      socket.off("timerUpdate");
+      socket.off("gameEnded");
+      socket.off("playerJoined");
+      socket.off("error");
+      socket.off("solicitudNuevaRonda");
+      socket.off("solicitudEnviada");
+      socket.off("nuevaRondaRechazada");
+      socket.off("nuevaRondaIniciada");
+      socket.off("esperandoOtroJugador");
+      socket.off("respuestasFinalesOponente");
     };
-  }, [socket, room, isConnected, nombreUsuario]);
+  }, [socket, room, isConnected, nombreUsuario, respuestas, rondaActual, letra, puntosRonda]);
 
   useEffect(() => {
     if (!socket || !isConnected) return;
 
-    socket.on('resultadosRonda', (data) => {
-      console.log("Resultados de la ronda:", data);
-      const { misPuntos, misRespuestas, respuestasOponente, puntosOponente, detallesPuntos, userId } = data;
-      const idLogged = localStorage.getItem("idLogged");
-      if (userId == idLogged) {
+    socket.on("resultadosRonda", (data) => {
+      console.log("📥 Resultados de la ronda recibidos:", data);
 
-        setPuntos(prev => prev + misPuntos);
-        setPuntosOponente(prev => prev + puntosOponente)
-        setPuntosRonda(misPuntos);
-        setRespuestasOponente(respuestasOponente);
-        guardarRondaEnHistorial(misPuntos, detallesPuntos);
-        mostrarResultadosDetallados(misRespuestas, respuestasOponente, misPuntos, puntosOponente, detallesPuntos);
+      const { jugador1, jugador2, ronda, letra: letraRonda } = data;
+      const idLogged = parseInt(localStorage.getItem("idLogged"), 10);
 
-        setJuegoActivo(false);
+      console.log(`🔍 Mi ID: ${idLogged}`);
+      console.log(`🔍 Jugador 1 ID: ${jugador1.userId}, Puntos: ${jugador1.puntos}`);
+      console.log(`🔍 Jugador 2 ID: ${jugador2.userId}, Puntos: ${jugador2.puntos}`);
+
+      // Determinar quién soy yo y quién es el oponente
+      let misDatos, datosOponente;
+
+      if (jugador1.userId === idLogged) {
+        misDatos = jugador1;
+        datosOponente = jugador2;
+      } else {
+        misDatos = jugador2;
+        datosOponente = jugador1;
       }
-      else {
-        setPuntos(prev => prev + puntosOponente);
-        setPuntosRonda(puntosOponente);
-        setPuntosOponente(prev => prev + misPuntos)
-        console.log("puntos: ", puntosOponente);
-        setRespuestasOponente(misRespuestas);
-        guardarRondaEnHistorial(puntosOponente, detallesPuntos);
-        mostrarResultadosDetallados(respuestasOponente, misRespuestas, puntosOponente, misPuntos, detallesPuntos);
 
-        setJuegoActivo(false);
-      }
+      console.log(`✅ Mis puntos de ESTA ronda: ${misDatos.puntos}`);
+      console.log(`✅ Mis respuestas:`, misDatos.respuestas);
+
+      // Guardar en historial con las respuestas VALIDADAS
+      guardarRondaEnHistorial({
+        numero: ronda,
+        letra: letraRonda,
+        respuestas: { ...misDatos.respuestas }, // Esto contiene objetos con {palabra, valida, etc}
+        puntos: misDatos.puntos, // PUNTOS DE ESTA RONDA SOLAMENTE
+      });
+
+      // Actualizar puntos totales ACUMULADOS
+      setPuntos((prev) => {
+        const nuevoTotal = prev + misDatos.puntos;
+        console.log(`💰 Puntos totales acumulados: ${prev} + ${misDatos.puntos} = ${nuevoTotal}`);
+        return nuevoTotal;
+      });
+
+      setPuntosOponente((prev) => prev + datosOponente.puntos);
+      setPuntosRonda(misDatos.puntos);
+      setIdOponente(datosOponente.userId);
+      setRespuestasOponente(datosOponente.respuestas);
+
+      mostrarResultadosDetallados(
+        misDatos.respuestas,
+        datosOponente.respuestas,
+        misDatos.puntos,
+        datosOponente.puntos
+      );
+
+      setJuegoActivo(false);
     });
 
-
+    return () => {
+      socket.off("resultadosRonda");
+    };
   }, [socket, isConnected]);
 
+  function guardarRondaEnHistorial(snapshot) {
+    if (!snapshot) return;
 
-  function guardarRondaEnHistorial(puntosRonda) {
-    setHistorialRondas(prev => {
+    const numero = snapshot.numero ?? (historialRondas.length + 1);
+    const letraSnapshot = snapshot.letra ?? letra ?? "-";
+    const respuestasSnapshot = snapshot.respuestas ? { ...snapshot.respuestas } : {};
+    const puntosSnapshot = snapshot.puntos ?? 0;
 
-      const yaExiste = prev.some(r => r.numero === rondaActual);
-      if (yaExiste) {
+    setHistorialRondas((prev) => {
+      // Prevenir duplicados por NÚMERO DE RONDA y LETRA
+      const existe = prev.some((r) => r.numero === numero && r.letra === letraSnapshot);
+
+      if (existe) {
+        console.log("⚠️ Ronda duplicada (número + letra), no se agrega:", numero, letraSnapshot);
         return prev;
       }
 
-      return [...prev, {
-        numero: rondaActual,
-        letra: letra,
-        respuestas: { ...respuestas },
-        puntos: puntosRonda
-      }];
+      const nueva = {
+        id: `ronda-${numero}-${letraSnapshot}`,
+        numero,
+        letra: letraSnapshot,
+        respuestas: respuestasSnapshot,
+        puntos: puntosSnapshot,
+      };
+
+      console.log("✅ Guardando ronda en historial:", nueva);
+      console.log("📝 Respuestas guardadas:", respuestasSnapshot);
+      return [...prev, nueva];
     });
   }
 
@@ -268,8 +382,7 @@ export default function TuttiFrutti() {
       console.log("Solicitando inicio de juego");
       setEsperandoOtroJugador(false);
       setEstoyUnido(true);
-      socket.emit('startGameTimer', { room });
-
+      socket.emit("startGameTimer", { room });
     }
   }, [categorias, letra, socket, room, isConnected, juegoIniciado, rondaActual]);
 
@@ -293,43 +406,32 @@ export default function TuttiFrutti() {
     };
   }, [juegoActivo, tiempoRestante]);
 
-
-
   function mostrarResultadosDetallados(misRespuestas, respuestasOponente, misPuntos, puntosOponente) {
     let detalles = `Tus puntos: ${misPuntos}\nPuntos del oponente: ${puntosOponente}\n\n`;
 
-    categorias.forEach(cat => {
+    categorias.forEach((cat) => {
       const nombreCat = cat.nombre || cat;
-      const miResp = misRespuestas[nombreCat];
-      const respOpo = respuestasOponente[nombreCat];
+      const miResp = misRespuestas?.[nombreCat];
+      const respOpo = respuestasOponente?.[nombreCat];
 
       detalles += `${nombreCat}:\n`;
-      detalles += `  Tú: ${miResp?.palabra || "vacío"} ${miResp?.valida ? "✓" : "✗"}`;
+      detalles += `  Tú: ${miResp?.palabra || miResp?.palabra === "" ? (miResp?.palabra || "vacío") : "vacío"} ${miResp?.valida ? "✓" : "✗"}`;
 
-      // Mostrar si fue validada por RAE
-      if (miResp?.fuente === 'rae') {
-        detalles += ` (RAE)`;
-      }
-
+      if (miResp?.fuente === "rae") detalles += ` (RAE)`;
       detalles += `\n`;
       detalles += `  Oponente: ${respOpo?.palabra || "vacío"} ${respOpo?.valida ? "✓" : "✗"}`;
-
-      if (respOpo?.fuente === 'rae') {
-        detalles += ` (RAE)`;
-      }
-
+      if (respOpo?.fuente === "rae") detalles += ` (RAE)`;
       detalles += `\n\n`;
     });
 
-    // Opcional: mostrar mensaje si se usó RAE
-    const usaronRAE = Object.values(misRespuestas).some(r => r?.fuente === 'rae') ||
-      Object.values(respuestasOponente).some(r => r?.fuente === 'rae');
+    const usaronRAE =
+      Object.values(misRespuestas || {}).some((r) => r?.fuente === "rae") ||
+      Object.values(respuestasOponente || {}).some((r) => r?.fuente === "rae");
 
-    if (usaronRAE) {
-      detalles += `\n(RAE) = Validada por el Diccionario de la RAE`;
-    }
+    if (usaronRAE) detalles += `\n(RAE) = Validada por el Diccionario de la RAE`;
+
+    console.log(detalles);
   }
-
 
   async function cargarNombreUsuario() {
     const idLogged = localStorage.getItem("idLogged");
@@ -346,9 +448,7 @@ export default function TuttiFrutti() {
 
       const result = await response.json();
       if (result.jugadores && result.jugadores.length > 0) {
-        const jugadorActual = result.jugadores.find(
-          (j) => j.idusuario == idLogged
-        );
+        const jugadorActual = result.jugadores.find((j) => j.idusuario == idLogged);
         if (jugadorActual) {
           setNombreUsuario(jugadorActual.nombre);
         }
@@ -357,10 +457,6 @@ export default function TuttiFrutti() {
       console.error("Error al obtener nombre:", error);
     }
   }
-
-  // Agregar esta función en page.js
-
-  // En page.js - REEMPLAZA la función verificarPalabra
 
   async function verificarPalabra(palabra, categoria) {
     try {
@@ -380,11 +476,10 @@ export default function TuttiFrutti() {
       const data = await response.json();
       console.log("Respuesta de verificación:", data);
 
-      // Agregar la fuente al resultado
       return {
         existe: data.existe,
         mensaje: data.mensaje,
-        fuente: data.fuente // 'base_datos', 'rae', o 'ninguna'
+        fuente: data.fuente,
       };
     } catch (error) {
       console.error("Error al verificar palabra:", error);
@@ -392,17 +487,13 @@ export default function TuttiFrutti() {
     }
   }
 
-
-  // Función para verificar todas las respuestas del jugador
-  // En page.js - REEMPLAZA verificarTodasLasRespuestas
-
-  async function verificarTodasLasRespuestas(respuestas) {
+  async function verificarTodasLasRespuestas(respuestasObj) {
     const resultados = {};
 
-    console.log("Respuestas a verificar:", respuestas);
+    console.log("Respuestas a verificar:", respuestasObj);
     console.log("Letra actual:", letra);
 
-    for (const [categoria, palabra] of Object.entries(respuestas)) {
+    for (const [categoria, palabra] of Object.entries(respuestasObj || {})) {
       if (palabra && palabra.trim() !== "") {
         const palabraLimpia = palabra.trim();
         const primeraLetra = palabraLimpia[0].toUpperCase();
@@ -415,7 +506,8 @@ export default function TuttiFrutti() {
           resultados[categoria] = {
             palabra: palabraLimpia,
             valida: verificacion.existe,
-            mensaje: verificacion.mensaje || (verificacion.existe ? "Válida" : "No existe")
+            mensaje: verificacion.mensaje || (verificacion.existe ? "Válida" : "No existe"),
+            fuente: verificacion.fuente,
           };
 
           console.log(`"${palabraLimpia}" en "${categoria}": ${verificacion.existe ? "✓ VÁLIDA" : "✗ NO VÁLIDA"} - ${verificacion.mensaje}`);
@@ -423,35 +515,36 @@ export default function TuttiFrutti() {
           resultados[categoria] = {
             palabra: palabraLimpia,
             valida: false,
-            mensaje: `No empieza con ${letra.toUpperCase()}`
+            mensaje: `No empieza con ${letra.toUpperCase()}`,
           };
         }
       } else {
         resultados[categoria] = {
           palabra: "",
           valida: false,
-          mensaje: "Campo vacío"
+          mensaje: "Campo vacío",
         };
       }
     }
 
-    console.log("Resultados finales de verificación:", resultados);//acallega 
+    console.log("Resultados finales de verificación:", resultados);
     return resultados;
   }
 
-
   function handleInputChange(categoria, valor) {
-    let valorMayus = valor.toUpperCase()
-    console.log(`Input cambiado - Categoría: ${categoria}, Valor: ${valorMayus}`);
-    setRespuestas((prev) => ({
+    const valorMayus = valor.toUpperCase();
+
+    setRespuestas(prev => ({
       ...prev,
-      [categoria]: valorMayus,
+      [categoria]: valorMayus
     }));
 
-    // Enviar respuesta al servidor
+    // NO BORRA NADA, NO REEMPLAZA RONDAS ANTERIORES
+    // SOLO ENVÍA LA RESPUESTA ACTUAL
     if (socket && room && isConnected) {
       const idLogged = localStorage.getItem("idLogged");
-      socket.emit('sendAnswer', {
+
+      socket.emit("sendAnswer", {
         room,
         userId: idLogged,
         categoria,
@@ -460,32 +553,26 @@ export default function TuttiFrutti() {
     }
   }
 
+
   async function finalizarRonda() {
     setJuegoActivo(false);
 
-    // Verificar todas las respuestas
-    console.log("respuestas TODAS LAS RESPUESTAS: ", respuestas);
     const resultadosVerificacion = await verificarTodasLasRespuestas(respuestas);
     console.log("✅ Respuestas verificadas:", resultadosVerificacion);
     setRespuestasValidadas(resultadosVerificacion);
 
     if (socket && room && isConnected) {
-      const idLogged = localStorage.getItem("idLogged");
+      const idLogged = parseInt(localStorage.getItem("idLogged"), 10);
 
-      // Enviar respuestas VALIDADAS al servidor
-      socket.emit('enviarRespuestasValidadas', {
+      socket.emit("enviarRespuestasValidadas", {
         room,
-        userId: parseInt(idLogged),
-        respuestasValidadas: resultadosVerificacion
+        userId: idLogged,
+        respuestasValidadas: resultadosVerificacion,
       });
 
       showModal("Procesando...", "Verificando palabras y calculando puntos...");
     }
   }
-
-
-
-
 
   async function finalizarRondaPorTiempo() {
     if (!juegoActivo) return;
@@ -493,56 +580,31 @@ export default function TuttiFrutti() {
     console.log("⏰ Tiempo terminado - Finalizando ronda...");
     setJuegoActivo(false);
 
-    // IMPORTANTE: Primero verificar todas las respuestas
     const resultadosVerificacion = await verificarTodasLasRespuestas(respuestas);
-
     console.log("✅ Respuestas verificadas:", resultadosVerificacion);
 
     setRespuestasValidadas(resultadosVerificacion);
     if (socket && room && isConnected) {
-      const idLogged = localStorage.getItem("idLogged");
+      const idLogged = parseInt(localStorage.getItem("idLogged"), 10);
 
-      // Enviar respuestas VALIDADAS (no las normales)
-      socket.emit('enviarRespuestasValidadas', {
+      socket.emit("enviarRespuestasValidadas", {
         room,
-        userId: parseInt(idLogged),
-        respuestasValidadas: resultadosVerificacion
+        userId: idLogged,
+        respuestasValidadas: resultadosVerificacion,
       });
 
       console.log("📤 Respuestas validadas enviadas al servidor");
 
-      showModal(
-        "⏰ ¡TIEMPO TERMINADO!",
-        "Verificando palabras y calculando puntos..."
-      );
+      showModal("⏰ ¡TIEMPO TERMINADO!", "Verificando palabras y calculando puntos...");
     }
   }
-  //hay que hacer esto y la verificacion de puntos y letra
-  function ListaPalabras() {
-    const verificarPalabra = async (palabra, categoria) => {
-      try {
-        const res = await fetch(`${url}/VerificarPalabra?palabra=${palabra}&categoria=${categoria}`);
-        const data = await res.json();
-
-        if (data.existe) {
-          console.log("La palabra existe:", data.palabra);
-        } else {
-          console.log("La palabra NO existe");
-        }
-      } catch (error) {
-        console.error("Error al verificar palabra:", error);
-      }
-    };
-  };
-
-
 
   function aceptarSolicitud() {
     if (!solicitudPendiente) return;
 
-    socket.emit('acceptNuevaRonda', {
+    socket.emit("acceptNuevaRonda", {
       room: solicitudPendiente.room,
-      userId: parseInt(localStorage.getItem("idLogged"))
+      userId: parseInt(localStorage.getItem("idLogged"), 10),
     });
 
     setSolicitudPendiente(null);
@@ -551,29 +613,26 @@ export default function TuttiFrutti() {
   function rechazarSolicitud() {
     if (!solicitudPendiente) return;
 
-    socket.emit('rechazarNuevaRonda', {
+    socket.emit("rechazarNuevaRonda", {
       room: solicitudPendiente.room,
-      idSolicitante: parseInt(solicitudPendiente.idSolicitante)
+      idSolicitante: parseInt(solicitudPendiente.idSolicitante, 10),
     });
 
     setSolicitudPendiente(null);
   }
 
-
   function solicitarNuevaRonda() {
     if (socket && room && isConnected) {
       const idLogged = localStorage.getItem("idLogged");
-      console.log("Nueva ronda")
+      console.log("Nueva ronda");
       setJuegoActivo(false);
       setEsperandoNuevaRonda(true);
 
-      socket.emit('solicitarNuevaRonda', { room: room, userId: parseInt(idLogged) });
-
+      socket.emit("solicitarNuevaRonda", { room: room, userId: parseInt(idLogged, 10) });
     }
   }
 
-
-  /*async function guardarEstadisticas() {
+  async function guardarEstadisticas() {
     const idLogged = localStorage.getItem("idLogged");
     const mail = localStorage.getItem("mail");
     if (!idLogged) return;
@@ -581,176 +640,50 @@ export default function TuttiFrutti() {
     let empate = false;
     let idGanador = [];
 
-    // calculos de quien gano ya quien le sumo
     if (puntos > puntosOponente) {
       puntosGanador = puntos;
-      idGanador.push(idLogged)
-
+      idGanador.push(idLogged);
     } else if (puntos < puntosOponente) {
       puntosGanador = puntosOponente;
-      idGanador.push(idOponente)
-
+      idGanador.push(idOponente);
     } else {
-      puntosGanador = puntos
-      empate = true//hay q cambiar esto en la tablita
-      idGanador.push(idLogged)
-      idGanador.push(idOponente)
-
+      puntosGanador = puntos;
+      empate = true;
+      idGanador.push(idLogged);
+      idGanador.push(idOponente);
     }
     try {
       await fetch(`${url}/ActualizarEstadisticas`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          mail: nombreUsuario, 
+          mail: nombreUsuario,
           idGanador,
           empate,
           puntos: puntosGanador,
         }),
       });
       showModal("¡Éxito!", "Estadísticas guardadas correctamente");
-      router.push("/ranking")
-      setEsperandoOtroJugador(false)
-    } catch (error) {
-      console.error("Error al actualizar ESTADISTICAS:", error);
-    }
-    try {
-      await fetch("http://localhost:4001/GuardarPartida", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          idGanador,
-          empate,
-          puntos: puntosGanador,
-        }),
-      });
-      
-    } catch (error) {
-      console.error("Error al guardar partida:", error);
-    }
-  }*/
-
-
-  async function guardarEstadisticas() {
-    const idLogged = localStorage.getItem("idLogged");
-    const mail = localStorage.getItem("mail");
-
-    if (!idLogged) return;
-
-    let puntosGanador = 0;
-    let empate = false;
-    let idGanador = [];
-
-    // Calculos de quien ganó
-    if (puntos > puntosOponente) {
-      // YO GANÉ - Solo sumo MIS puntos
-      puntosGanador = puntos;
-      idGanador = [parseInt(idLogged), parseInt(idOponente)]; // [ganador, perdedor]
-      empate = false;
-
-    } else if (puntos < puntosOponente) {
-      // YO PERDÍ - Solo suma el oponente SUS puntos
-      puntosGanador = puntosOponente;
-      idGanador = [parseInt(idOponente), parseInt(idLogged)]; // [ganador, perdedor]
-      empate = false;
-
-    } else {
-      // EMPATE - Ambos suman sus puntos (son iguales)
-      puntosGanador = puntos; // Es lo mismo que puntosOponente
-      idGanador = [parseInt(idLogged), parseInt(idOponente)];
-      empate = true;
-    }
-
-    try {
-      const response = await fetch("http://localhost:4001/ActualizarEstadisticas", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          idGanador, // [idGanador, idPerdedor] o [id1, id2] si empate
-          puntosGanador, // Solo los puntos del ganador (o iguales si empate)
-          empate
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.ok) {
-        showModal("¡Éxito!", "Estadísticas guardadas correctamente");
-        setTimeout(() => {
-          router.push("/ranking");
-        }, 1500);
-      } else {
-        showModal("Error", result.res || "No se pudieron guardar las estadísticas");
-      }
-
+      router.push("/ranking");
     } catch (error) {
       console.error("Error al actualizar estadísticas:", error);
       showModal("Error", "No se pudo conectar con el servidor");
     }
   }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  /*function guardarRondaEnHistorial(puntosRonda, detallesPuntos) {
-    console.log("💾 Guardando ronda en historial:", { rondaActual, puntosRonda });
-
-    setHistorialRondas(prev => {
-      const yaExiste = prev.some(r => r.numero === rondaActual);
-      if (yaExiste) {
-        console.log("⚠️ Ronda ya existe en historial");
-        return prev;
-      }
-
-      const nuevaRonda = {
-        numero: rondaActual,
-        letra: letra,
-        respuestas: { ...respuestas },
-        puntos: puntosRonda
-      };
-
-      console.log("✅ Nueva ronda guardada:", nuevaRonda);
-      return [...prev, nuevaRonda];
-
-    });
-  }
-*/
   async function chequeo() {
     const resultadosVerificacion = await verificarTodasLasRespuestas(respuestas);
-    const palabrasInvalidas = Object.entries(resultadosVerificacion)
-      .filter(([_, resultado]) => !resultado.valida && resultado.palabra !== "");
-    const camposVacios = Object.entries(resultadosVerificacion)
-      .filter(([_, resultado]) => resultado.palabra === "");
+    const palabrasInvalidas = Object.entries(resultadosVerificacion).filter(([_, resultado]) => !resultado.valida && resultado.palabra !== "");
+    const camposVacios = Object.entries(resultadosVerificacion).filter(([_, resultado]) => resultado.palabra === "");
 
     if (camposVacios.length > 0) {
-      showModal(
-        "¡Campos incompletos!",
-        `Debes completar todas las categorías antes de decir BASTA`
-      );
+      showModal("¡Campos incompletos!", `Debes completar todas las categorías antes de decir BASTA`);
       return;
     }
 
     if (palabrasInvalidas.length > 0) {
-      const mensajesError = palabrasInvalidas
-        .map(([cat, res]) => `${cat}: ${res.mensaje}`)
-        .join("\n");
-
-      showModal(
-        "¡Palabras inválidas!",
-        `Las siguientes respuestas no son válidas:\n${mensajesError}`
-      );
+      const mensajesError = palabrasInvalidas.map(([cat, res]) => `${cat}: ${res.mensaje}`).join("\n");
+      showModal("¡Palabras inválidas!", `Las siguientes respuestas no son válidas:\n${mensajesError}`);
       return;
     }
     finalizarRonda(resultadosVerificacion);
@@ -759,22 +692,14 @@ export default function TuttiFrutti() {
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   return (
     <div className={styles.gameContainer}>
-      {!isConnected && (
-        <div className={styles.connectionWarning}>
-          Conectando al servidor.
-        </div>
-      )}
+      {!isConnected && <div className={styles.connectionWarning}>Conectando al servidor...</div>}
 
-      {esperandoOtroJugador && isConnected && (
-        <div className={styles.waitingMessage}>
-          Esperando al otro jugador
-        </div>
-      )}
+      {esperandoOtroJugador && isConnected && <div className={styles.waitingMessage}>Esperando al otro jugador...</div>}
 
       <div className={styles.topButtons}>
         <Button
@@ -785,25 +710,11 @@ export default function TuttiFrutti() {
             router.push("/registroYlogin");
           }}
         />
-        <Button
-          texto="VOLVER"
-          className={styles.buttonBlue}
-          onClick={() => {
-            router.push("/lobby");
-          }}
-        />
-        <Button
-          texto="TERMINAR PARTIDA"
-          className={styles.buttonVioleta}
-          onClick={() => {
-            guardarEstadisticas();
-          }}
-        />
+        <Button texto="VOLVER" className={styles.buttonBlue} onClick={() => router.push("/lobby")} />
+        <Button texto="TERMINAR PARTIDA" className={styles.buttonVioleta} onClick={() => guardarEstadisticas()} />
         <div className={styles.timerContainer}>
           <span className={styles.hourglassIcon}>⏳</span>
-          <span className={`${styles.timerText} ${tiempoRestante <= 30 ? styles.timerWarning : ''}`}>
-            {formatTime(tiempoRestante)}
-          </span>
+          <span className={`${styles.timerText} ${tiempoRestante <= 30 ? styles.timerWarning : ""}`}>{formatTime(tiempoRestante)}</span>
         </div>
       </div>
 
@@ -821,55 +732,68 @@ export default function TuttiFrutti() {
             </tr>
           </thead>
           <tbody>
-            {historialRondas.map((ronda, indexRonda) => (
-              <tr key={`ronda-${indexRonda}`} className={styles.historialRow}>
+            {/* HISTORIAL DE RONDAS ANTERIORES */}
+            {/* HISTORIAL DE RONDAS ANTERIORES (EXCEL) */}
+            {historialRondas.map((ronda) => (
+              <tr key={ronda.id} className={styles.historialRow}>
+
+                {/* LETRA DE LA RONDA */}
                 <td className={styles.letraCell}>{ronda.letra}</td>
-                {categorias.map((categoria, indexCat) => {
-                  const nombreCategoria = categoria.nombre || categoria;
+
+                {/* UNA CELDA POR CADA CATEGORÍA, SIEMPRE EN EL MISMO ORDEN */}
+                {categorias.map((cat) => {
+                  const nombreCat = cat.nombre || cat;
+                  const dato = ronda.respuestas[nombreCat];
+
+                  const palabra = dato?.palabra ?? "-";
+                  const esValida = dato?.valida ?? false;
+
                   return (
-                    <td key={indexCat} className={styles.respuestaCell}>
-                      {ronda.respuestas[nombreCategoria] || "-"}
+                    <td key={nombreCat} className={styles.respuestaCell}>
+                      <span className={esValida ? styles.palabraValida : styles.palabraInvalida}>
+                        {palabra}
+                      </span>
                     </td>
                   );
                 })}
+
+                {/* PUNTOS DE ESA RONDA */}
                 <td className={styles.puntosCell}>{ronda.puntos}</td>
               </tr>
             ))}
+            {/* RONDA ACTUAL — INPUTS */}
+            {juegoActivo && (
+              <tr className={styles.rondaActualRow}>
+                <td className={styles.letraCell}>{letra}</td>
 
-            {!solicitudPendiente && !esperandoNuevaRonda && juegoActivo && (
-              <tr className={styles.currentRow}>
-                <td className={styles.letraCell}>{letra || "-"}</td>
-                {categorias.map((categoria, index) => {
-                  const nombreCategoria = categoria.nombre || categoria;
+                {categorias.map((cat) => {
+                  const nombreCat = cat.nombre || cat;
 
                   return (
-                    <td key={index} className={styles.inputCell}>
-
-                      <Input
-                        value={respuestas[nombreCategoria] || ""}
-                        onChange={(e) => handleInputChange(nombreCategoria, e.target.value)}
-                        placeholder={juegoActivo ? `${letra}...` : ""}
-                        className={`${styles.input} ${!juegoActivo ? styles.inputDisabled : ""}`}
+                    <td key={nombreCat} className={styles.inputCell}>
+                      <input
+                        type="text"
+                        value={respuestas[nombreCat] || ""}
+                        onChange={(e) => handleInputChange(nombreCat, e.target.value)}
+                        className={styles.input}
+                        placeholder="..."
                       />
                     </td>
-
                   );
                 })}
-                <td className={styles.puntosCell}>{puntos}</td>
+
+                <td className={styles.puntosCell}>{puntosRonda}</td>
               </tr>
-            )
-            }
+            )}
+
           </tbody>
         </table>
       </div>
+
       <div className={styles.bottomButton}>
-        <Button
-          texto="BASTA PARA MI, BASTA PARA TODOS"
-          onClick={chequeo}
-          className={styles.buttonRed}
-          disabled={!juegoActivo}
-        />
+        <Button texto="BASTA PARA MI, BASTA PARA TODOS" onClick={chequeo} className={styles.buttonRed} disabled={!juegoActivo} />
       </div>
+
       {solicitudPendiente && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
@@ -883,30 +807,18 @@ export default function TuttiFrutti() {
               </p>
 
               <div className={styles.solicitudBotones}>
-                <Button
-                  texto="Aceptar"
-                  onClick={aceptarSolicitud}
-                  className={styles.btnAceptar}
-
-                />
-                <Button
-                  texto="Rechazar"
-                  className={styles.btnRechazar}
-                  onClick={rechazarSolicitud}
-                />
+                <Button texto="Aceptar" onClick={aceptarSolicitud} className={styles.btnAceptar} />
+                <Button texto="Rechazar" onClick={rechazarSolicitud} className={styles.btnRechazar} />
               </div>
             </div>
           </div>
         </div>
       )}
+
       <div>
         {!juegoActivo && !esperandoNuevaRonda && historialRondas.length > 0 && (
           <div className={styles.bottomButton}>
-            <Button
-              texto="JUGAR NUEVA RONDA"
-              onClick={solicitarNuevaRonda}
-              className={styles.buttonBlue}
-            />
+            <Button texto="JUGAR NUEVA RONDA" onClick={solicitarNuevaRonda} className={styles.buttonBlue} />
           </div>
         )}
       </div>
@@ -915,12 +827,10 @@ export default function TuttiFrutti() {
         <div className={styles.modalOverlay} onClick={closeModal}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <h2 className={styles.modalTitle}>{modal.title}</h2>
-            <p className={styles.modalMessage} style={{ whiteSpace: 'pre-line' }}>{modal.message}</p>
-            <Button
-              texto="CERRAR"
-              onClick={closeModal}
-              className={styles.buttonBlue}
-            />
+            <p className={styles.modalMessage} style={{ whiteSpace: "pre-line" }}>
+              {modal.message}
+            </p>
+            <Button texto="CERRAR" onClick={closeModal} className={styles.buttonBlue} />
           </div>
         </div>
       )}
