@@ -41,7 +41,7 @@ export default function Lobby() {
 
     showModal(
       "REGLAS DEL JUEGO:",
-      "• Escribir sin tildes\n• Escribir palabras acordes a la categoría, si no no serán validadas"
+      "• Escribir sin tildes\n• Escribir palabras acordes a la categoría, si no no serán validadas\n• Agrega como amigo a la persona contra la que vayas a jugar para poder invitarla a una partida \n• Divertite mucho jugando nuestro Tutti Frutti!!!! \n• (Y no hagas trampa) "
     );
 
     cargarAmigos();
@@ -520,8 +520,7 @@ export default function Lobby() {
         {isAdmin && (
           <Button
             texto="ADMIN"
-            className={styles.buttonPurple
-            }
+            className={styles.buttonPurple}
             onClick={() => router.push("/admin")}
           />
         )}
