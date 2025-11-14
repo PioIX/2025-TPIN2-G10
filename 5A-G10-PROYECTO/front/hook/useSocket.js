@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
 
-export function useSocket(serverUrl = "http://localhost:4001") {
+export function useSocket(serverUrl = `http://localhost:4001`) {
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
 

@@ -3,12 +3,14 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Button from "../components/Button";
 import styles from "./page.module.css";
+import { useConnection } from "../../hook/useConnection";
 
 export default function Historial() {
   const [historial, setHistorial] = useState([]);
   const [nombreUsuario, setNombreUsuario] = useState("");
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { url } = useConnection();
 
   useEffect(() => {
     cargarHistorial();
@@ -23,7 +25,7 @@ export default function Historial() {
     }
 
     try {
-      const response = await fetch(`http://localhost:4001/Jugadores`, {
+      const response = await fetch(`${url}/Jugadores`, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
       });
@@ -51,8 +53,7 @@ export default function Historial() {
 
     try {
       setLoading(true);
-      const response = await fetch(
-        `http://localhost:4001/HistorialPartidas?idjugador=${idLogged}`,
+      const response = await fetch(`${url}/HistorialPartidas?idjugador=${idLogged}`,
         {
           method: "GET",
           headers: { "Content-Type": "application/json" },

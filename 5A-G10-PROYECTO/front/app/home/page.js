@@ -3,10 +3,12 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Button from '../components/Button';
 import styles from './page.module.css';
+import { useConnection } from "../../hook/useConnection";
 
 export default function Home() {
   const router = useRouter();
-  const irAOtraPagina = () => {
+  const irAOtraPagina = () => 
+  {
     router.push("/registroYlogin");
   };
 

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./page.module.css";
+import { useConnection } from "../../hook/useConnection";
 
 import Input from "../components/Input";
 import Button from "../components/Button";
@@ -17,6 +18,7 @@ export default function AdminPage() {
   const [categoriaParaPalabra, setCategoriaParaPalabra] = useState("");
   const [palabraEliminar, setPalabraEliminar] = useState("");
   const [categoriaEliminarPalabra, setCategoriaEliminarPalabra] = useState("");
+  const { url } = useConnection();
 
 
   const showModal = (title, message) => {
@@ -48,7 +50,7 @@ export default function AdminPage() {
     }
 
     try {
-      const response = await fetch("http://localhost:4001/BorrarJugador", {
+      const response = await fetch(`${url}/BorrarJugador`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mail: mailJugador }),
@@ -77,7 +79,7 @@ export default function AdminPage() {
     }
 
     try {
-      const response = await fetch("http://localhost:4001/AgregarPalabra", {
+      const response = await fetch(`${url}/AgregarPalabra`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -110,7 +112,7 @@ export default function AdminPage() {
     }
 
     try {
-      const response = await fetch("http://localhost:4001/BorrarPalabra", {
+      const response = await fetch(`${url}/BorrarPalabra`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ palabra: palabraEliminar, categoria: categoriaEliminarPalabra }),
