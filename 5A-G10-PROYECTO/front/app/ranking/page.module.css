@@ -70,7 +70,7 @@
 
 .tableHeaders {
   display: grid;
-  grid-template-columns: 2fr 1.2fr 1.2fr 1.2fr 1fr;
+  grid-template-columns: 200px 1fr 1fr 1fr 1fr;
   gap: 8px;
   margin-bottom: 16px;
   padding: 0 16px;
@@ -86,8 +86,22 @@
 }
 
 .jugadorCol {
-  text-align: left;
+  justify-content: flex-start !important;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 !important;
 }
+
+
+
+.jugadorNombre {
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  display: flex;
+}
+
 
 .tableBody {
   display: flex;
@@ -97,7 +111,7 @@
 
 .tableRow {
   display: grid;
-  grid-template-columns: 2fr 1.2fr 1.2fr 1.2fr 1fr;
+  grid-template-columns: 200px 1fr 1fr 1fr 1fr;
   gap: 8px;
   align-items: center;
   background: rgba(255, 255, 255, 0.15);
@@ -115,6 +129,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  padding: 0;
 }
 
 .avatarSmall {
@@ -128,12 +143,6 @@
   flex-shrink: 0;
 }
 
-.jugadorNombre {
-  font-size: 16px;
-  font-weight: 600;
-  color: white;
-  margin-left: 12px;
-}
 
 .statBadge {
   background: #4ade80;

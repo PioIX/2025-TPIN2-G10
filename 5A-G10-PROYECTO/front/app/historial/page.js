@@ -25,7 +25,7 @@ export default function Historial() {
     }
 
     try {
-      const response = await fetch(`${url}/Jugadores`, {
+      const response = await fetch(`http://localhost:4001/Jugadores`, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
       });
@@ -53,7 +53,7 @@ export default function Historial() {
 
     try {
       setLoading(true);
-      const response = await fetch(`${url}/HistorialPartidas?idjugador=${idLogged}`,
+      const response = await fetch(`http://localhost:4001/HistorialPartidas?idjugador=${idLogged}`,
         {
           method: "GET",
           headers: { "Content-Type": "application/json" },
