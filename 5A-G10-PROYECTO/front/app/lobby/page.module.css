@@ -368,6 +368,28 @@
   background-color: #db2777;
   transform: translateY(-2px);
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+  }
+.buttonBlue {
+  flex: 1;
+  padding: 14px 24px;
+  border-radius: 30px;
+  background-color: #1e109e;
+  color: white;
+  border: none;
+  font-weight: 600;
+  font-size: 14px;
+  font-family: 'Fredoka', sans-serif;
+  cursor: pointer;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.buttonBlue:hover {
+  background-color: #210e6e;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
 }
 
 .buttonYellow {

@@ -34,7 +34,7 @@ const server = app.listen(port, () => {
 const io = require('socket.io')(server, {
     cors: {
         // IMPORTANTE: REVISAR PUERTO DEL FRONTEND
-        origin: ["http://localhost:3000", "http://localhost:3001"], // Permitir el origen localhost:3000
+        origin: ["http://localhost:3000", "http://localhost:3001", "http://192.168.0.8:3000"], // Permitir el origen localhost:3000
         methods: ["GET", "POST", "PUT", "DELETE"],  	// Métodos permitidos
         credentials: true                           	// Habilitar el envío de cookies
     }
@@ -1183,6 +1183,47 @@ app.get('/LlevoPalabras', async function (req, res) {
 //HACER
 // En index.js - REEMPLAZA el endpoint /VerificarPalabra
 
+async function verificarEnRAE(palabra) {
+    try {
+        const palabraLimpia = palabra.trim().toLowerCase();
+
+        const url = `https://rae-api.com/api/words/${encodeURIComponent(palabraLimpia)}`;
+
+        const response = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0' }
+        });
+
+        if (!response.ok) {
+            console.log("Error HTTP RAE API:", response.status);
+            return { existe: false, fuente: "rae", error: true };
+        }
+
+        const data = await response.json();
+
+        // Formato esperado:
+        // { ok: true/false, data: { word: "...", meanings: [...] } }
+
+        if (data.ok && data.data && data.data.meanings.length > 0) {
+            return {
+                existe: true,
+                fuente: "rae",
+                definicion: data.data.meanings,
+                palabra: data.data.word
+            };
+        }
+
+        return {
+            existe: false,
+            fuente: "rae",
+            definicion: null
+        };
+
+    } catch (error) {
+        console.error("Error al consultar RAE API:", error);
+        return { existe: false, fuente: "rae", error: true };
+    }
+}
+
 app.get('/VerificarPalabra', async function (req, res) {
     try {
         const { palabra, categoria } = req.query;
@@ -1191,12 +1232,10 @@ app.get('/VerificarPalabra', async function (req, res) {
             return res.status(400).send({ error: "Faltan parámetros 'palabra' o 'categoria'" });
         }
 
-        console.log(`Verificando: "${palabra}" en categoría "${categoria}"`);
-
         const palabraNormalizada = palabra.trim();
         const categoriaNormalizada = categoria.trim();
 
-        // 1. Primero buscar en la categoría específica
+        // 1. Buscar en categoría específica
         const queryEspecifica = `
             SELECT * FROM Palabras 
             WHERE LOWER(palabra) = LOWER("${palabraNormalizada}") 
@@ -1209,12 +1248,12 @@ app.get('/VerificarPalabra', async function (req, res) {
             return res.send({
                 existe: true,
                 palabra: resultadoEspecifico[0],
-                fuente: 'base_datos',
+                fuente: "base_datos",
                 mensaje: "Palabra válida en la categoría"
             });
         }
 
-        // 2. Si no existe, buscar en CUALQUIER categoría de la BDD
+        // 2. Buscar en cualquier categoría
         const queryCualquiera = `
             SELECT * FROM Palabras 
             WHERE LOWER(palabra) = LOWER("${palabraNormalizada}")
@@ -1226,67 +1265,33 @@ app.get('/VerificarPalabra', async function (req, res) {
             return res.send({
                 existe: true,
                 palabra: resultadoCualquiera[0],
-                fuente: 'base_datos',
+                fuente: "base_datos",
                 mensaje: "Palabra válida (encontrada en otra categoría)"
             });
         }
 
-        // 3. Si no existe en la BDD, consultar la RAE
-        console.log('Palabra no encontrada en BDD, consultando RAE...');
+        // 3. Buscar en RAE API
         const resultadoRAE = await verificarEnRAE(palabraNormalizada);
 
         if (resultadoRAE.existe) {
             return res.send({
                 existe: true,
-                fuente: 'rae',
-                mensaje: "Palabra válida según RAE (no en nuestra base de datos)",
-                definicion: resultadoRAE.definicion
+                fuente: "rae",
+                definicion: resultadoRAE.definicion,
+                mensaje: "Palabra válida según RAE API",
+                palabra: resultadoRAE.palabra
             });
         }
 
         // 4. No existe en ningún lado
-        res.send({
+        return res.send({
             existe: false,
-            fuente: 'ninguna',
-            mensaje: "Palabra no encontrada ni en la base de datos ni en RAE"
+            fuente: "ninguna",
+            mensaje: "Palabra no encontrada ni en la base de datos ni en la RAE"
         });
 
     } catch (e) {
         console.error("Error en /VerificarPalabra:", e);
-        res.status(500).send({ error: "Hubo un error en el servidor" });
+        res.status(500).send({ error: "Error interno del servidor" });
     }
 });
-
-async function verificarEnRAE(palabra) {
-    try {
-        const palabraLimpia = palabra.trim().toLowerCase();
-
-        // La RAE tiene una API no oficial pero funcional
-        const url = `https://dle.rae.es/data/search?w=${(palabraLimpia)}`;
-
-        const response = await fetch(url, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0'
-            }
-        });
-        if (!response.ok) {
-            console.log('Error en respuesta de RAE:', response.status);
-            return { existe: false, fuente: 'rae', error: true };
-        }
-
-        const data = await response.json();
-
-        // Si la RAE devuelve resultados, la palabra existe
-        const existe = data && data.res && data.res.length > 0;
-
-        return {
-            existe: existe,
-            fuente: 'rae',
-            definicion: existe ? 'Palabra encontrada en el diccionario de la RAE' : null
-        };
-
-    } catch (error) {
-        console.error('Error al consultar RAE:', error);
-        return { existe: false, fuente: 'rae', error: true };
-    }
-}
