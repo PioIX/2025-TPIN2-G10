@@ -33,10 +33,9 @@ const server = app.listen(port, () => {
 
 const io = require('socket.io')(server, {
     cors: {
-        // IMPORTANTE: REVISAR PUERTO DEL FRONTEND
-        origin: ["http://localhost:3000", "http://localhost:3001", "http://192.168.0.8:3000"], // Permitir el origen localhost:3000
-        methods: ["GET", "POST", "PUT", "DELETE"],  	// Métodos permitidos
-        credentials: true                           	// Habilitar el envío de cookies
+        origin: ["http://localhost:3000", "http://localhost:3001"],
+        methods: ["GET", "POST", "PUT", "DELETE"],
+        credentials: true
     }
 });
 
@@ -1413,7 +1412,7 @@ app.get('/VerificarPalabra', async function (req, res) {
     }
 });
 
-async function verificarEnRAE(palabra) {
+async function verificarEnRAE2(palabra) {
     try {
         const palabraLimpia = palabra.trim().toLowerCase();
 
@@ -1444,6 +1443,5 @@ async function verificarEnRAE(palabra) {
     } catch (error) {
         console.error('Error al consultar RAE:', error);
         return { existe: false, fuente: 'rae', error: true };
-        res.status(500).send({ error: "Error interno del servidor" });
     }
-});
+}

@@ -732,7 +732,6 @@ export default function TuttiFrutti() {
             </tr>
           </thead>
           <tbody>
-            {/* HISTORIAL DE RONDAS ANTERIORES */}
             {/* HISTORIAL DE RONDAS ANTERIORES (EXCEL) */}
             {historialRondas.map((ronda) => (
               <tr key={ronda.id} className={styles.historialRow}>
@@ -749,10 +748,14 @@ export default function TuttiFrutti() {
                   const esValida = dato?.valida ?? false;
 
                   return (
-                    <td key={nombreCat} className={styles.respuestaCell}>
-                      <span className={esValida ? styles.palabraValida : styles.palabraInvalida}>
-                        {palabra}
-                      </span>
+                    <td key={nombreCat} className={styles.inputCell}>
+                      <input
+                        type="text"
+                        value={palabra}
+                        readOnly
+                        disabled
+                        className={`${styles.input} ${styles.inputDisabled} ${esValida ? styles.inputValido : styles.inputInvalido}`}
+                      />
                     </td>
                   );
                 })}
