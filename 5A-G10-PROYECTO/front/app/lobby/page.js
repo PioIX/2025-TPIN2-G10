@@ -5,9 +5,25 @@ import { useRouter } from "next/navigation";
 import Button from "../components/Button";
 import styles from "./page.module.css";
 import { useSocket } from "../../hook/useSocket";
-
+import { useConnection } from "../../hook/useConnection";
 export default function Amigos() {
   const [amigos, setAmigos] = useState([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+useEffect(() => {
+  if (typeof window !== "undefined") {
+    const adminFlag = localStorage.getItem("isAdmin") === "true";
+    setIsAdmin(adminFlag);
+  }
+}, []);
+useEffect(() => {
+  if (typeof window !== "undefined") {
+    const adminFlag = localStorage.getItem("isAdmin");
+    console.log("isAdmin en localStorage →", adminFlag);
+    setIsAdmin(adminFlag === "true");
+  }
+}, []);
+
   const [nombreUsuario, setNombreUsuario] = useState("");
   const [mostrarModal, setMostrarModal] = useState(false);
   const [usuariosDisponibles, setUsuariosDisponibles] = useState([]);
@@ -18,7 +34,7 @@ export default function Amigos() {
   const [modalMensaje, setModalMensaje] = useState(null);
   const router = useRouter();
   const { socket, isConnected } = useSocket();
-
+  const { url } = useConnection();
   useEffect(() => {
     const id = localStorage.getItem("idLogged");
     if (id) {
@@ -109,7 +125,7 @@ export default function Amigos() {
     }
 
     try {
-      const response = await fetch(`http://localhost:4001/Jugadores`, {
+      const response = await fetch(`${url}/Jugadores`, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
       });
@@ -138,8 +154,7 @@ export default function Amigos() {
     }
 
     try {
-      const response = await fetch(
-        `http://localhost:4001/Amigos?idjugador=${idLogged}`,
+      const response = await fetch(`${url}/Amigos?idjugador=${idLogged}`,
         {
           method: "GET",
           headers: { "Content-Type": "application/json" },
@@ -194,7 +209,7 @@ export default function Amigos() {
     if (!solicitudAmistadPendiente) return;
 
     try {
-      const response = await fetch("http://localhost:4001/AgregarAmigo", {
+      const response = await fetch(`${url}/AgregarAmigo`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -227,8 +242,7 @@ export default function Amigos() {
     const idLogged = localStorage.getItem("idLogged");
 
     try {
-      const response = await fetch(
-        `http://localhost:4001/UsuariosDisponibles?idjugador=${idLogged}`,
+      const response = await fetch(`${url}/UsuariosDisponibles?idjugador=${idLogged}`,
         {
           method: "GET",
           headers: { "Content-Type": "application/json" },
@@ -264,7 +278,7 @@ export default function Amigos() {
     const idLogged = localStorage.getItem("idLogged");
 
     try {
-      const response = await fetch("http://localhost:4001/EliminarAmigo", {
+      const response = await fetch(`${url}/EliminarAmigo`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -495,6 +509,19 @@ export default function Amigos() {
           className={styles.buttonYellow}
           onClick={() => router.push("/historial")}
         />
+      <div className={styles.bottomButtons}>
+ 
+ <div className={styles.bottomButtons}>
+  {isAdmin && (
+    <Button
+      texto="ADMIN"
+      className={styles.buttonBlue}
+      onClick={() => router.push("/admin")}
+    />
+  )}
+<div className={styles.bottomButtons}></div>
+</div>
+
         <Button
           texto="CERRAR SESIÓN"
           className={styles.buttonRed}
@@ -505,5 +532,6 @@ export default function Amigos() {
         />
       </div>
     </div>
+  </div>
   );
 }

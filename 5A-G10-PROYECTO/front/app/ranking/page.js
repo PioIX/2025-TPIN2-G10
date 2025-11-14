@@ -4,11 +4,14 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Button from "../components/Button";
 import styles from "./page.module.css";
+import { useConnection } from "../../hook/useConnection";
 
 export default function Ranking() {
   const [jugadores, setJugadores] = useState([]);
   const [nombreUsuario, setNombreUsuario] = useState("");
   const router = useRouter();
+  const { url } = useConnection();
+
 
   useEffect(() => {
     cargarRanking();
@@ -24,7 +27,7 @@ export default function Ranking() {
     }
 
     try {
-      const response = await fetch(`http://localhost:4001/Jugadores`, {
+      const response = await fetch(`${url}/Jugadores`, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
       });
@@ -46,7 +49,7 @@ export default function Ranking() {
 
   async function cargarRanking() {
     try {
-      const response = await fetch("http://localhost:4001/Ranking", {
+      const response = await fetch(`${url}/Ranking`, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
       });
