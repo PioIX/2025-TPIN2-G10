@@ -6,24 +6,28 @@ import Button from "../components/Button";
 import styles from "./page.module.css";
 import { useSocket } from "../../hook/useSocket";
 
-export default function Amigos() {
-  const [amigos, setAmigos] = useState([]);
-  const [nombreUsuario, setNombreUsuario] = useState("");
-  const [mostrarModal, setMostrarModal] = useState(false);
-  const [usuariosDisponibles, setUsuariosDisponibles] = useState([]);
-  const [solicitudPendiente, setSolicitudPendiente] = useState(null);
-  const [solicitudAmistadPendiente, setSolicitudAmistadPendiente] = useState(null);
-  const [idLogged, setIdLogged] = useState(null);
-  const [registrado, setRegistrado] = useState(false);
-  const [modalMensaje, setModalMensaje] = useState(null);
-  const router = useRouter();
-  const { socket, isConnected } = useSocket();
 
+
+  const showModal = (title, message) => {
+    setModal({ open: true, title, message });
+
+  };
+
+  const closeModal = () => {
+    setModal((prev) => ({ ...prev, open: false }));
+  };
   useEffect(() => {
+    
     const id = localStorage.getItem("idLogged");
     if (id) {
       setIdLogged(id);
     }
+
+    showModal(
+      "REGLAS DEL JUEGO:",
+      "• Escribir sin tildes\n• Escribir palabras acordes a la categoría, si no no serán validadas"
+    );
+
     cargarAmigos();
     cargarNombreUsuario();
   }, []);
@@ -73,10 +77,10 @@ export default function Amigos() {
 
     socket.on('gameStarted', (data) => {
       console.log("Empezó el juego", data);
-      setModalMensaje({ 
-        tipo: 'success', 
-        mensaje: '¡El juego está comenzando!', 
-        redirect: `/juego?room=${data.room}&categorias=${JSON.stringify(data.categorias)}&letra=${data.letra}` 
+      setModalMensaje({
+        tipo: 'success',
+        mensaje: '¡El juego está comenzando!',
+        redirect: `/juego?room=${data.room}&categorias=${JSON.stringify(data.categorias)}&letra=${data.letra}`
       });
     });
 
@@ -109,7 +113,7 @@ export default function Amigos() {
     }
 
     try {
-      const response = await fetch(`http://localhost:4001/Jugadores`, {
+      const response = await fetch(`${url}/Jugadores`, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
       });
@@ -138,8 +142,7 @@ export default function Amigos() {
     }
 
     try {
-      const response = await fetch(
-        `http://localhost:4001/Amigos?idjugador=${idLogged}`,
+      const response = await fetch(`${url}/Amigos?idjugador=${idLogged}`,
         {
           method: "GET",
           headers: { "Content-Type": "application/json" },
@@ -151,7 +154,7 @@ export default function Amigos() {
       if (result.amigos && result.amigos.length > 0) {
         setAmigos(result.amigos);
       } else {
-        setAmigos([]); 
+        setAmigos([]);
       }
     } catch (error) {
       console.error("Error al obtener amigos:", error);
@@ -194,7 +197,7 @@ export default function Amigos() {
     if (!solicitudAmistadPendiente) return;
 
     try {
-      const response = await fetch("http://localhost:4001/AgregarAmigo", {
+      const response = await fetch(`${url}/AgregarAmigo`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -204,7 +207,7 @@ export default function Amigos() {
       });
 
       const result = await response.json();
-      
+
       if (result.agregado) {
         setModalMensaje({ tipo: 'success', mensaje: '¡Solicitud de amistad aceptada!' });
         cargarAmigos();
@@ -227,8 +230,7 @@ export default function Amigos() {
     const idLogged = localStorage.getItem("idLogged");
 
     try {
-      const response = await fetch(
-        `http://localhost:4001/UsuariosDisponibles?idjugador=${idLogged}`,
+      const response = await fetch(`${url}/UsuariosDisponibles?idjugador=${idLogged}`,
         {
           method: "GET",
           headers: { "Content-Type": "application/json" },
@@ -251,7 +253,7 @@ export default function Amigos() {
       nombreSolicitante: nombreUsuario,
       idReceptor: parseInt(usuario.idusuario)
     });
-    
+
     setMostrarModal(false);
   }
 
@@ -264,7 +266,7 @@ export default function Amigos() {
     const idLogged = localStorage.getItem("idLogged");
 
     try {
-      const response = await fetch("http://localhost:4001/EliminarAmigo", {
+      const response = await fetch(`${url}/EliminarAmigo`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -274,10 +276,10 @@ export default function Amigos() {
       });
 
       const result = await response.json();
-      
+
       if (result.eliminado) {
         setModalMensaje({ tipo: 'success', mensaje: result.res });
-        cargarAmigos(); 
+        cargarAmigos();
       } else {
         setModalMensaje({ tipo: 'error', mensaje: result.res || "No se pudo eliminar el amigo" });
       }
@@ -295,7 +297,7 @@ export default function Amigos() {
   }
 
 
- 
+
 
   return (
     <div className={styles.container}>
@@ -329,12 +331,12 @@ export default function Amigos() {
                   <span className={styles.amigoNombre}>{amigo.nombre}</span>
                 </div>
                 <div className={styles.amigoActions}>
-                  <Button 
-                    texto="JUGAR" 
-                    className={styles.jugarButton} 
+                  <Button
+                    texto="JUGAR"
+                    className={styles.jugarButton}
                     onClick={() => envioSolicitudJuego(amigo)}
                   />
-                  <Button 
+                  <Button
                     texto="ELIMINAR"
                     className={styles.eliminarButton}
                     onClick={() => eliminarAmigo(amigo.idusuario)}
@@ -401,24 +403,24 @@ export default function Amigos() {
             <div className={styles.modalHeader}>
               <h3>Solicitud de Amistad</h3>
             </div>
-            
+
             <div className={styles.solicitudContent}>
               <p className={styles.solicitudTexto}>
                 <strong>{solicitudAmistadPendiente.nombreSolicitante}</strong> quiere ser tu amigo
               </p>
-              
+
               <div className={styles.solicitudBotones}>
-                <Button 
+                <Button
                   texto="Aceptar"
                   className={styles.btnAceptar}
                   onClick={aceptarSolicitudAmistad}
                 />
-                <Button 
+                <Button
                   texto="Rechazar"
                   className={styles.btnRechazar}
                   onClick={rechazarSolicitudAmistad}
                 />
-                
+
               </div>
             </div>
           </div>
@@ -431,20 +433,20 @@ export default function Amigos() {
             <div className={styles.modalHeader}>
               <h3>Solicitud de Juego</h3>
             </div>
-            
+
             <div className={styles.solicitudContent}>
               <p className={styles.solicitudTexto}>
                 <strong>{solicitudPendiente.nombreSolicitante}</strong> quiere jugar una super partida de Tutti Frutti con vos!
               </p>
-              
+
               <div className={styles.solicitudBotones}>
                 <Button
-                  texto="Aceptar" 
+                  texto="Aceptar"
                   className={styles.btnAceptar}
                   onClick={aceptarSolicitud}
                 />
-                 
-                <Button 
+
+                <Button
                   texto="Rechazar"
                   className={styles.btnRechazar}
                   onClick={rechazarSolicitud}
@@ -457,7 +459,7 @@ export default function Amigos() {
 
       {modalMensaje && (
         <div className={styles.modalOverlay} onClick={cerrarModalMensaje}>
-          <div 
+          <div
             className={`${styles.modalContent} ${styles.modalMensajeContent}`}
             onClick={(e) => e.stopPropagation()}
           >
@@ -468,13 +470,13 @@ export default function Amigos() {
                 {modalMensaje.tipo === 'info' && 'i'}
               </div>
             </div>
-            
+
             <div className={styles.modalMensajeBody}>
               <p className={styles.modalMensajeTexto}>{modalMensaje.mensaje}</p>
             </div>
-            
+
             <div className={styles.modalMensajeFooter}>
-              <Button 
+              <Button
                 texto="Aceptar"
                 className={`${styles.btnModalMensaje} ${styles[`btn${modalMensaje.tipo.charAt(0).toUpperCase() + modalMensaje.tipo.slice(1)}`]}`}
                 onClick={cerrarModalMensaje}
@@ -495,15 +497,41 @@ export default function Amigos() {
           className={styles.buttonYellow}
           onClick={() => router.push("/historial")}
         />
+     
+ 
+ 
+  {isAdmin && (
+    <Button
+      texto="ADMIN"
+      className={styles.buttonBlue}
+      onClick={() => router.push("/admin")}
+    />
+  )}
+
+
         <Button
           texto="CERRAR SESIÓN"
           className={styles.buttonRed}
           onClick={() => {
             localStorage.removeItem("idLogged");
-            router.push("/registroYlogin"); 
+            router.push("/registroYlogin");
           }}
         />
       </div>
+      {modal.open && (
+        <div className={styles.modalOverlay} onClick={closeModal}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <h2 className={styles.modalTitle}>{modal.title}</h2>
+            <p className={styles.modalMessage} style={{ whiteSpace: 'pre-line' }}>{modal.message}</p>
+            <Button
+              texto="CERRAR"
+              onClick={closeModal}
+              className={styles.buttonBlue}
+            />
+          </div>
+        </div>
+      )}
     </div>
+ 
   );
 }

@@ -6,6 +6,7 @@ import Button from "../components/Button";
 import Input from "../components/Input";
 import styles from "./page.module.css";
 import { useSocket } from "../../hook/useSocket";
+import { useConnection } from "../../hook/useConnection";
 
 export default function TuttiFrutti() {
   const [rondas, setRondas] = useState([]);
@@ -36,6 +37,7 @@ export default function TuttiFrutti() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { socket, isConnected } = useSocket();
+  const { url } = useConnection();
 
   const showModal = (title, message) => {
     setModal({ open: true, title, message });
@@ -439,7 +441,7 @@ export default function TuttiFrutti() {
     }
 
     try {
-      const response = await fetch("http://localhost:4001/Jugadores", {
+      const response = await fetch(`${url}/Jugadores`, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
       });
@@ -463,8 +465,7 @@ export default function TuttiFrutti() {
 
       console.log(`Verificando palabra: "${palabraNormalizada}" en categoría: "${categoriaNormalizada}"`);
 
-      const response = await fetch(
-        `http://localhost:4001/VerificarPalabra?palabra=${encodeURIComponent(palabraNormalizada)}&categoria=${encodeURIComponent(categoriaNormalizada)}`
+      const response = await fetch(`${url}/VerificarPalabra?palabra=${encodeURIComponent(palabraNormalizada)}&categoria=${encodeURIComponent(categoriaNormalizada)}`
       );
 
       if (!response.ok) {
@@ -652,7 +653,7 @@ export default function TuttiFrutti() {
       idGanador.push(idOponente);
     }
     try {
-      await fetch("http://localhost:4001/ActualizarEstadisticas", {
+      await fetch(`${url}/ActualizarEstadisticas`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -665,7 +666,8 @@ export default function TuttiFrutti() {
       showModal("¡Éxito!", "Estadísticas guardadas correctamente");
       router.push("/ranking");
     } catch (error) {
-      console.error("Error al guardar:", error);
+      console.error("Error al actualizar estadísticas:", error);
+      showModal("Error", "No se pudo conectar con el servidor");
     }
   }
 

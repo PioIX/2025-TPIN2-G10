@@ -34,7 +34,7 @@ const server = app.listen(port, () => {
 const io = require('socket.io')(server, {
     cors: {
         // IMPORTANTE: REVISAR PUERTO DEL FRONTEND
-        origin: ["http://localhost:3000", "http://localhost:3001"], // Permitir el origen localhost:3000
+        origin: ["http://localhost:3000", "http://localhost:3001", "http://192.168.0.8:3000"], // Permitir el origen localhost:3000
         methods: ["GET", "POST", "PUT", "DELETE"],  	// Métodos permitidos
         credentials: true                           	// Habilitar el envío de cookies
     }
@@ -583,10 +583,127 @@ app.get('/CategoriaAleatoria', async function (req, res) {
 });
 
 
+app.put('/ActualizarEstadisticas', async function (req, res) {
+  const { idGanador, puntosGanador, puntosOponente, empate } = req.body;
+
+  try {
+    if (!idGanador || idGanador.length !== 2) {
+      return res.json({ 
+        res: "Datos incompletos (se requieren 2 jugadores)", 
+        ok: false 
+      });
+    }
+
+    // Si es EMPATE
+    if (empate === true) {
+      console.log("📊 Registrando EMPATE");
+      
+      // Actualizar ambos jugadores con empate
+      for (let i = 0; i < 2; i++) {
+        const id = idGanador[i];
+        
+        const datos = await realizarQuery(
+          `SELECT partidasjugadas, puntos, partidasganadas, partidasperdidas 
+           FROM Jugadores WHERE idusuario = ?`,
+          [id]
+        );
+
+        if (!datos || datos.length === 0) continue;
+
+        const { partidasjugadas, puntos } = datos[0];
+        
+        const nuevasPartidas = partidasjugadas + 1;
+        const nuevosPuntos = puntos + puntosGanador; // Ambos suman los mismos puntos
+        
+        console.log(`Jugador ${id}: +1 partida, +${puntosGanador} puntos (EMPATE)`);
+
+        await realizarQuery(
+          `UPDATE Jugadores 
+           SET partidasjugadas = ?, puntos = ? 
+           WHERE idusuario = ?`,
+          [nuevasPartidas, nuevosPuntos, id]
+        );
+      }
+
+      return res.json({ 
+        res: "Empate registrado correctamente", 
+        ok: true 
+      });
+    }
+
+    // Si NO es empate -> idGanador[0] = GANADOR, idGanador[1] = PERDEDOR
+    console.log("🏆 Registrando GANADOR y PERDEDOR");
+
+    // ========== GANADOR (posición 0) ==========
+    const idGanadorReal = idGanador[0];
+    const datosGanador = await realizarQuery(
+      `SELECT partidasjugadas, puntos, partidasganadas 
+       FROM Jugadores WHERE idusuario = ?`,
+      [idGanadorReal]
+    );
+
+    if (datosGanador && datosGanador.length > 0) {
+      const { partidasjugadas, puntos, partidasganadas } = datosGanador[0];
+      
+      const nuevasPartidas = partidasjugadas + 1;
+      const nuevosPuntos = puntos + puntosGanador;
+      const nuevasGanadas = partidasganadas + 1;
+
+      console.log(`✅ Ganador ${idGanadorReal}: +1 ganada, +${puntosGanador} puntos`);
+
+      await realizarQuery(
+        `UPDATE Jugadores 
+         SET partidasjugadas = ?, puntos = ?, partidasganadas = ? 
+         WHERE idusuario = ?`,
+        [nuevasPartidas, nuevosPuntos, nuevasGanadas, idGanadorReal]
+      );
+    }
+
+    // ========== PERDEDOR (posición 1) ==========
+    const idPerdedor = idGanador[1];
+    const datosPerdedor = await realizarQuery(
+      `SELECT partidasjugadas, puntos, partidasperdidas 
+       FROM Jugadores WHERE idusuario = ?`,
+      [idPerdedor]
+    );
+
+    if (datosPerdedor && datosPerdedor.length > 0) {
+      const { partidasjugadas, puntos, partidasperdidas } = datosPerdedor[0];
+      
+      const nuevasPartidas = partidasjugadas + 1;
+      const nuevosPuntos = puntos + puntosOponente; // El perdedor suma sus puntos también
+      const nuevasPerdidas = partidasperdidas + 1;
+
+      console.log(`❌ Perdedor ${idPerdedor}: +1 perdida, +${puntosOponente} puntos`);
+
+      await realizarQuery(
+        `UPDATE Jugadores 
+         SET partidasjugadas = ?, puntos = ?, partidasperdidas = ? 
+         WHERE idusuario = ?`,
+        [nuevasPartidas, nuevosPuntos, nuevasPerdidas, idPerdedor]
+      );
+    }
+
+    return res.json({ 
+      res: "Estadísticas actualizadas correctamente", 
+      ok: true 
+    });
+
+  } catch (e) {
+    console.error("❌ Error al actualizar estadísticas:", e);
+    res.status(500).json({ 
+      res: "Error interno: " + e.message, 
+      ok: false 
+    });
+  }
+});
+
+
+
 
 
 //funcion para ranking
-app.put('/ActualizarEstadisticas', async function (req, res) {
+/*app.put('/ActualizarEstadisticas', async function (req, res) {
     const { idGanador, puntosGanador } = req.body;
 
     try {
@@ -626,9 +743,9 @@ app.put('/ActualizarEstadisticas', async function (req, res) {
         console.error("Error al actualizar estadísticas:", e);
         res.status(500).json({ res: "Error interno", ok: false });
     }
-});
+});*/
 
-//para administradores, borrar jugador, NO ANDA
+//para administradores, borrar jugador
 app.delete('/BorrarJugador', async function (req, res) {
     const mail = req.body.mail;
 
@@ -645,25 +762,13 @@ app.delete('/BorrarJugador', async function (req, res) {
         }
 
         const idusuario = respuesta[0].idusuario;
-
-        // 1) Eliminar relaciones en Amigos
         await realizarQuery(`DELETE FROM Amigos WHERE idamigo="${idusuario}" OR idjugador="${idusuario}"`);
-
-        // 2) Buscar todas las partidas del jugador
         const partidas = await realizarQuery(`SELECT idpartida FROM Partidas WHERE idusuario="${idusuario}"`);
-
-        // 3) Eliminar PartidaJugador vinculado a esas partidas
         for (let p of partidas) {
             await realizarQuery(`DELETE FROM PartidaJugador WHERE idpartida="${p.idpartida}"`);
         }
-
-        // 4) Eliminar partidas del jugador
         await realizarQuery(`DELETE FROM Partidas WHERE idusuario="${idusuario}"`);
-
-        // 5) Eliminar partidaJugador donde el jugador esté asociado
         await realizarQuery(`DELETE FROM PartidaJugador WHERE idusuario="${idusuario}"`);
-
-        // 6) Eliminar jugador
         await realizarQuery(`DELETE FROM Jugadores WHERE idusuario="${idusuario}"`);
 
         res.send({ res: "Jugador y datos relacionados eliminados", borrada: true });
@@ -932,19 +1037,14 @@ app.get('/UsuariosDisponibles', async function (req, res) {
     }
 
     try {
-        // Obtener todos los jugadores excepto el usuario actual
         const todosJugadores = await realizarQuery(`
             SELECT idusuario, nombre, mail 
             FROM Jugadores 
             WHERE idusuario != ${idjugador}
         `);
-
-        // Obtener los amigos actuales
         const amigosActuales = await realizarQuery(`
             SELECT idamigo FROM Amigos WHERE idjugador = ${idjugador}
         `);
-
-        // Filtrar usuarios que ya son amigos
         const idsAmigos = amigosActuales.map(a => a.idamigo);
         const usuariosDisponibles = todosJugadores.filter(
             jugador => !idsAmigos.includes(jugador.idusuario)
@@ -970,9 +1070,7 @@ app.post('/AgregarAmigo', async function (req, res) {
             agregado: false
         });
     }
-
     try {
-        // Verificar que la amistad no exista ya
         const amistadExistente = await realizarQuery(`
             SELECT * FROM Amigos 
             WHERE idjugador = ${idjugador} AND idamigo = ${idamigo}
@@ -984,8 +1082,6 @@ app.post('/AgregarAmigo', async function (req, res) {
                 agregado: false
             });
         }
-
-        // Agregar amistad (bidireccional)
         await realizarQuery(`
             INSERT INTO Amigos (idjugador, idamigo)
             VALUES (${idjugador}, ${idamigo})
@@ -1017,14 +1113,12 @@ app.delete('/EliminarAmigo', async function (req, res) {
     }
 
     try {
-        // Verificar si existe la relación de amistad
         let respuesta = await realizarQuery(`
             SELECT * FROM Amigos 
             WHERE idjugador = ${idjugador} AND idamigo = ${idamigo}
         `);
 
         if (respuesta.length > 0) {
-            // Eliminar la amistad (en ambas direcciones si es necesario)
             await realizarQuery(`
                 DELETE FROM Amigos 
                 WHERE (idjugador = ${idjugador} AND idamigo = ${idamigo})
@@ -1075,9 +1169,6 @@ app.get('/Categorias', async function (req, res) {
     }
 });
 
-// Agregar esta ruta al index.js después de la ruta de /Ranking
-
-// Obtener historial de un jugador usando la tabla Partidas existente
 app.get('/HistorialPartidas', async function (req, res) {
     const { idjugador } = req.query;
 
@@ -1107,8 +1198,6 @@ app.get('/HistorialPartidas', async function (req, res) {
                 historial: []
             });
         }
-
-        // Obtener los amigos del jugador para asignarlos como oponentes
         const amigos = await realizarQuery(`
             SELECT 
                 j.idusuario,
@@ -1117,8 +1206,6 @@ app.get('/HistorialPartidas', async function (req, res) {
             INNER JOIN Jugadores j ON a.idamigo = j.idusuario
             WHERE a.idjugador = ${idjugador}
         `);
-
-        // Si no tiene amigos, obtener jugadores aleatorios
         let posiblesOponentes = amigos;
         if (amigos.length === 0) {
             posiblesOponentes = await realizarQuery(`
@@ -1129,10 +1216,7 @@ app.get('/HistorialPartidas', async function (req, res) {
                 LIMIT 10
             `);
         }
-
-        // Procesar el historial
         const historialProcesado = partidas.map((partida, index) => {
-            // Asignar un oponente (rotando entre los disponibles)
             const oponente = posiblesOponentes.length > 0
                 ? posiblesOponentes[index % posiblesOponentes.length]
                 : { idusuario: 0, nombre: 'Oponente' };
@@ -1161,11 +1245,10 @@ app.get('/HistorialPartidas', async function (req, res) {
     }
 });
 
-// Ruta para guardar una nueva partida (llamar cuando termine el juego)
 app.post('/GuardarPartida', async function (req, res) {
-    const { idusuario, puntos, resultado } = req.body;
+    const { idGanador, puntosGanador, empate } = req.body;
 
-    if (!idusuario || resultado === undefined) {
+    if (!idGanador || empate === undefined) {
         return res.status(400).json({
             res: "Faltan parámetros (idusuario, resultado)",
             guardado: false
@@ -1176,8 +1259,8 @@ app.post('/GuardarPartida', async function (req, res) {
         const fechaActual = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
         await realizarQuery(`
-            INSERT INTO Partidas (idusuario, fecha, puntosobtenidos, resultado)
-            VALUES (${idusuario}, "${fechaActual}", ${puntos || 0}, "${resultado}")
+            INSERT INTO Partidas (idusuario, fecha, puntosobtenidos, empate)
+            VALUES (${idGanador}, "${fechaActual}", ${puntosGanador || 0}, "${empate}")
         `);
 
         res.json({
@@ -1217,6 +1300,47 @@ app.get('/LlevoPalabras', async function (req, res) {
 //HACER
 // En index.js - REEMPLAZA el endpoint /VerificarPalabra
 
+async function verificarEnRAE(palabra) {
+    try {
+        const palabraLimpia = palabra.trim().toLowerCase();
+
+        const url = `https://rae-api.com/api/words/${encodeURIComponent(palabraLimpia)}`;
+
+        const response = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0' }
+        });
+
+        if (!response.ok) {
+            console.log("Error HTTP RAE API:", response.status);
+            return { existe: false, fuente: "rae", error: true };
+        }
+
+        const data = await response.json();
+
+        // Formato esperado:
+        // { ok: true/false, data: { word: "...", meanings: [...] } }
+
+        if (data.ok && data.data && data.data.meanings.length > 0) {
+            return {
+                existe: true,
+                fuente: "rae",
+                definicion: data.data.meanings,
+                palabra: data.data.word
+            };
+        }
+
+        return {
+            existe: false,
+            fuente: "rae",
+            definicion: null
+        };
+
+    } catch (error) {
+        console.error("Error al consultar RAE API:", error);
+        return { existe: false, fuente: "rae", error: true };
+    }
+}
+
 app.get('/VerificarPalabra', async function (req, res) {
     try {
         const { palabra, categoria } = req.query;
@@ -1225,12 +1349,10 @@ app.get('/VerificarPalabra', async function (req, res) {
             return res.status(400).send({ error: "Faltan parámetros 'palabra' o 'categoria'" });
         }
 
-        console.log(`Verificando: "${palabra}" en categoría "${categoria}"`);
-
         const palabraNormalizada = palabra.trim();
         const categoriaNormalizada = categoria.trim();
 
-        // 1. Primero buscar en la categoría específica
+        // 1. Buscar en categoría específica
         const queryEspecifica = `
             SELECT * FROM Palabras 
             WHERE LOWER(palabra) = LOWER("${palabraNormalizada}") 
@@ -1243,12 +1365,12 @@ app.get('/VerificarPalabra', async function (req, res) {
             return res.send({
                 existe: true,
                 palabra: resultadoEspecifico[0],
-                fuente: 'base_datos',
+                fuente: "base_datos",
                 mensaje: "Palabra válida en la categoría"
             });
         }
 
-        // 2. Si no existe, buscar en CUALQUIER categoría de la BDD
+        // 2. Buscar en cualquier categoría
         const queryCualquiera = `
             SELECT * FROM Palabras 
             WHERE LOWER(palabra) = LOWER("${palabraNormalizada}")
@@ -1260,29 +1382,29 @@ app.get('/VerificarPalabra', async function (req, res) {
             return res.send({
                 existe: true,
                 palabra: resultadoCualquiera[0],
-                fuente: 'base_datos',
+                fuente: "base_datos",
                 mensaje: "Palabra válida (encontrada en otra categoría)"
             });
         }
 
-        // 3. Si no existe en la BDD, consultar la RAE
-        console.log('Palabra no encontrada en BDD, consultando RAE...');
+        // 3. Buscar en RAE API
         const resultadoRAE = await verificarEnRAE(palabraNormalizada);
 
         if (resultadoRAE.existe) {
             return res.send({
                 existe: true,
-                fuente: 'rae',
-                mensaje: "Palabra válida según RAE (no en nuestra base de datos)",
-                definicion: resultadoRAE.definicion
+                fuente: "rae",
+                definicion: resultadoRAE.definicion,
+                mensaje: "Palabra válida según RAE API",
+                palabra: resultadoRAE.palabra
             });
         }
 
         // 4. No existe en ningún lado
-        res.send({
+        return res.send({
             existe: false,
-            fuente: 'ninguna',
-            mensaje: "Palabra no encontrada ni en la base de datos ni en RAE"
+            fuente: "ninguna",
+            mensaje: "Palabra no encontrada ni en la base de datos ni en la RAE"
         });
 
     } catch (e) {
@@ -1295,7 +1417,7 @@ async function verificarEnRAE(palabra) {
     try {
         const palabraLimpia = palabra.trim().toLowerCase();
 
-        // La RAE tiene una API no oficial pero funcional
+        
         const url = `https://dle.rae.es/data/search?w=${(palabraLimpia)}`;
 
         const response = await fetch(url, {
@@ -1322,5 +1444,6 @@ async function verificarEnRAE(palabra) {
     } catch (error) {
         console.error('Error al consultar RAE:', error);
         return { existe: false, fuente: 'rae', error: true };
+        res.status(500).send({ error: "Error interno del servidor" });
     }
-}
+});

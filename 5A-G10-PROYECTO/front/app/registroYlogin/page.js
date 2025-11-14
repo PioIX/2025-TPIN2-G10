@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Button from "../components/Button";
 import Input from "../components/Input";
 import styles from "./page.module.css";
+import { useConnection } from "../../hook/useConnection";
 
 export default function RegistroYLogin() {
   const [modo, setModo] = useState("login");
@@ -14,6 +15,8 @@ export default function RegistroYLogin() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [modal, setModal] = useState({ open: false, title: "", message: "" });
   const router = useRouter();
+  const { url } = useConnection();
+
 
   const showModal = (title, message) => {
     setModal({ open: true, title, message });
@@ -35,7 +38,7 @@ export default function RegistroYLogin() {
     };
 
     try {
-      const response = await fetch("http://localhost:4001/LoginJugadores", {
+      const response = await fetch(`${url}/LoginJugadores`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(datosLogin),
@@ -47,6 +50,7 @@ export default function RegistroYLogin() {
       if (result.loguea) {
         showModal("Éxito", "¡Has iniciado sesión correctamente!");
         localStorage.setItem("idLogged", result.idLogged);
+        localStorage.setItem("isAdmin", result.admin ? "true" : "false");
         if (result.admin === true) { 
           router.push("/admin");
         }
@@ -84,7 +88,7 @@ export default function RegistroYLogin() {
     console.log(datosRegistro);
 
     try {
-      const response = await fetch("http://localhost:4001/RegistroJugadores", {
+      const response = await fetch(`${url}/RegistroJugadores`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(datosRegistro),
