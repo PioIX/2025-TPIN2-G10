@@ -5,17 +5,33 @@ import { useRouter } from "next/navigation";
 import Button from "../components/Button";
 import styles from "./page.module.css";
 import { useSocket } from "../../hook/useSocket";
+import { useConnection } from "../../hook/useConnection";
 
-
+export default function Lobby() {
+  const router = useRouter();
+  const { socket, isConnected } = useSocket();
+  const { url } = useConnection();
+  
+  const [amigos, setAmigos] = useState([]);
+  const [nombreUsuario, setNombreUsuario] = useState("");
+  const [idLogged, setIdLogged] = useState("");
+  const [solicitudPendiente, setSolicitudPendiente] = useState(null);
+  const [solicitudAmistadPendiente, setSolicitudAmistadPendiente] = useState(null);
+  const [mostrarModal, setMostrarModal] = useState(false);
+  const [usuariosDisponibles, setUsuariosDisponibles] = useState([]);
+  const [modalMensaje, setModalMensaje] = useState(null);
+  const [registrado, setRegistrado] = useState(false);
+  const [modal, setModal] = useState({ open: false, title: "", message: "" });
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const showModal = (title, message) => {
     setModal({ open: true, title, message });
-
   };
 
   const closeModal = () => {
     setModal((prev) => ({ ...prev, open: false }));
   };
+
   useEffect(() => {
     
     const id = localStorage.getItem("idLogged");
@@ -126,6 +142,7 @@ import { useSocket } from "../../hook/useSocket";
         );
         if (jugadorActual) {
           setNombreUsuario(jugadorActual.nombre);
+          setIsAdmin(Boolean(jugadorActual.administrador));
         }
       }
     } catch (error) {
