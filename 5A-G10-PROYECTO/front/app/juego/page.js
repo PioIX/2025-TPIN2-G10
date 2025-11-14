@@ -573,7 +573,7 @@ export default function TuttiFrutti() {
   }
 
 
-  async function guardarEstadisticas() {
+  /*async function guardarEstadisticas() {
     const idLogged = localStorage.getItem("idLogged");
     const mail = localStorage.getItem("mail");
     if (!idLogged) return;
@@ -610,10 +610,100 @@ export default function TuttiFrutti() {
       });
       showModal("¡Éxito!", "Estadísticas guardadas correctamente");
       router.push("/ranking")
+      setEsperandoOtroJugador(false)
     } catch (error) {
-      console.error("Error al guardar:", error);
+      console.error("Error al actualizar ESTADISTICAS:", error);
+    }
+    try {
+      await fetch("http://localhost:4001/GuardarPartida", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          idGanador,
+          empate,
+          puntos: puntosGanador,
+        }),
+      });
+      
+    } catch (error) {
+      console.error("Error al guardar partida:", error);
+    }
+  }*/
+
+
+  async function guardarEstadisticas() {
+    const idLogged = localStorage.getItem("idLogged");
+    const mail = localStorage.getItem("mail");
+
+    if (!idLogged) return;
+
+    let puntosGanador = 0;
+    let empate = false;
+    let idGanador = [];
+
+    // Calculos de quien ganó
+    if (puntos > puntosOponente) {
+      // YO GANÉ - Solo sumo MIS puntos
+      puntosGanador = puntos;
+      idGanador = [parseInt(idLogged), parseInt(idOponente)]; // [ganador, perdedor]
+      empate = false;
+
+    } else if (puntos < puntosOponente) {
+      // YO PERDÍ - Solo suma el oponente SUS puntos
+      puntosGanador = puntosOponente;
+      idGanador = [parseInt(idOponente), parseInt(idLogged)]; // [ganador, perdedor]
+      empate = false;
+
+    } else {
+      // EMPATE - Ambos suman sus puntos (son iguales)
+      puntosGanador = puntos; // Es lo mismo que puntosOponente
+      idGanador = [parseInt(idLogged), parseInt(idOponente)];
+      empate = true;
+    }
+
+    try {
+      const response = await fetch("http://localhost:4001/ActualizarEstadisticas", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          idGanador, // [idGanador, idPerdedor] o [id1, id2] si empate
+          puntosGanador, // Solo los puntos del ganador (o iguales si empate)
+          empate
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.ok) {
+        showModal("¡Éxito!", "Estadísticas guardadas correctamente");
+        setTimeout(() => {
+          router.push("/ranking");
+        }, 1500);
+      } else {
+        showModal("Error", result.res || "No se pudieron guardar las estadísticas");
+      }
+
+    } catch (error) {
+      console.error("Error al actualizar estadísticas:", error);
+      showModal("Error", "No se pudo conectar con el servidor");
     }
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   /*function guardarRondaEnHistorial(puntosRonda, detallesPuntos) {
     console.log("💾 Guardando ronda en historial:", { rondaActual, puntosRonda });
 
@@ -706,7 +796,7 @@ export default function TuttiFrutti() {
           texto="TERMINAR PARTIDA"
           className={styles.buttonVioleta}
           onClick={() => {
-            guardarEstadisticas(); 
+            guardarEstadisticas();
           }}
         />
         <div className={styles.timerContainer}>

@@ -5,41 +5,29 @@ import { useRouter } from "next/navigation";
 import Button from "../components/Button";
 import styles from "./page.module.css";
 import { useSocket } from "../../hook/useSocket";
-import { useConnection } from "../../hook/useConnection";
-export default function Amigos() {
-  const [amigos, setAmigos] = useState([]);
-  const [isAdmin, setIsAdmin] = useState(false);
 
-useEffect(() => {
-  if (typeof window !== "undefined") {
-    const adminFlag = localStorage.getItem("isAdmin") === "true";
-    setIsAdmin(adminFlag);
-  }
-}, []);
-useEffect(() => {
-  if (typeof window !== "undefined") {
-    const adminFlag = localStorage.getItem("isAdmin");
-    console.log("isAdmin en localStorage →", adminFlag);
-    setIsAdmin(adminFlag === "true");
-  }
-}, []);
 
-  const [nombreUsuario, setNombreUsuario] = useState("");
-  const [mostrarModal, setMostrarModal] = useState(false);
-  const [usuariosDisponibles, setUsuariosDisponibles] = useState([]);
-  const [solicitudPendiente, setSolicitudPendiente] = useState(null);
-  const [solicitudAmistadPendiente, setSolicitudAmistadPendiente] = useState(null);
-  const [idLogged, setIdLogged] = useState(null);
-  const [registrado, setRegistrado] = useState(false);
-  const [modalMensaje, setModalMensaje] = useState(null);
-  const router = useRouter();
-  const { socket, isConnected } = useSocket();
-  const { url } = useConnection();
+
+  const showModal = (title, message) => {
+    setModal({ open: true, title, message });
+
+  };
+
+  const closeModal = () => {
+    setModal((prev) => ({ ...prev, open: false }));
+  };
   useEffect(() => {
+    
     const id = localStorage.getItem("idLogged");
     if (id) {
       setIdLogged(id);
     }
+
+    showModal(
+      "REGLAS DEL JUEGO:",
+      "• Escribir sin tildes\n• Escribir palabras acordes a la categoría, si no no serán validadas"
+    );
+
     cargarAmigos();
     cargarNombreUsuario();
   }, []);
@@ -89,10 +77,10 @@ useEffect(() => {
 
     socket.on('gameStarted', (data) => {
       console.log("Empezó el juego", data);
-      setModalMensaje({ 
-        tipo: 'success', 
-        mensaje: '¡El juego está comenzando!', 
-        redirect: `/juego?room=${data.room}&categorias=${JSON.stringify(data.categorias)}&letra=${data.letra}` 
+      setModalMensaje({
+        tipo: 'success',
+        mensaje: '¡El juego está comenzando!',
+        redirect: `/juego?room=${data.room}&categorias=${JSON.stringify(data.categorias)}&letra=${data.letra}`
       });
     });
 
@@ -166,7 +154,7 @@ useEffect(() => {
       if (result.amigos && result.amigos.length > 0) {
         setAmigos(result.amigos);
       } else {
-        setAmigos([]); 
+        setAmigos([]);
       }
     } catch (error) {
       console.error("Error al obtener amigos:", error);
@@ -219,7 +207,7 @@ useEffect(() => {
       });
 
       const result = await response.json();
-      
+
       if (result.agregado) {
         setModalMensaje({ tipo: 'success', mensaje: '¡Solicitud de amistad aceptada!' });
         cargarAmigos();
@@ -265,7 +253,7 @@ useEffect(() => {
       nombreSolicitante: nombreUsuario,
       idReceptor: parseInt(usuario.idusuario)
     });
-    
+
     setMostrarModal(false);
   }
 
@@ -288,10 +276,10 @@ useEffect(() => {
       });
 
       const result = await response.json();
-      
+
       if (result.eliminado) {
         setModalMensaje({ tipo: 'success', mensaje: result.res });
-        cargarAmigos(); 
+        cargarAmigos();
       } else {
         setModalMensaje({ tipo: 'error', mensaje: result.res || "No se pudo eliminar el amigo" });
       }
@@ -309,7 +297,7 @@ useEffect(() => {
   }
 
 
- 
+
 
   return (
     <div className={styles.container}>
@@ -343,12 +331,12 @@ useEffect(() => {
                   <span className={styles.amigoNombre}>{amigo.nombre}</span>
                 </div>
                 <div className={styles.amigoActions}>
-                  <Button 
-                    texto="JUGAR" 
-                    className={styles.jugarButton} 
+                  <Button
+                    texto="JUGAR"
+                    className={styles.jugarButton}
                     onClick={() => envioSolicitudJuego(amigo)}
                   />
-                  <Button 
+                  <Button
                     texto="ELIMINAR"
                     className={styles.eliminarButton}
                     onClick={() => eliminarAmigo(amigo.idusuario)}
@@ -415,24 +403,24 @@ useEffect(() => {
             <div className={styles.modalHeader}>
               <h3>Solicitud de Amistad</h3>
             </div>
-            
+
             <div className={styles.solicitudContent}>
               <p className={styles.solicitudTexto}>
                 <strong>{solicitudAmistadPendiente.nombreSolicitante}</strong> quiere ser tu amigo
               </p>
-              
+
               <div className={styles.solicitudBotones}>
-                <Button 
+                <Button
                   texto="Aceptar"
                   className={styles.btnAceptar}
                   onClick={aceptarSolicitudAmistad}
                 />
-                <Button 
+                <Button
                   texto="Rechazar"
                   className={styles.btnRechazar}
                   onClick={rechazarSolicitudAmistad}
                 />
-                
+
               </div>
             </div>
           </div>
@@ -445,20 +433,20 @@ useEffect(() => {
             <div className={styles.modalHeader}>
               <h3>Solicitud de Juego</h3>
             </div>
-            
+
             <div className={styles.solicitudContent}>
               <p className={styles.solicitudTexto}>
                 <strong>{solicitudPendiente.nombreSolicitante}</strong> quiere jugar una super partida de Tutti Frutti con vos!
               </p>
-              
+
               <div className={styles.solicitudBotones}>
                 <Button
-                  texto="Aceptar" 
+                  texto="Aceptar"
                   className={styles.btnAceptar}
                   onClick={aceptarSolicitud}
                 />
-                 
-                <Button 
+
+                <Button
                   texto="Rechazar"
                   className={styles.btnRechazar}
                   onClick={rechazarSolicitud}
@@ -471,7 +459,7 @@ useEffect(() => {
 
       {modalMensaje && (
         <div className={styles.modalOverlay} onClick={cerrarModalMensaje}>
-          <div 
+          <div
             className={`${styles.modalContent} ${styles.modalMensajeContent}`}
             onClick={(e) => e.stopPropagation()}
           >
@@ -482,13 +470,13 @@ useEffect(() => {
                 {modalMensaje.tipo === 'info' && 'i'}
               </div>
             </div>
-            
+
             <div className={styles.modalMensajeBody}>
               <p className={styles.modalMensajeTexto}>{modalMensaje.mensaje}</p>
             </div>
-            
+
             <div className={styles.modalMensajeFooter}>
-              <Button 
+              <Button
                 texto="Aceptar"
                 className={`${styles.btnModalMensaje} ${styles[`btn${modalMensaje.tipo.charAt(0).toUpperCase() + modalMensaje.tipo.slice(1)}`]}`}
                 onClick={cerrarModalMensaje}
@@ -526,10 +514,23 @@ useEffect(() => {
           className={styles.buttonRed}
           onClick={() => {
             localStorage.removeItem("idLogged");
-            router.push("/registroYlogin"); 
+            router.push("/registroYlogin");
           }}
         />
       </div>
+      {modal.open && (
+        <div className={styles.modalOverlay} onClick={closeModal}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <h2 className={styles.modalTitle}>{modal.title}</h2>
+            <p className={styles.modalMessage} style={{ whiteSpace: 'pre-line' }}>{modal.message}</p>
+            <Button
+              texto="CERRAR"
+              onClick={closeModal}
+              className={styles.buttonBlue}
+            />
+          </div>
+        </div>
+      )}
     </div>
  
   );
