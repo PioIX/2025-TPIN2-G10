@@ -57,12 +57,9 @@ const rooms = {};
 
 io.on("connection", (socket) => {
     const req = socket.request;
-    console.log('Nueva conexión de socket:', socket.id);
-
     socket.on('registerUser', (userId) => {
         socket.userId = userId;
         usuariosConectados.set(userId.toString(), socket.id);
-        console.log(`usuario ${userId} registrado con socket ${socket.id}`);
         console.log('usuarios conectados:', Array.from(usuariosConectados.keys()));
         socket.emit('registrationConfirmed', { userId, socketId: socket.id });
     });
@@ -74,9 +71,7 @@ io.on("connection", (socket) => {
     // SOLICITUD DE AMISTAD
     socket.on('sendFriendRequest', async (data) => {
         const { idSolicitante, nombreSolicitante, idReceptor } = data;
-
         console.log(`Solicitud de amistad de ${nombreSolicitante} (${idSolicitante}) para usuario ${idReceptor}`);
-
         const receptorSocketId = usuariosConectados.get(idReceptor.toString());
 
         if (receptorSocketId) {
@@ -87,8 +82,6 @@ io.on("connection", (socket) => {
                     idSolicitante,
                     nombreSolicitante
                 });
-                console.log(`Solicitud de amistad enviada a usuario ${idReceptor}`);
-
                 socket.emit('friendRequestSent', {
                     message: 'Solicitud de amistad enviada'
                 });
@@ -103,10 +96,7 @@ io.on("connection", (socket) => {
     // ACEPTAR SOLICITUD DE AMISTAD
     socket.on('acceptFriendRequest', async (data) => {
         const { idSolicitante, idReceptor } = data;
-
         console.log(`${idReceptor} aceptó la solicitud de amistad de ${idSolicitante}`);
-
-        // Notificar al solicitante que su solicitud fue aceptada
         const solicitanteSocketId = usuariosConectados.get(idSolicitante.toString());
         
         if (solicitanteSocketId) {
@@ -119,10 +109,7 @@ io.on("connection", (socket) => {
                 });
             }
         }
-
-        // Notificar al receptor también
         const receptorSocketId = usuariosConectados.get(idReceptor.toString());
-        
         if (receptorSocketId) {
             const receptorSocket = io.sockets.sockets.get(receptorSocketId);
             
@@ -138,10 +125,7 @@ io.on("connection", (socket) => {
     // ELIMINAR AMIGO
     socket.on('removeFriend', async (data) => {
         const { idJugador, idAmigo } = data;
-
-        console.log(`${idJugador} eliminó a ${idAmigo} de sus amigos`);
-
-        // Notificar al amigo eliminado
+        console.log(`${idJugador} elimino a ${idAmigo} de sus amigos`);
         const amigoSocketId = usuariosConectados.get(idAmigo.toString());
         
         if (amigoSocketId) {
@@ -154,10 +138,7 @@ io.on("connection", (socket) => {
                 });
             }
         }
-
-        // Notificar al jugador que eliminó
         const jugadorSocketId = usuariosConectados.get(idJugador.toString());
-        
         if (jugadorSocketId) {
             const jugadorSocket = io.sockets.sockets.get(jugadorSocketId);
             
@@ -173,9 +154,7 @@ io.on("connection", (socket) => {
     // SOLICITUD DE JUEGO
     socket.on('sendGameRequest', (data) => {
         const { idSolicitante, nombreSolicitante, idReceptor, nombreReceptor } = data;
-
         console.log(`solicitud de ${nombreSolicitante} (${idSolicitante}) para ${nombreReceptor} (${idReceptor})`);
-
         const receptorSocketId = usuariosConectados.get(idReceptor.toString());
 
         if (receptorSocketId) {
@@ -188,8 +167,6 @@ io.on("connection", (socket) => {
                     idReceptor,
                     nombreReceptor
                 });
-                console.log(`solicitud enviada a ${nombreReceptor}`);
-
                 socket.emit('requestSent', {
                     message: `solicitud enviada a ${nombreReceptor}`
                 });
@@ -208,41 +185,31 @@ io.on("connection", (socket) => {
     // ACEPTAR SOLICITUD DE JUEGO
     socket.on('acceptGameRequest', async (data) => {
         const { idSolicitante, idReceptor } = data;
-
         console.log(`${idReceptor} aceptó la solicitud de ${idSolicitante}`);
-
         const room = `game-${Math.min(idSolicitante, idReceptor)}-${Math.max(idSolicitante, idReceptor)}-${Date.now()}`;
-
         const solicitanteSocketId = usuariosConectados.get(idSolicitante.toString());
         const receptorSocketId = usuariosConectados.get(idReceptor.toString());
-
         if (solicitanteSocketId && receptorSocketId) {
             const solicitanteSocket = io.sockets.sockets.get(solicitanteSocketId);
             const receptorSocket = io.sockets.sockets.get(receptorSocketId);
-
             if (solicitanteSocket && receptorSocket) {
                 solicitanteSocket.join(room);
                 receptorSocket.join(room);
-
                 try {
                     const response = await realizarQuery(`SELECT nombre FROM Categorias ORDER BY RAND() LIMIT 6`);
                     const categorias = response || [];
                     const letra = generarLetraAleatoria();
-
-                    // Guardar información de la partida con historial
                     partidasActivas.set(room, {
                         categorias,
                         letra,
                         jugadores: [idSolicitante, idReceptor],
                         respuestas: {},
-                        respuestasValidadas: {}, // AGREGAR ESTO
+                        respuestasValidadas: {}, 
                         iniciada: false,
                         rondaActual: 1,
-                        historialRondas: [] // AGREGAR ESTO para guardar rondas anteriores
+                        historialRondas: [] 
                     });
-
                     console.log(`Juego creado en sala: ${room}`);
-
                     io.to(room).emit('gameStarted', {
                         room,
                         jugadores: [idSolicitante, idReceptor],
@@ -259,21 +226,13 @@ io.on("connection", (socket) => {
     });
     socket.on('solicitarNuevaRonda', (data) => {
         const { room, userId } = data;
-        console.log(`Usuario ${userId} solicita nueva ronda en sala ${room}`);
-
         const partida = partidasActivas.get(room);
         if (!partida) {
             socket.emit('error', { message: 'Partida no encontrada' });
             return;
         }
-
-
         const idOponente = partida.jugadores.find(id => id.toString() !== userId.toString());
         console.log("oponente:", idOponente);
-
-        //const receptorSocketId = usuariosConectados.get(idOponente.toString());
-        //console.log("socket del otro", receptorSocketId);
-
         if (idOponente) {
 
             io.to(room).emit('solicitudNuevaRonda', {
@@ -283,7 +242,7 @@ io.on("connection", (socket) => {
 
             console.log(`Solicitud de nueva ronda enviada al jugador ${idOponente}`);
             io.to(room).emit('solicitudEnviada', {
-                message: 'Solicitud enviada, esperando respuesta...',
+                message: 'solicitud enviada, esperando respuesta',
                 userId: userId
             });
 
@@ -310,30 +269,23 @@ io.on("connection", (socket) => {
 
         try {
             const nuevaLetra = generarLetraAleatoria();
-
-            // IMPORTANTE: Guardar el estado de la ronda anterior antes de limpiar
             if (!partida.historialRondas) {
                 partida.historialRondas = [];
             }
-
-            // Guardar la ronda anterior
             partida.historialRondas.push({
                 ronda: partida.rondaActual || 1,
                 letra: partida.letra,
                 respuestasValidadas: { ...partida.respuestasValidadas },
                 categorias: partida.categorias
             });
-
-            // Actualizar para nueva ronda
             partida.letra = nuevaLetra;
             partida.rondaActual = (partida.rondaActual || 1) + 1;
             partida.respuestas = {};
-            partida.respuestasValidadas = {}; // Limpiar las validadas también
+            partida.respuestasValidadas = {}; 
             partida.iniciada = false;
 
-            console.log(`Nueva ronda iniciada: ${partida.rondaActual}, letra: ${nuevaLetra}`);
+            console.log(`nueva ronda iniciada: ${partida.rondaActual}, letra: ${nuevaLetra}`);
 
-            // Notificar a AMBOS jugadores con el número de ronda correcto
             io.to(room).emit('nuevaRondaIniciada', {
                 letra: nuevaLetra,
                 ronda: partida.rondaActual,
@@ -353,7 +305,7 @@ io.on("connection", (socket) => {
 
     // RECHAZAR SOLICITUD DE JUEGO.
     socket.on('rejectGameRequest', (data) => {
-        const { room, userId, idOponente } = data;
+        const { room } = data;
 
         const solicitanteSocketId = usuariosConectados.get(idSolicitante.toString());
 
@@ -372,8 +324,6 @@ io.on("connection", (socket) => {
     // INICIAR TIMER DE LA PARTIDA
     socket.on('startGameTimer', (data) => {
         const { room } = data;
-        console.log(`Iniciando timer para sala ${room}`);
-
         const partida = partidasActivas.get(room);
         if (partida && !partida.iniciada) {
             partida.iniciada = true;
@@ -404,142 +354,119 @@ io.on("connection", (socket) => {
     // BASTA - Terminar el tiempo para ambos jugadores
     socket.on('basta', (data) => {
         const { room, userId } = data;
-        console.log(`\n🔴 ========== BASTA RECIBIDO ==========`);
-        console.log(`   Usuario: ${userId}`);
-        console.log(`   Sala: ${room}`);
-
         const partida = partidasActivas.get(room);
         
         if (!partida || partida.terminada) {
-            console.log("❌ Partida no encontrada o ya terminada");
+            console.log("no se encontro la partida");
             return;
         }
-
-        console.log(`✅ Terminando el tiempo para toda la sala`);
-
-        // Emitir a TODA LA SALA que el tiempo se acabó
+        //emitimos tiempo terminado para q el basta funcione, osea 2x1
         io.to(room).emit('tiempoTerminado', {
-            message: `${userId} dijo BASTA - Tiempo terminado`,
+            message: `${userId} dijo BASTA y termino el tiempo`,
             userId: userId
         });
-
-        console.log(`📤 Evento 'tiempoTerminado' enviado a toda la sala`);
-        console.log(`========================================\n`);
     });
 
     function calcularPuntosMejorado(misRespuestas, respuestasOponente) {
         let puntos = 0;
         let detalles = [];
-
         console.log("mis respuestas", misRespuestas, "respuestas del otro", respuestasOponente);
 
         for (const [categoria, miRespuesta] of Object.entries(misRespuestas)) {
-            console.log(`\n🔍 Categoría: ${categoria}`);
-            console.log(`   Mi respuesta: ${miRespuesta.palabra} (válida: ${miRespuesta.valida})`);
-
             if (!miRespuesta.valida || !miRespuesta.palabra) {
                 detalles.push({
                     categoria,
                     puntos: 0,
                     razon: "Palabra inválida o vacía"
                 });
-                console.log(`   ❌ 0 puntos - Inválida o vacía`);
+                console.log(`  0 puntitos`);
                 continue;
             }
-
             const respuestaOpo = respuestasOponente[categoria];
             console.log(`   Respuesta oponente: ${respuestaOpo?.palabra} (válida: ${respuestaOpo?.valida})`);
 
-            // Caso 1: Solo yo tengo respuesta válida (20 puntos)
+            // si solo yo tengo respuesta valida o solo yo puse algo
             if (!respuestaOpo || !respuestaOpo.valida || !respuestaOpo.palabra) {
                 puntos += 20;
                 detalles.push({
                     categoria,
                     puntos: 20,
-                    razon: "Solo tú respondiste correctamente"
+                    razon: "Solo vos respondiste correctamente"
                 });
-                console.log(`   ✅ +20 puntos - Solo tú respondiste`);
+                console.log(`+20 puntos, solo vos respondiste`);
             }
-            // Caso 2: Ambos tenemos la misma respuesta válida (5 puntos)
+            //si tenemos la misma
             else if (miRespuesta.palabra.toLowerCase() === respuestaOpo.palabra.toLowerCase()) {
                 puntos += 5;
                 detalles.push({
                     categoria,
                     puntos: 5,
-                    razon: "Respuesta coincidente con oponente"
+                    razon: "respuestas iguales"
                 });
-                console.log(`   ✅ +5 puntos - Respuestas iguales`);
+                console.log(`+5 puntos, respuestas iguales`);
             }
-            // Caso 3: Ambos tenemos respuestas válidas pero diferentes (10 puntos)
+            //distintas
             else {
                 puntos += 10;
                 detalles.push({
                     categoria,
                     puntos: 10,
-                    razon: "Respuesta diferente al oponente"
+                    razon: "respuestas distintas"
                 });
-                console.log(`   ✅ +10 puntos - Respuestas diferentes`);
+                console.log(`+10 puntos, respuestas distintas`);
             }
         }
 
-        console.log(`\n💰 TOTAL: ${puntos} puntos`);
+        console.log(`TOTAL: ${puntos} puntos`);
         return { puntos, detalles };
     }
 
     socket.on('enviarRespuestasValidadas', async (data) => {
         const { room, userId, respuestasValidadas } = data;
-        console.log(`\n🔵 RECIBIENDO RESPUESTAS VALIDADAS`);
-        console.log(`   Room: ${room}`);
-        console.log(`   UserId: ${userId}`);
-        
         const partida = partidasActivas.get(room);
 
         if (!partida) {
-            console.log("❌ Partida no encontrada para room:", room);
-            console.log("   Partidas activas:", Array.from(partidasActivas.keys()));
+            console.log("NO ENCONTRE PARTIDAAAAAAAAA EN ESTE ROOM:", room);
+            console.log("   partidas activas:", Array.from(partidasActivas.keys()));
             return;
         }
 
-        console.log(`   Jugadores en partida:`, partida.jugadores);
+        console.log(`jugadores en partida:`, partida.jugadores);
 
-        // IMPORTANTE: NO SUMAR SI YA ENVIÓ
+        // NO SUMAR SI YA MANDO
         if (partida.respuestasValidadas && partida.respuestasValidadas[userId]) {
-            console.log(`⚠️ El jugador ${userId} ya envió sus respuestas, ignorando duplicado`);
+            console.log(`el jugador ${userId} ya envió sus respuestas, ignorando duplicado`);
             return;
         }
 
-        // Guardar respuestas validadas del jugador
+        // guarda respuestas validadas del jugador
         partida.respuestasValidadas = partida.respuestasValidadas || {};
         partida.respuestasValidadas[userId] = respuestasValidadas;
 
-        console.log(`✅ Respuestas validadas guardadas para jugador ${userId}`);
-        console.log(`📝 Respuestas:`, respuestasValidadas);
-
-        // Verificar si ambos jugadores ya enviaron sus respuestas
+        //los dos mandaron?
         const jugadoresConRespuestas = Object.keys(partida.respuestasValidadas).length;
-        console.log(`📊 Jugadores con respuestas: ${jugadoresConRespuestas}/2`);
-        console.log(`   IDs que enviaron:`, Object.keys(partida.respuestasValidadas));
-
+        console.log(`jugadores con respuestas: ${jugadoresConRespuestas}/2`);
+        
         if (jugadoresConRespuestas === 2) {
-            console.log("🎯 Ambos jugadores enviaron respuestas - Calculando puntos...");
+            console.log("calculando puntos");
 
             const [jugador1Id, jugador2Id] = partida.jugadores;
             const respuestas1 = partida.respuestasValidadas[jugador1Id];
             const respuestas2 = partida.respuestasValidadas[jugador2Id];
 
             if (!respuestas1 || !respuestas2) {
-                console.error("❌ ERROR: Faltan respuestas");
+                console.error("faltan respuestas");
                 return;
             }
 
-            // Calcular puntos
+            // calcular puntos
             const resultado1 = calcularPuntosMejorado(respuestas1, respuestas2);
             const resultado2 = calcularPuntosMejorado(respuestas2, respuestas1);
 
-            console.log(`💰 Puntos Jugador 1 (${jugador1Id}): ${resultado1.puntos}`);
-            console.log(`💰 Puntos Jugador 2 (${jugador2Id}): ${resultado2.puntos}`);
+            console.log(`Puntos Jugador 1 (${jugador1Id}): ${resultado1.puntos}`);
+            console.log(`Puntos Jugador 2 (${jugador2Id}): ${resultado2.puntos}`);
 
-            // Enviar a TODA LA SALA
+            // enviar a TODA LA SALA
             io.to(room).emit('resultadosRonda', {
                 jugador1: {
                     userId: jugador1Id,
@@ -556,10 +483,7 @@ io.on("connection", (socket) => {
                 ronda: partida.rondaActual || 1,
                 letra: partida.letra
             });
-
-            console.log("📤 Resultados enviados a toda la sala");
-
-            // Limpiar SOLO respuestasValidadas
+            // limpia respuestasValidadas
             partida.respuestasValidadas = {};
             partidasActivas.set(room, partida);
         }
@@ -570,26 +494,17 @@ io.on("connection", (socket) => {
         const partida = partidasActivas.get(room);
         if (!partida) return;
 
-        // 1. Guardar respuestas del jugador actual
+        // primero guardar respuestas del jugador actual
         partida.respuestas[userId] = respuestas;
 
-        // 2. Determinar el oponente y sus respuestas
+        // desp identifica al otro y sus respuestas
         const idOponente = partida.jugadores.find(id => id.toString() !== userId.toString());
         const respuestasOponente = partida.respuestas[idOponente];
-        const oponenteSocketId = usuariosConectados.get(idOponente.toString());
-
-        // 3. Emitir las respuestas finales
+    
+        // ultimo emitir  respuestas finales
         if (respuestasOponente) {
-            // Enviar al jugador actual las del oponente
             io.to(socket.id).emit('respuestasFinalesOponente', { respuestas: respuestasOponente, id: idOponente });
-
-
-
-        } else {
-            // Si no hay respuestas del oponente, debe esperar a que el oponente las envíe.
-            // Esto puede pasar si un jugador dijo basta y el otro aun no reaccionó.
-            // Se puede implementar un pequeño timeout o una bandera de 'esperandoRespuestas'.
-        }
+        } 
 
         partidasActivas.set(room, partida); // Actualizar partida
     });
@@ -656,7 +571,7 @@ app.put('/ActualizarEstadisticas', async function (req, res) {
 
     // Si es EMPATE
     if (empate === true) {
-      console.log("📊 Registrando EMPATE");
+      console.log(" Registrando EMPATE");
       
       // Actualizar ambos jugadores con empate
       for (let i = 0; i < 2; i++) {
@@ -691,8 +606,7 @@ app.put('/ActualizarEstadisticas', async function (req, res) {
       });
     }
 
-    // Si NO es empate -> idGanador[0] = GANADOR, idGanador[1] = PERDEDOR
-    console.log("🏆 Registrando GANADOR y PERDEDOR");
+    console.log("Registrando GANADOR y PERDEDOR");
 
     // ========== GANADOR (posición 0) ==========
     const idGanadorReal = idGanador[0];
@@ -734,7 +648,7 @@ app.put('/ActualizarEstadisticas', async function (req, res) {
       const nuevosPuntos = puntos + puntosOponente; // El perdedor suma sus puntos también
       const nuevasPerdidas = partidasperdidas + 1;
 
-      console.log(`❌ Perdedor ${idPerdedor}: +1 perdida, +${puntosOponente} puntos`);
+      console.log(`Perdedor ${idPerdedor}: +1 perdida, +${puntosOponente} puntos`);
 
       await realizarQuery(
         `UPDATE Jugadores 
@@ -757,53 +671,6 @@ app.put('/ActualizarEstadisticas', async function (req, res) {
     });
   }
 });
-
-
-
-
-
-//funcion para ranking
-/*app.put('/ActualizarEstadisticas', async function (req, res) {
-    const { idGanador, puntosGanador } = req.body;
-
-    try {
-
-        if (!idGanador || idGanador.length === 0) {
-            return res.json({ res: "No hay ganadores", ok: false });
-        }
-
-        for (let i = 0; i < idGanador.length; i++) {
-
-            const id = idGanador[i];
-
-            // Traigo partidas y puntos actuales
-            const datos = await realizarQuery(
-                `SELECT partidasjugadas, puntos FROM Jugadores WHERE idusuario = ?`,
-                [id]
-            );
-
-            if (!datos || datos.length === 0) continue;
-
-            const { partidasjugadas, puntos } = datos[0];
-
-            const nuevasPartidas = partidasjugadas + 1;
-            const nuevosPuntos = puntos + puntosGanador; // suma puntos
-
-            console.log(`Actualizando jugador ${id}: partidas ${nuevasPartidas}, puntos ${nuevosPuntos}`);
-
-            await realizarQuery(
-                `UPDATE Jugadores SET partidasjugadas = ?, puntos = ? WHERE idusuario = ?`,
-                [nuevasPartidas, nuevosPuntos, id]
-            );
-        }
-
-        return res.json({ res: "Estadísticas actualizadas", ok: true });
-
-    } catch (e) {
-        console.error("Error al actualizar estadísticas:", e);
-        res.status(500).json({ res: "Error interno", ok: false });
-    }
-});*/
 
 //para administradores, borrar jugador
 app.delete('/BorrarJugador', async function (req, res) {
@@ -838,7 +705,6 @@ app.delete('/BorrarJugador', async function (req, res) {
         res.status(500).send({ res: "Error interno", borrada: false });
     }
 });
-
 
 
 //para administradores, borrrar categoria, deberia funcionar
@@ -998,10 +864,6 @@ app.post('/LoginJugadores', async function (req, res) {
     }
 
 })
-
-
-
-
 
 //get usuarios
 app.get('/Jugadores', async function (req, res) {
