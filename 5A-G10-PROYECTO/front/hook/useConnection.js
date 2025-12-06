@@ -1,5 +1,5 @@
 const useConnection = () => {
-  const ip = "10.1.4.12";
+  const ip = "192.168.0.59";
   const port = "4001";
 
   const url = `http://${ip}:${port}`;
