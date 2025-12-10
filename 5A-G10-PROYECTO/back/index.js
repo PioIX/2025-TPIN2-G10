@@ -1090,7 +1090,6 @@ app.get('/Categorias', async function (req, res) {
         res.json("Hubo un error, " + e)
     }
 });
-
 app.get('/HistorialPartidas', async function (req, res) {
     const { idjugador } = req.query;
 
@@ -1122,7 +1121,8 @@ app.get('/HistorialPartidas', async function (req, res) {
         }
         const amigos = await realizarQuery(`
             SELECT 
-                j.idusuario,
+                j.idamigo,
+                j.idjugador,
                 j.nombre
             FROM Amigos a
             INNER JOIN Jugadores j ON a.idamigo = j.idusuario
@@ -1223,7 +1223,7 @@ app.post('/GuardarPartida', async function (req, res) {
             guardado: false
         });
     }
-});
+}); 
 app.get('/LlevoPalabras', async function (req, res) {
     try {
         let respuesta;

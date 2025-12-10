@@ -119,8 +119,8 @@ export default function TuttiFrutti() {
 
       setJuegoActivo(false);
 
-      // 🔥 GUARDAR RESPUESTAS DE ESTA RONDA ANTES DE QUE SE PIERDAN
-      function guardarRondaEnHistorial(snapshot) {
+      //  GUARDAR RESPUESTAS DE ESTA RONDA ANTES DE QUE SE PIERDAN
+      /*function guardarRondaEnHistorial(snapshot) {
         if (!snapshot) return;
 
         const numero = snapshot.numero;
@@ -168,7 +168,7 @@ export default function TuttiFrutti() {
           console.log(" Ronda guardada:", nueva);
           return [...prev, nueva];
         });
-      }
+      } */
 
       if (data.respuestas) {
         setRespuestasOponente(data.respuestas);
