@@ -16,8 +16,8 @@ export default function Historial() {
     cargarHistorial();
     cargarNombreUsuario();
   }, []);
-
-  async function cargarNombreUsuario() {
+// REVISAR TODO,NO FUNCIONA NADA 
+   async function cargarNombreUsuario() {
     const idLogged = localStorage.getItem("idLogged");
     if (!idLogged) {
       router.push("/");
@@ -160,7 +160,7 @@ export default function Historial() {
             <p className={styles.noDataText}>No hay partidas jugadas...</p>
           </div>
         )}
-      </div>
+      </div> */
 
       {/* Botones inferiores */}
       <div className={styles.bottomButtons}>
