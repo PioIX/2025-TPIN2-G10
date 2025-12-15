@@ -47,8 +47,8 @@
   font-weight: 700;
 }
 
-/* Tabla de Historial */
-.historialTable {
+/* Tabla de Ranking */
+.rankingTable {
   width: 100%;
   max-width: 1100px;
   background: rgba(79, 168, 181, 0.8);
@@ -56,10 +56,9 @@
   padding: 32px;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
   backdrop-filter: blur(10px);
-  min-height: 400px;
 }
 
-.historialTitle {
+.rankingTitle {
   font-size: 28px;
   font-weight: 700;
   color: white;
@@ -69,23 +68,9 @@
   letter-spacing: 1px;
 }
 
-.loading {
-  text-align: center;
-  color: white;
-  font-size: 18px;
-  font-weight: 500;
-  padding: 60px 20px;
-  animation: pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
 .tableHeaders {
   display: grid;
-  grid-template-columns: 1.5fr 1.5fr 1.5fr 1fr 1fr;
+  grid-template-columns: 200px 1fr 1fr 1fr 1fr;
   gap: 8px;
   margin-bottom: 16px;
   padding: 0 16px;
@@ -100,41 +85,33 @@
   line-height: 1.3;
 }
 
-.fechaCol {
-  text-align: left;
+.jugadorCol {
+  justify-content: flex-start !important;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 !important;
 }
+
+
+
+.jugadorNombre {
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  display: flex;
+}
+
 
 .tableBody {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-height: 500px;
-  overflow-y: auto;
-  padding-right: 8px;
-}
-
-/* Scrollbar personalizado */
-.tableBody::-webkit-scrollbar {
-  width: 8px;
-}
-
-.tableBody::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-}
-
-.tableBody::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 10px;
-}
-
-.tableBody::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.5);
 }
 
 .tableRow {
   display: grid;
-  grid-template-columns: 1.5fr 1.5fr 1.5fr 1fr 1fr;
+  grid-template-columns: 200px 1fr 1fr 1fr 1fr;
   gap: 8px;
   align-items: center;
   background: rgba(255, 255, 255, 0.15);
@@ -152,21 +129,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-}
-
-.fechaTexto {
-  font-size: 14px;
-  font-weight: 600;
-  color: white;
-  text-align: left;
-  width: 100%;
-}
-
-.oponenteInfo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  justify-content: center;
+  padding: 0;
 }
 
 .avatarSmall {
@@ -180,43 +143,9 @@
   flex-shrink: 0;
 }
 
-.oponenteNombre {
-  font-size: 16px;
-  font-weight: 600;
-  color: white;
-}
 
-.ganadorTexto {
-  font-size: 15px;
-  font-weight: 600;
-  color: white;
-  text-align: center;
-}
-
-.resultadoVictoria {
+.statBadge {
   background: #4ade80;
-  color: white;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 14px;
-  font-weight: 700;
-  text-align: center;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-}
-
-.resultadoDerrota {
-  background: #ef4444;
-  color: white;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 14px;
-  font-weight: 700;
-  text-align: center;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-}
-
-.puntosBadge {
-  background: #fbbf24;
   color: white;
   padding: 8px 20px;
   border-radius: 20px;
@@ -227,32 +156,12 @@
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
-/* Sin datos */
 .noData {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 80px 20px;
-  gap: 20px;
-}
-
-.emptyIcon {
-  animation: float 3s ease-in-out infinite;
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-}
-
-.noDataText {
   text-align: center;
   color: white;
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  font-size: 16px;
+  font-weight: 500;
+  padding: 40px 20px;
 }
 
 /* Botones inferiores */
@@ -264,34 +173,11 @@
   margin-top: 40px;
 }
 
-.buttonBlue {
-  flex: 1;
-  padding: 16px 24px;
-  border-radius: 30px;
-  background-color: #3b82f6;
-  color: white;
-  border: none;
-  font-weight: 700;
-  font-size: 15px;
-  font-family: 'Fredoka', sans-serif;
-  cursor: pointer;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-  transition: all 0.3s ease;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.buttonBlue:hover {
-  background-color: #2563eb;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
-}
-
 .buttonGreen {
   flex: 1;
   padding: 16px 24px;
   border-radius: 30px;
-  background-color: #148f25;
+  background-color: #4ade80;
   color: white;
   border: none;
   font-weight: 700;
@@ -305,11 +191,32 @@
 }
 
 .buttonGreen:hover {
-  background-color: #0f6124;
+  background-color: #38a861;
   transform: translateY(-2px);
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
 }
+.buttonYellow {
+  flex: 1;
+  padding: 16px 24px;
+  border-radius: 30px;
+  background-color: #fbbf24;
+  color: white;
+  border: none;
+  font-weight: 700;
+  font-size: 15px;
+  font-family: 'Fredoka', sans-serif;
+  cursor: pointer;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
 
+.buttonYellow:hover {
+  background-color: #f59e0b;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+}
 
 .buttonRed {
   flex: 1;

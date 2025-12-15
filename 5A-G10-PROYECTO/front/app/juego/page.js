@@ -638,63 +638,113 @@ export default function TuttiFrutti() {
       socket.emit("solicitarNuevaRonda", { room: room, userId: parseInt(idLogged, 10) });
     }
   }
-  async function guardarEstadisticas() {
+ async function guardarEstadisticas() {
     const idLogged = localStorage.getItem("idLogged");
-    const mail = localStorage.getItem("mail");
 
-    if (!idLogged) return;
+    if (!idLogged) {
+        console.log("❌ No hay idLogged");
+        return;
+    }
+
+    if (!idOponente) {
+        console.log("❌ No hay idOponente");
+        showModal("Error", "No se pudo identificar al oponente");
+        return;
+    }
 
     let puntosGanador = 0;
+    let puntosOponenteReal = 0;
     let empate = false;
     let idGanador = [];
 
-    // Calculos de quien ganó
+    console.log("📊 Calculando resultados:", { 
+        misPuntos: puntos, 
+        puntosOponente: puntosOponente 
+    });
+
+    // Calcular quien ganó
     if (puntos > puntosOponente) {
-      // YO GANÉ - Solo sumo MIS puntos
+      // YO GANÉ
       puntosGanador = puntos;
-      idGanador = [parseInt(idLogged), parseInt(idOponente)]; // [ganador, perdedor]
+      puntosOponenteReal = puntosOponente;
+      idGanador = [parseInt(idLogged), parseInt(idOponente)];
       empate = false;
+      console.log("🏆 YO GANÉ");
 
     } else if (puntos < puntosOponente) {
-      // YO PERDÍ - Solo suma el oponente SUS puntos
+      // YO PERDÍ
       puntosGanador = puntosOponente;
-      idGanador = [parseInt(idOponente), parseInt(idLogged)]; // [ganador, perdedor]
+      puntosOponenteReal = puntos;
+      idGanador = [parseInt(idOponente), parseInt(idLogged)];
       empate = false;
+      console.log("❌ YO PERDÍ");
 
     } else {
-      // EMPATE - Ambos suman sus puntos (son iguales)
-      puntosGanador = puntos; // Es lo mismo que puntosOponente
+      // EMPATE
+      puntosGanador = puntos;
+      puntosOponenteReal = puntos;
       idGanador = [parseInt(idLogged), parseInt(idOponente)];
       empate = true;
+      console.log("⚖️ EMPATE");
     }
 
     try {
-      const response = await fetch("http://localhost:4001/ActualizarEstadisticas", {
+      console.log("📤 Enviando a /ActualizarEstadisticas...");
+
+      // 1. Actualizar estadísticas
+      const responseStats = await fetch(`${url}/ActualizarEstadisticas`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          idGanador, // [idGanador, idPerdedor] o [id1, id2] si empate
-          puntosGanador, // Solo los puntos del ganador (o iguales si empate)
+          idGanador,
+          puntosGanador,
+          puntosOponente: puntosOponenteReal,
           empate
         }),
       });
 
-      const result = await response.json();
+      const resultStats = await responseStats.json();
+      console.log("📥 Respuesta /ActualizarEstadisticas:", resultStats);
 
-      if (result.ok) {
-        showModal("¡Éxito!", "Estadísticas guardadas correctamente");
+      if (!resultStats.ok) {
+        showModal("Error", resultStats.res || "No se pudieron actualizar las estadísticas");
+        return;
+      }
+
+      console.log("📤 Enviando a /GuardarPartida...");
+
+      // 2. Guardar partida en historial
+      const responsePartida = await fetch(`${url}/GuardarPartida`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          idGanador,
+          puntosGanador,
+          empate
+        }),
+      });
+
+      const resultPartida = await responsePartida.json();
+      console.log("📥 Respuesta /GuardarPartida:", resultPartida);
+
+      if (resultPartida.guardado) {
+        showModal("¡Éxito!", "Partida guardada correctamente en el historial");
+        setTimeout(() => {
+          router.push("/historial");
+        }, 1500);
+      } else {
+        showModal("Advertencia", "Estadísticas guardadas pero hubo un problema con el historial");
         setTimeout(() => {
           router.push("/ranking");
         }, 1500);
-      } else {
-        showModal("Error", result.res || "No se pudieron guardar las estadísticas");
       }
 
     } catch (error) {
-      console.error("Error al actualizar estadísticas:", error);
-      showModal("Error", "No se pudo conectar con el servidor");
+      console.error(" Error al guardar:", error);
+      showModal("Error", "No se pudo conectar con el servidor: " + error.message);
     }
-  }
+}
+
   async function chequeo() {
     const resultadosVerificacion = await verificarTodasLasRespuestas(respuestas);
     const palabrasInvalidas = Object.entries(resultadosVerificacion).filter(([_, resultado]) => !resultado.valida && resultado.palabra !== "");

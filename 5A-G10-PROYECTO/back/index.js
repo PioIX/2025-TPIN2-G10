@@ -558,119 +558,6 @@ app.get('/CategoriaAleatoria', async function (req, res) {
 });
 
 
-app.put('/ActualizarEstadisticas', async function (req, res) {
-  const { idGanador, puntosGanador, puntosOponente, empate } = req.body;
-
-  try {
-    if (!idGanador || idGanador.length !== 2) {
-      return res.json({ 
-        res: "Datos incompletos (se requieren 2 jugadores)", 
-        ok: false 
-      });
-    }
-
-    // Si es EMPATE
-    if (empate === true) {
-      console.log(" Registrando EMPATE");
-      
-      // Actualizar ambos jugadores con empate
-      for (let i = 0; i < 2; i++) {
-        const id = idGanador[i];
-        
-        const datos = await realizarQuery(
-          `SELECT partidasjugadas, puntos, partidasganadas, partidasperdidas 
-           FROM Jugadores WHERE idusuario = ?`,
-          [id]
-        );
-
-        if (!datos || datos.length === 0) continue;
-
-        const { partidasjugadas, puntos } = datos[0];
-        
-        const nuevasPartidas = partidasjugadas + 1;
-        const nuevosPuntos = puntos + puntosGanador; // Ambos suman los mismos puntos
-        
-        console.log(`Jugador ${id}: +1 partida, +${puntosGanador} puntos (EMPATE)`);
-
-        await realizarQuery(
-          `UPDATE Jugadores 
-           SET partidasjugadas = ?, puntos = ? 
-           WHERE idusuario = ?`,
-          [nuevasPartidas, nuevosPuntos, id]
-        );
-      }
-
-      return res.json({ 
-        res: "Empate registrado correctamente", 
-        ok: true 
-      });
-    }
-
-    console.log("Registrando GANADOR y PERDEDOR");
-
-    // ========== GANADOR (posición 0) ==========
-    const idGanadorReal = idGanador[0];
-    const datosGanador = await realizarQuery(
-      `SELECT partidasjugadas, puntos, partidasganadas 
-       FROM Jugadores WHERE idusuario = ?`,
-      [idGanadorReal]
-    );
-
-    if (datosGanador && datosGanador.length > 0) {
-      const { partidasjugadas, puntos, partidasganadas } = datosGanador[0];
-      
-      const nuevasPartidas = partidasjugadas + 1;
-      const nuevosPuntos = puntos + puntosGanador;
-      const nuevasGanadas = partidasganadas + 1;
-
-      console.log(`✅ Ganador ${idGanadorReal}: +1 ganada, +${puntosGanador} puntos`);
-
-      await realizarQuery(
-        `UPDATE Jugadores 
-         SET partidasjugadas = ?, puntos = ?, partidasganadas = ? 
-         WHERE idusuario = ?`,
-        [nuevasPartidas, nuevosPuntos, nuevasGanadas, idGanadorReal]
-      );
-    }
-
-    // ========== PERDEDOR (posición 1) ==========
-    const idPerdedor = idGanador[1];
-    const datosPerdedor = await realizarQuery(
-      `SELECT partidasjugadas, puntos, partidasperdidas 
-       FROM Jugadores WHERE idusuario = ?`,
-      [idPerdedor]
-    );
-
-    if (datosPerdedor && datosPerdedor.length > 0) {
-      const { partidasjugadas, puntos, partidasperdidas } = datosPerdedor[0];
-      
-      const nuevasPartidas = partidasjugadas + 1;
-      const nuevosPuntos = puntos + puntosOponente; // El perdedor suma sus puntos también
-      const nuevasPerdidas = partidasperdidas + 1;
-
-      console.log(`Perdedor ${idPerdedor}: +1 perdida, +${puntosOponente} puntos`);
-
-      await realizarQuery(
-        `UPDATE Jugadores 
-         SET partidasjugadas = ?, puntos = ?, partidasperdidas = ? 
-         WHERE idusuario = ?`,
-        [nuevasPartidas, nuevosPuntos, nuevasPerdidas, idPerdedor]
-      );
-    }
-
-    return res.json({ 
-      res: "Estadísticas actualizadas correctamente", 
-      ok: true 
-    });
-
-  } catch (e) {
-    console.error("❌ Error al actualizar estadísticas:", e);
-    res.status(500).json({ 
-      res: "Error interno: " + e.message, 
-      ok: false 
-    });
-  }
-});
 
 //para administradores, borrar jugador
 app.delete('/BorrarJugador', async function (req, res) {
@@ -1090,6 +977,10 @@ app.get('/Categorias', async function (req, res) {
         res.json("Hubo un error, " + e)
     }
 });
+
+
+// REEMPLAZAR el endpoint /HistorialPartidas completo en index.js:
+
 app.get('/HistorialPartidas', async function (req, res) {
     const { idjugador } = req.query;
 
@@ -1098,20 +989,19 @@ app.get('/HistorialPartidas', async function (req, res) {
     }
 
     try {
-        // Obtener todas las partidas del jugador
+        console.log(`📊 Buscando historial para jugador: ${idjugador}`);
+
+        // Primero verificar qué columnas existen en tu tabla Partidas
         const partidas = await realizarQuery(`
-            SELECT 
-                p.idpartida,
-                p.idusuario,
-                p.fecha,
-                p.puntosobtenidos,
-                p.empate,
-                j.nombre as nombre_jugador
-            FROM Partidas p
-            INNER JOIN Jugadores j ON p.idusuario = j.idusuario
-            WHERE p.idusuario = ${idjugador}
-            ORDER BY p.fecha DESC
+            SELECT * FROM Partidas 
+            WHERE idusuario = ${idjugador}
+            ORDER BY fecha DESC
         `);
+
+        console.log(`✅ Partidas encontradas: ${partidas.length}`);
+        if (partidas.length > 0) {
+            console.log(`📝 Columnas disponibles:`, Object.keys(partidas[0]));
+        }
 
         if (partidas.length === 0) {
             return res.status(200).json({
@@ -1119,41 +1009,88 @@ app.get('/HistorialPartidas', async function (req, res) {
                 historial: []
             });
         }
+
+        // Obtener nombre del jugador
+        const jugador = await realizarQuery(`
+            SELECT nombre FROM Jugadores WHERE idusuario = ${idjugador}
+        `);
+        const nombreJugador = jugador[0]?.nombre || 'Jugador';
+
+        // Obtener lista de amigos
         const amigos = await realizarQuery(`
-            SELECT 
-                j.idamigo,
-                j.idjugador,
-                j.nombre
+            SELECT a.idamigo, j.nombre
             FROM Amigos a
             INNER JOIN Jugadores j ON a.idamigo = j.idusuario
             WHERE a.idjugador = ${idjugador}
         `);
+
+        // Si no tiene amigos, usar otros jugadores
         let posiblesOponentes = amigos;
         if (amigos.length === 0) {
             posiblesOponentes = await realizarQuery(`
-                SELECT idusuario, nombre
+                SELECT idusuario as idamigo, nombre
                 FROM Jugadores
                 WHERE idusuario != ${idjugador}
                 ORDER BY RAND()
                 LIMIT 10
             `);
         }
+
+        // Procesar historial
         const historialProcesado = partidas.map((partida, index) => {
             const oponente = posiblesOponentes.length > 0
                 ? posiblesOponentes[index % posiblesOponentes.length]
-                : { idusuario: -1, nombre: 'Oponente' };
+                : { idamigo: -1, nombre: 'Oponente' };
 
-            const empate = partida.empate === 'true' 
+            // Log para debug
+            console.log(`🔍 Procesando partida ${partida.idpartida}:`, {
+                empate: partida.empate,
+                resultado: partida.resultado,
+                puntos: partida.puntosobtenidos
+            });
+
+            // Detectar si es empate - normalizar todos los posibles valores
+            const esEmpate = partida.empate == 1 || 
+                           partida.empate === '1' || 
+                           partida.empate === true || 
+                           partida.empate === 'true' ||
+                           partida.empate === 'empate';
+            
+            // Detectar si ganó - normalizar el campo resultado
+            let gano = false;
+            if (partida.resultado) {
+                const resultadoNormalizado = String(partida.resultado).toLowerCase().trim();
+                gano = resultadoNormalizado === 'ganada' || 
+                       resultadoNormalizado === 'ganado' || 
+                       resultadoNormalizado === 'victoria';
+                
+                console.log(`  resultado='${partida.resultado}' → normalizado='${resultadoNormalizado}' → ganó=${gano}`);
+            }
+            
+            let nombreGanador;
+            if (esEmpate) {
+                nombreGanador = 'Empate';
+            } else if (gano) {
+                nombreGanador = nombreJugador;
+            } else {
+                nombreGanador = oponente.nombre;
+            }
+
+            console.log(`  ✅ Procesado: empate=${esEmpate}, ganó=${gano}, ganador=${nombreGanador}`);
+
             return {
                 idhistorial: partida.idpartida,
                 fecha: partida.fecha,
                 oponente: oponente.nombre,
-                idOponente: oponente.idusuario,
-                resultado: gano ? 'ganada' : 'perdida',
-                puntos: partida.puntosobtenidos || 0,
-
+                idOponente: oponente.idamigo,
+                empate: esEmpate,
+                gano: gano,
+                ganador: nombreGanador,
+                puntos: partida.puntosobtenidos || 0
             };
         });
+
+        console.log(`📤 Enviando ${historialProcesado.length} partidas procesadas`);
 
         res.status(200).json({
             message: 'Historial de partidas',
@@ -1161,8 +1098,260 @@ app.get('/HistorialPartidas', async function (req, res) {
         });
 
     } catch (error) {
-        console.error("Error al obtener historial:", error);
-        res.status(500).json({ error: "Error interno" });
+        console.error("❌ Error al obtener historial:", error);
+        res.status(500).json({ error: "Error interno: " + error.message });
+    }
+});
+
+// TAMBIÉN actualizar /ActualizarEstadisticas para recibir puntosOponente:
+
+app.put('/ActualizarEstadisticas', async function (req, res) {
+  const { idGanador, puntosGanador, puntosOponente, empate } = req.body;
+
+  try {
+    if (!idGanador || idGanador.length !== 2) {
+      return res.json({ 
+        res: "Datos incompletos (se requieren 2 jugadores)", 
+        ok: false 
+      });
+    }
+
+    console.log(`📊 Actualizando stats: Ganador=${idGanador[0]}, Oponente=${idGanador[1]}, Empate=${empate}`);
+
+    // Si es EMPATE
+    if (empate === true) {
+      console.log("⚖️ Registrando EMPATE");
+      
+      for (let i = 0; i < 2; i++) {
+        const id = idGanador[i];
+        
+        const datos = await realizarQuery(
+          `SELECT partidasjugadas, puntos FROM Jugadores WHERE idusuario = ?`,
+          [id]
+        );
+
+        if (!datos || datos.length === 0) continue;
+
+        const { partidasjugadas, puntos } = datos[0];
+        
+        const nuevasPartidas = partidasjugadas + 1;
+        const nuevosPuntos = puntos + puntosGanador;
+        
+        console.log(`  Jugador ${id}: +1 partida, +${puntosGanador} puntos (EMPATE)`);
+
+        await realizarQuery(
+          `UPDATE Jugadores 
+           SET partidasjugadas = ?, puntos = ? 
+           WHERE idusuario = ?`,
+          [nuevasPartidas, nuevosPuntos, id]
+        );
+      }
+
+      return res.json({ 
+        res: "Empate registrado correctamente", 
+        ok: true 
+      });
+    }
+
+    console.log("🏆 Registrando GANADOR y PERDEDOR");
+
+    // GANADOR (posición 0)
+    const idGanadorReal = idGanador[0];
+    const datosGanador = await realizarQuery(
+      `SELECT partidasjugadas, puntos, partidasganadas 
+       FROM Jugadores WHERE idusuario = ?`,
+      [idGanadorReal]
+    );
+
+    if (datosGanador && datosGanador.length > 0) {
+      const { partidasjugadas, puntos, partidasganadas } = datosGanador[0];
+      
+      const nuevasPartidas = partidasjugadas + 1;
+      const nuevosPuntos = puntos + puntosGanador;
+      const nuevasGanadas = partidasganadas + 1;
+
+      console.log(`✅ Ganador ${idGanadorReal}: +1 ganada, +${puntosGanador} puntos`);
+
+      await realizarQuery(
+        `UPDATE Jugadores 
+         SET partidasjugadas = ?, puntos = ?, partidasganadas = ? 
+         WHERE idusuario = ?`,
+        [nuevasPartidas, nuevosPuntos, nuevasGanadas, idGanadorReal]
+      );
+    }
+
+    // PERDEDOR (posición 1)
+    const idPerdedor = idGanador[1];
+    const datosPerdedor = await realizarQuery(
+      `SELECT partidasjugadas, puntos, partidasperdidas 
+       FROM Jugadores WHERE idusuario = ?`,
+      [idPerdedor]
+    );
+
+    if (datosPerdedor && datosPerdedor.length > 0) {
+      const { partidasjugadas, puntos, partidasperdidas } = datosPerdedor[0];
+      
+      const nuevasPartidas = partidasjugadas + 1;
+      const nuevosPuntos = puntos + (puntosOponente || 0);
+      const nuevasPerdidas = partidasperdidas + 1;
+
+      console.log(`❌ Perdedor ${idPerdedor}: +1 perdida, +${puntosOponente || 0} puntos`);
+
+      await realizarQuery(
+        `UPDATE Jugadores 
+         SET partidasjugadas = ?, puntos = ?, partidasperdidas = ? 
+         WHERE idusuario = ?`,
+        [nuevasPartidas, nuevosPuntos, nuevasPerdidas, idPerdedor]
+      );
+    }
+
+    return res.json({ 
+      res: "Estadísticas actualizadas correctamente", 
+      ok: true 
+    });
+
+  } catch (e) {
+    console.error("❌ Error al actualizar estadísticas:", e);
+    res.status(500).json({ 
+      res: "Error interno: " + e.message, 
+      ok: false 
+    });
+  }
+});
+
+app.put('/ActualizarEstadisticas', async function (req, res) {
+  const { idGanador, puntosGanador, puntosOponente, empate } = req.body;
+
+  try {
+    if (!idGanador || idGanador.length !== 2) {
+      return res.json({ 
+        res: "Datos incompletos (se requieren 2 jugadores)", 
+        ok: false 
+      });
+    }
+
+    console.log(`📊 Actualizando stats: Ganador=${idGanador[0]}, Oponente=${idGanador[1]}, Empate=${empate}`);
+
+    // Si es EMPATE
+    if (empate === true) {
+      console.log("⚖️ Registrando EMPATE");
+      
+      for (let i = 0; i < 2; i++) {
+        const id = idGanador[i];
+        
+        const datos = await realizarQuery(
+          `SELECT partidasjugadas, puntos FROM Jugadores WHERE idusuario = ?`,
+          [id]
+        );
+
+        if (!datos || datos.length === 0) continue;
+
+        const { partidasjugadas, puntos } = datos[0];
+        
+        const nuevasPartidas = partidasjugadas + 1;
+        const nuevosPuntos = puntos + puntosGanador;
+        
+        console.log(`  Jugador ${id}: +1 partida, +${puntosGanador} puntos (EMPATE)`);
+
+        await realizarQuery(
+          `UPDATE Jugadores 
+           SET partidasjugadas = ?, puntos = ? 
+           WHERE idusuario = ?`,
+          [nuevasPartidas, nuevosPuntos, id]
+        );
+      }
+
+      return res.json({ 
+        res: "Empate registrado correctamente", 
+        ok: true 
+      });
+    }
+
+    console.log("🏆 Registrando GANADOR y PERDEDOR");
+
+    // GANADOR (posición 0)
+    const idGanadorReal = idGanador[0];
+    const datosGanador = await realizarQuery(
+      `SELECT partidasjugadas, puntos, partidasganadas 
+       FROM Jugadores WHERE idusuario = ?`,
+      [idGanadorReal]
+    );
+
+    if (datosGanador && datosGanador.length > 0) {
+      const { partidasjugadas, puntos, partidasganadas } = datosGanador[0];
+      
+      const nuevasPartidas = partidasjugadas + 1;
+      const nuevosPuntos = puntos + puntosGanador;
+      const nuevasGanadas = partidasganadas + 1;
+
+      console.log(`✅ Ganador ${idGanadorReal}: +1 ganada, +${puntosGanador} puntos`);
+
+      await realizarQuery(
+        `UPDATE Jugadores 
+         SET partidasjugadas = ?, puntos = ?, partidasganadas = ? 
+         WHERE idusuario = ?`,
+        [nuevasPartidas, nuevosPuntos, nuevasGanadas, idGanadorReal]
+      );
+    }
+
+    // PERDEDOR (posición 1)
+    const idPerdedor = idGanador[1];
+    const datosPerdedor = await realizarQuery(
+      `SELECT partidasjugadas, puntos, partidasperdidas 
+       FROM Jugadores WHERE idusuario = ?`,
+      [idPerdedor]
+    );
+
+    if (datosPerdedor && datosPerdedor.length > 0) {
+      const { partidasjugadas, puntos, partidasperdidas } = datosPerdedor[0];
+      
+      const nuevasPartidas = partidasjugadas + 1;
+      const nuevosPuntos = puntos + (puntosOponente || 0);
+      const nuevasPerdidas = partidasperdidas + 1;
+
+      console.log(` Perdedor ${idPerdedor}: +1 perdida, +${puntosOponente || 0} puntos`);
+
+      await realizarQuery(
+        `UPDATE Jugadores 
+         SET partidasjugadas = ?, puntos = ?, partidasperdidas = ? 
+         WHERE idusuario = ?`,
+        [nuevasPartidas, nuevosPuntos, nuevasPerdidas, idPerdedor]
+      );
+    }
+
+    return res.json({ 
+      res: "Estadísticas actualizadas correctamente", 
+      ok: true 
+    });
+
+  } catch (e) {
+    console.error(" Error al actualizar estadísticas:", e);
+    res.status(500).json({ 
+      res: "Error interno: " + e.message, 
+      ok: false 
+    });
+  }
+});
+// También asegúrate de que el endpoint /Jugadores soporte búsqueda por idusuario:
+
+app.get('/Jugadores', async function (req, res) {
+    try {
+        let respuesta;
+        if (req.query.mail != undefined) {
+            respuesta = await realizarQuery(`SELECT * FROM Jugadores WHERE mail="${req.query.mail}"`);
+        } else if (req.query.idusuario != undefined) {
+            respuesta = await realizarQuery(`SELECT * FROM Jugadores WHERE idusuario=${req.query.idusuario}`);
+        } else {
+            respuesta = await realizarQuery("SELECT * FROM Jugadores");
+        }
+        
+        res.status(200).json({
+            message: 'Aquí están los jugadores',
+            jugadores: respuesta
+        });
+    } catch (e) {
+        console.log(e);
+        res.status(500).json({ error: "Hubo un error: " + e });
     }
 });
 
@@ -1171,7 +1360,7 @@ app.post('/GuardarPartida', async function (req, res) {
 
     if (!idGanador || !Array.isArray(idGanador) || idGanador.length !== 2 || empate === undefined) {
         return res.status(400).json({
-            res: "Faltan parámetros o formato incorrecto",
+            res: "Faltan parametros o formato incorrecto",
             guardado: false
         });
     }
@@ -1179,36 +1368,26 @@ app.post('/GuardarPartida', async function (req, res) {
     try {
         const fechaActual = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-        // Guardar partida para AMBOS jugadores
         for (let i = 0; i < idGanador.length; i++) {
             const jugadorId = idGanador[i];
             
-            // Determinar resultado para este jugador
-            let resultado;
             let puntos;
             
             if (empate === true) {
-                resultado = 'empate';
-                puntos = puntosGanador; // En empate ambos tienen los mismos puntos
+                puntos = puntosGanador;
             } else {
-                // idGanador[0] es el ganador, idGanador[1] es el perdedor
                 if (i === 0) {
-                    resultado = 'ganada';
                     puntos = puntosGanador;
                 } else {
-                    resultado = 'perdida';
-                    puntos = 0; // El perdedor no suma puntos
+                    puntos = 0;
                 }
             }
 
-            // Insertar registro en Partidas
             await realizarQuery(
-                `INSERT INTO Partidas (idusuario, fecha, puntosobtenidos, resultado, empate) 
-                 VALUES (?, ?, ?, ?, ?)`,
-                [jugadorId, fechaActual, puntos, resultado, empate ? 1 : 0]
+                `INSERT INTO Partidas (idusuario, fecha, puntosobtenidos, empate) 
+                 VALUES (?, ?, ?, ?)`,
+                [jugadorId, fechaActual, puntos, empate ? 1 : 0]
             );
-
-            console.log(`✅ Partida guardada para jugador ${jugadorId}: ${resultado}, ${puntos} puntos`);
         }
 
         res.json({
@@ -1223,7 +1402,8 @@ app.post('/GuardarPartida', async function (req, res) {
             guardado: false
         });
     }
-}); 
+});
+
 app.get('/LlevoPalabras', async function (req, res) {
     try {
         let respuesta;
@@ -1371,7 +1551,7 @@ async function verificarEnRAE(palabra) {
             }
         }
 
-        console.log(`❌ "${palabraLimpia}" NO encontrada`);
+        console.log(` "${palabraLimpia}" NO encontrada`);
         return {
             existe: false,
             fuente: "rae",
