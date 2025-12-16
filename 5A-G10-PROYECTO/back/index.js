@@ -1356,9 +1356,9 @@ app.get('/Jugadores', async function (req, res) {
 });
 
 app.post('/GuardarPartida', async function (req, res) {
-    const { idGanador, puntosGanador, empate } = req.body;
+    const { idGanador, puntosJugadores, empate } = req.body;
 
-    if (!idGanador || !Array.isArray(idGanador) || idGanador.length !== 2 || empate === undefined) {
+    if (!idGanador || !Array.isArray(idGanador) || idGanador.length !== 2 || !Array.isArray(puntosJugadores) || puntosJugadores.length !== 2 || empate === undefined) {
         return res.status(400).json({
             res: "Faltan parametros o formato incorrecto",
             guardado: false
@@ -1368,26 +1368,29 @@ app.post('/GuardarPartida', async function (req, res) {
     try {
         const fechaActual = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
+        const guardarPartida = await realizarQuery(
+                `INSERT INTO Partidas (fecha) 
+                 VALUES (?)`,
+                [fechaActual]
+            );
+
+        
+        const id_partida = guardarPartida.insertId 
+
         for (let i = 0; i < idGanador.length; i++) {
             const jugadorId = idGanador[i];
-            
-            let puntos;
-            
-            if (empate === true) {
-                puntos = puntosGanador;
-            } else {
-                if (i === 0) {
-                    puntos = puntosGanador;
-                } else {
-                    puntos = 0;
-                }
-            }
+            const puntosJugador = puntosJugadores[i];
 
+            
             await realizarQuery(
-                `INSERT INTO Partidas (idusuario, fecha, puntosobtenidos, empate) 
-                 VALUES (?, ?, ?, ?)`,
-                [jugadorId, fechaActual, puntos, empate ? 1 : 0]
+                `INSERT INTO PartidaJugador (idusuario, idpartida, puntos) 
+                 VALUES (?, ?, ?)`,
+                [jugadorId, id_partida, puntosJugador]
             );
+
+            
+
+
         }
 
         res.json({

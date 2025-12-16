@@ -719,7 +719,7 @@ export default function TuttiFrutti() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           idGanador,
-          puntosGanador,
+          puntosJugadores: [puntosGanador, puntosOponenteReal],
           empate
         }),
       });
